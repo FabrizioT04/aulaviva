@@ -1,12 +1,21 @@
-import type { AulaConEstado, EventoEnVivo, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
+import { accessConfigurado, obtenerSesion } from "./sesion";
 
 export { SedeEnVivo };
 
 export interface Env {
   DB: D1Database;
+  ASSETS: Fetcher;
   SEDE_EN_VIVO: DurableObjectNamespace<SedeEnVivo>;
-  TOKEN_TI?: string; // clave de acceso para el área de TI (Sprint 1)
+  // Cloudflare Access (producción)
+  ACCESS_TEAM_DOMAIN?: string; // ej. https://innova-ti.cloudflareaccess.com
+  ACCESS_AUD?: string; // "Application Audience (AUD) Tag" de la aplicación de Access
+  TI_EMAILS?: string; // correos de TI separados por coma
+  DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
+  // Desarrollo local sin Access
+  TOKEN_TI?: string;
+  DEV_EMAIL_DOCENTE?: string;
 }
 
 const TIPOS_FALLA: TipoFalla[] = ["internet", "proyector", "pc", "otro"];
@@ -38,14 +47,26 @@ const SQL_REPORTES = `
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Página del QR: un HTML aparte y muy liviano (sin React) para el celular del docente
+    if (/^\/r\/[\w-]+\/?$/.test(url.pathname)) {
+      return env.ASSETS.fetch(new Request(new URL("/qr", url), request));
+    }
     if (!url.pathname.startsWith("/api/")) {
       return new Response("No encontrado", { status: 404 });
     }
-    if (!(await autorizado(request, url, env))) {
-      return json({ error: "No autorizado" }, 401);
-    }
 
     try {
+      const sesion = await obtenerSesion(request, url, env);
+      if (url.pathname === "/api/sesion") {
+        return sesion ? json(sesion) : json({ error: "No autorizado", access: accessConfigurado(env) }, 401);
+      }
+      if (!sesion) return json({ error: "No autorizado" }, 401);
+
+      if (url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion);
+
+      // El resto de la API es solo para el área de TI
+      if (sesion.rol !== "ti") return json({ error: "Solo el área de TI puede usar esta sección" }, 403);
       return await enrutar(request, url, env);
     } catch (err) {
       console.error(err);
@@ -176,6 +197,75 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
   return json({ error: "Ruta no encontrada" }, 404);
 }
 
+// Rutas del QR: las usa el docente desde su celular (y TI para probar)
+async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
+  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes)?$/);
+  if (!coincide) return json({ error: "Ruta no encontrada" }, 404);
+  const codigo = coincide[1];
+
+  const aula = await env.DB.prepare(`${SQL_AULAS} AND a.codigo = ? GROUP BY a.id`)
+    .bind(codigo)
+    .first<AulaConEstado>();
+  if (!aula) return json({ error: "Este QR no corresponde a ninguna aula activa" }, 404);
+
+  if (!coincide[2] && request.method === "GET") {
+    const [abiertos, promedio] = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT id, tipo_falla, bloquea_clase, estado, reportado_en FROM reporte
+         WHERE aula_id = ? AND estado <> 'resuelto' ORDER BY reportado_en`,
+      ).bind(aula.id),
+      env.DB.prepare(
+        `SELECT ROUND(AVG((julianday(atendido_en) - julianday(reportado_en)) * 1440), 1) AS min
+         FROM reporte
+         WHERE bloquea_clase = 1 AND atendido_en IS NOT NULL
+           AND reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-90 days')`,
+      ),
+    ]);
+    const estado: EstadoAulaQr = {
+      aula,
+      abiertos: abiertos.results as EstadoAulaQr["abiertos"],
+      prom_atencion_urgente_min: (promedio.results[0] as { min: number | null }).min,
+      email: sesion.email,
+    };
+    return json(estado);
+  }
+
+  if (coincide[2] && request.method === "POST") {
+    const datos = await request.json<Record<string, unknown>>().catch(() => null);
+    const tipo = datos?.tipo_falla as TipoFalla;
+    if (!TIPOS_FALLA.includes(tipo)) return json({ error: "Elige el tipo de falla" }, 400);
+
+    // Evita reportes duplicados de la misma falla mientras siga abierta
+    const repetido = await env.DB.prepare(
+      `SELECT id FROM reporte WHERE aula_id = ? AND tipo_falla = ? AND estado <> 'resuelto' LIMIT 1`,
+    )
+      .bind(aula.id, tipo)
+      .first();
+    if (repetido) return json({ error: "Esta falla ya está reportada y TI ya fue avisado" }, 409);
+
+    // El docente queda registrado en la tabla profesor la primera vez que reporta
+    const profesor = await env.DB.prepare(
+      `INSERT INTO profesor (nombre, email) VALUES (?, ?)
+       ON CONFLICT(email) DO UPDATE SET email = excluded.email
+       RETURNING id, activo`,
+    )
+      .bind(sesion.email.split("@")[0], sesion.email)
+      .first<{ id: number; activo: number }>();
+    if (!profesor?.activo) return json({ error: "Tu cuenta está desactivada para reportar" }, 403);
+
+    const creado = await env.DB.prepare(
+      `INSERT INTO reporte (aula_id, profesor_id, reportado_por_nombre, tipo_falla, bloquea_clase, descripcion, origen)
+       VALUES (?, ?, ?, ?, ?, ?, 'qr') RETURNING id`,
+    )
+      .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion))
+      .first<{ id: number }>();
+    await avisarCambio(env, aula.id);
+    return json(creado, 201);
+  }
+
+  return json({ error: "Ruta no encontrada" }, 404);
+}
+
 // Recalcula el semáforo del aula y lo envía a todos los dashboards abiertos
 async function avisarCambio(env: Env, aulaId: number) {
   const aula = await env.DB.prepare(`${SQL_AULAS} AND a.id = ? GROUP BY a.id`)
@@ -188,19 +278,6 @@ async function avisarCambio(env: Env, aulaId: number) {
 
 function sede(env: Env) {
   return env.SEDE_EN_VIVO.get(env.SEDE_EN_VIVO.idFromName(SEDE));
-}
-
-// Sprint 1: solo TI usa el sistema, con una clave compartida.
-// En el Sprint 2 se suma el login con Google para los docentes.
-async function autorizado(request: Request, url: URL, env: Env): Promise<boolean> {
-  if (!env.TOKEN_TI) return false;
-  const enviado =
-    request.headers.get("Authorization")?.replace(/^Bearer /, "") ??
-    url.searchParams.get("token") ?? // los WebSockets del navegador no envían cabeceras
-    "";
-  const a = new TextEncoder().encode(enviado);
-  const b = new TextEncoder().encode(env.TOKEN_TI);
-  return a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
 }
 
 function texto(valor: unknown): string | null {

@@ -73,9 +73,14 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
 
   return (
     <div className="dashboard">
-      <p className={conectado ? "en-vivo" : "en-vivo desconectado"}>
-        {conectado ? "● En vivo" : "○ Reconectando…"}
-      </p>
+      <div className="cabecera-dashboard">
+        <p className={conectado ? "en-vivo" : "en-vivo desconectado"}>
+          {conectado ? "● En vivo" : "○ Reconectando…"}
+        </p>
+        <button className="enlace" onClick={() => ir({ pantalla: "qr" })}>
+          QR de aulas
+        </button>
+      </div>
 
       <div className="leyenda">
         <span><i className="punto verde" /> Operativa</span>

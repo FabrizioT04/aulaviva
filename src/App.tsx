@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { guardarToken, leerToken } from "./api";
+import { useCallback, useEffect, useState } from "react";
+import { consultarSesion, guardarToken, type EstadoSesion } from "./api";
 import Acceso from "./pages/Acceso";
 import DetalleAula from "./pages/DetalleAula";
 import Dashboard from "./pages/Dashboard";
+import ImprimirQr from "./pages/ImprimirQr";
 import Observatorio from "./pages/Observatorio";
 import Registro from "./pages/Registro";
 
@@ -10,6 +11,7 @@ export type Ruta =
   | { pantalla: "registro" }
   | { pantalla: "dashboard" }
   | { pantalla: "observatorio" }
+  | { pantalla: "qr" }
   | { pantalla: "aula"; id: number };
 
 function rutaActual(): Ruta {
@@ -18,17 +20,27 @@ function rutaActual(): Ruta {
   if (aula) return { pantalla: "aula", id: Number(aula[1]) };
   if (p.startsWith("/dashboard")) return { pantalla: "dashboard" };
   if (p.startsWith("/observatorio")) return { pantalla: "observatorio" };
+  if (p.startsWith("/qr-aulas")) return { pantalla: "qr" };
   return { pantalla: "registro" };
 }
 
 function rutaAUrl(r: Ruta): string {
   if (r.pantalla === "aula") return `/aula/${r.id}`;
+  if (r.pantalla === "qr") return "/qr-aulas";
   return r.pantalla === "registro" ? "/" : `/${r.pantalla}`;
 }
 
 export default function App() {
-  const [token, setToken] = useState(leerToken());
+  const [estado, setEstado] = useState<EstadoSesion>({ tipo: "cargando" });
   const [ruta, setRuta] = useState<Ruta>(rutaActual());
+
+  const verificar = useCallback(() => {
+    consultarSesion()
+      .then(setEstado)
+      .catch(() => setEstado({ tipo: "sin-acceso", detalle: "No se pudo conectar. Revisa tu internet." }));
+  }, []);
+
+  useEffect(verificar, [verificar]);
 
   useEffect(() => {
     const alVolver = () => setRuta(rutaActual());
@@ -42,23 +54,32 @@ export default function App() {
     scrollTo(0, 0);
   }
 
-  function salir() {
+  const salir = useCallback(() => {
     guardarToken("");
-    setToken("");
-  }
+    verificar();
+  }, [verificar]);
 
-  if (!token) {
+  if (estado.tipo === "cargando") return <main className="acceso"><p>Cargando…</p></main>;
+  if (estado.tipo === "sin-acceso") {
+    return (
+      <main className="acceso">
+        <h1>AulaViva</h1>
+        <p>{estado.detalle}</p>
+      </main>
+    );
+  }
+  if (estado.tipo === "pedir-clave") {
     return (
       <Acceso
         onIngresar={(t) => {
           guardarToken(t);
-          setToken(t);
+          verificar();
         }}
       />
     );
   }
 
-  const pestana = ruta.pantalla === "aula" ? "dashboard" : ruta.pantalla;
+  const pestana = ruta.pantalla === "aula" || ruta.pantalla === "qr" ? "dashboard" : ruta.pantalla;
 
   return (
     <>
@@ -80,6 +101,7 @@ export default function App() {
         {ruta.pantalla === "registro" && <Registro onNoAutorizado={salir} />}
         {ruta.pantalla === "dashboard" && <Dashboard onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "observatorio" && <Observatorio onNoAutorizado={salir} ir={ir} />}
+        {ruta.pantalla === "qr" && <ImprimirQr onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "aula" && <DetalleAula id={ruta.id} onNoAutorizado={salir} ir={ir} />}
       </main>
     </>

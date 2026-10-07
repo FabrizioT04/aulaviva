@@ -1,3 +1,5 @@
+import type { Sesion } from "../shared/tipos";
+
 const CLAVE = "token_ti";
 
 export function leerToken(): string {
@@ -24,7 +26,8 @@ export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<
     ...opciones,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${leerToken()}`,
+      // Con Cloudflare Access la sesión viaja en una cookie; la clave solo se usa en local
+      ...(leerToken() ? { Authorization: `Bearer ${leerToken()}` } : {}),
       ...opciones.headers,
     },
   });
@@ -36,5 +39,26 @@ export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<
 
 export function urlEnVivo(): string {
   const protocolo = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocolo}//${location.host}/api/en-vivo?token=${encodeURIComponent(leerToken())}`;
+  const token = leerToken();
+  return `${protocolo}//${location.host}/api/en-vivo${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+}
+
+export type EstadoSesion =
+  | { tipo: "cargando" }
+  | { tipo: "ok"; sesion: Sesion }
+  | { tipo: "pedir-clave" } // desarrollo local sin Access
+  | { tipo: "sin-acceso"; detalle: string };
+
+export async function consultarSesion(): Promise<EstadoSesion> {
+  const res = await fetch("/api/sesion", {
+    headers: leerToken() ? { Authorization: `Bearer ${leerToken()}` } : {},
+  });
+  if (res.ok) {
+    const sesion = (await res.json()) as Sesion;
+    if (sesion.rol === "ti") return { tipo: "ok", sesion };
+    return { tipo: "sin-acceso", detalle: `${sesion.email} no está en la lista de TI. Para reportar, escanea el QR del aula.` };
+  }
+  const { access } = (await res.json().catch(() => ({}))) as { access?: boolean };
+  if (access) return { tipo: "sin-acceso", detalle: "Tu cuenta no tiene permiso para entrar al panel de TI." };
+  return { tipo: "pedir-clave" };
 }
