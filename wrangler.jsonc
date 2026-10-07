@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aulaviva",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "incidencias",
+      // Reemplaza con el id que te da `npx wrangler d1 create incidencias`
+      "database_id": "REEMPLAZAR_CON_TU_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "SEDE_EN_VIVO", "class_name": "SedeEnVivo" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SedeEnVivo"] }],
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,3 @@
+# Copia este archivo como .dev.vars para desarrollo local.
+# En producción se configura con: npx wrangler secret put TOKEN_TI
+TOKEN_TI=cambia-esta-clave
