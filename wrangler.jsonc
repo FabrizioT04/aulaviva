@@ -25,6 +25,10 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [
+    // Fotos de evidencia. Crea el bucket con: npx wrangler r2 bucket create aulaviva-fotos
+    { "binding": "FOTOS", "bucket_name": "aulaviva-fotos" }
+  ],
   "durable_objects": {
     "bindings": [{ "name": "SEDE_EN_VIVO", "class_name": "SedeEnVivo" }]
   },

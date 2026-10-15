@@ -30,6 +30,30 @@ function minutos(m: number | null): string | null {
   return r < 60 ? `${r} min` : `${Math.floor(r / 60)} h ${r % 60} min`;
 }
 
+// Reduce la foto en el celular antes de subirla: de ~4 MB a ~200 KB
+async function comprimir(archivo: File): Promise<Blob> {
+  const LADO_MAX = 1280;
+  let imagen: CanvasImageSource & { width: number; height: number };
+  try {
+    imagen = await createImageBitmap(archivo, { imageOrientation: "from-image" });
+  } catch {
+    imagen = await new Promise<HTMLImageElement>((ok, falla) => {
+      const img = new Image();
+      img.onload = () => ok(img);
+      img.onerror = falla;
+      img.src = URL.createObjectURL(archivo);
+    });
+  }
+  const escala = Math.min(1, LADO_MAX / Math.max(imagen.width, imagen.height));
+  const lienzo = document.createElement("canvas");
+  lienzo.width = Math.round(imagen.width * escala);
+  lienzo.height = Math.round(imagen.height * escala);
+  lienzo.getContext("2d")!.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+  return new Promise((ok, falla) =>
+    lienzo.toBlob((b) => (b ? ok(b) : falla(new Error("sin imagen"))), "image/jpeg", 0.72),
+  );
+}
+
 function mensaje(titulo: string, detalle = "") {
   app.innerHTML = `<section class="tarjeta"><h1>${esc(titulo)}</h1>${detalle ? `<p>${esc(detalle)}</p>` : ""}</section>`;
 }
@@ -50,6 +74,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
   const { aula, abiertos, email } = estado;
   let tipo: TipoFalla | null = null;
   let bloquea = false;
+  let foto: Blob | null = null;
 
   const reportados = abiertos.length
     ? `<section class="tarjeta">
@@ -80,6 +105,14 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
         <button type="button" data-valor="0" class="activo">No</button>
       </div>
       <label>Detalle (opcional)<textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. el proyector no detecta la laptop"></textarea></label>
+      <div class="foto">
+        <span class="etiqueta-foto">Foto (opcional)</span>
+        <label class="boton-foto" id="elegir-foto">Tomar o elegir foto<input type="file" id="archivo" accept="image/*" hidden /></label>
+        <div class="vista-foto" id="vista" hidden>
+          <img id="miniatura" alt="Foto adjunta" />
+          <button type="button" id="quitar-foto">Quitar</button>
+        </div>
+      </div>
       <button type="submit" class="enviar" id="enviar" disabled>Reportar a TI</button>
       <p class="error" id="error" role="alert"></p>
     </form>
@@ -87,6 +120,31 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
 
   const enviar = document.getElementById("enviar") as HTMLButtonElement;
   const error = document.getElementById("error")!;
+  const archivo = document.getElementById("archivo") as HTMLInputElement;
+  const vista = document.getElementById("vista")!;
+  const miniatura = document.getElementById("miniatura") as HTMLImageElement;
+  const elegir = document.getElementById("elegir-foto")!;
+
+  archivo.addEventListener("change", async () => {
+    const elegido = archivo.files?.[0];
+    if (!elegido) return;
+    error.textContent = "";
+    try {
+      foto = await comprimir(elegido);
+      miniatura.src = URL.createObjectURL(foto);
+      vista.hidden = false;
+      elegir.hidden = true;
+    } catch {
+      error.textContent = "No se pudo leer la foto. Prueba con otra.";
+    }
+    archivo.value = "";
+  });
+
+  document.getElementById("quitar-foto")!.addEventListener("click", () => {
+    foto = null;
+    vista.hidden = true;
+    elegir.hidden = false;
+  });
 
   document.getElementById("tipos")!.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest("button");
@@ -127,6 +185,18 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
       return;
     }
 
+    let fotoFallida = false;
+    if (foto) {
+      enviar.textContent = "Subiendo foto…";
+      const { id } = (await res.json()) as { id: number };
+      const subida = await fetch(`/api/qr/${encodeURIComponent(codigo)}/reportes/${id}/foto`, {
+        method: "PUT",
+        headers: { "Content-Type": "image/jpeg" },
+        body: foto,
+      }).catch(() => null);
+      fotoFallida = !subida?.ok;
+    }
+
     const espera = bloquea ? minutos(estado.prom_atencion_urgente_min) : null;
     const confirmacion = `<section class="tarjeta exito">
         <h2>Listo, TI fue avisado</h2>
@@ -134,7 +204,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
           espera
             ? `En casos urgentes, TI suele llegar en unos <strong>${espera}</strong>.`
             : "Te atenderán lo antes posible."
-        }</p>
+        }</p>${fotoFallida ? `<p class="suave">El reporte llegó, pero la foto no se pudo subir.</p>` : ""}
       </section>`;
     const nuevo = await fetch(`/api/qr/${encodeURIComponent(codigo)}`).then((r) => (r.ok ? r.json() : null));
     pintar((nuevo as EstadoAulaQr) ?? estado, confirmacion);

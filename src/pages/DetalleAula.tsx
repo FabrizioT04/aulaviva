@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Ruta } from "../App";
 import type { DetalleAula as Detalle } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
+import FotoReporte from "../FotoReporte";
 import { duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, fechaCorta, minutosEntre } from "../formato";
 
 const SEMAFORO: Record<string, string> = {
@@ -77,6 +78,7 @@ export default function DetalleAula({ id, onNoAutorizado, ir }: Props) {
                 {r.resuelto_en ? ` · Resuelto en ${duracion(minutosEntre(r.reportado_en, r.resuelto_en))}` : ""}
               </small>
               {r.descripcion && <small>{r.descripcion}</small>}
+              {r.foto_key && <FotoReporte reporteId={r.id} />}
               {r.notas_resolucion && <p className="solucion">Solución: {r.notas_resolucion}</p>}
             </li>
           ))}

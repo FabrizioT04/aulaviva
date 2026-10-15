@@ -24,6 +24,7 @@ export interface Reporte {
   atendido_en: string | null;
   resuelto_en: string | null;
   notas_resolucion: string | null;
+  foto_key: string | null;
 }
 
 // Mensaje que el Durable Object envía a los dashboards abiertos
