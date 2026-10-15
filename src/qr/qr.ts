@@ -55,13 +55,11 @@ async function comprimir(archivo: File): Promise<Blob> {
   );
 }
 
-const MARCA = `<div class="marca">
-    <span class="logo-marca">${iconoSvg("pulso")}</span>
-    <span class="logo-texto"><strong>AulaViva</strong><small>Reportar una falla a TI</small></span>
-  </div>`;
+const MARCA = `<span class="marca"><span class="logo-marca">${iconoSvg("pulso")}</span><strong>AulaViva</strong></span>`;
 
 function mensaje(titulo: string, detalle = "") {
-  app.innerHTML = `${MARCA}<section class="tarjeta"><h1>${esc(titulo)}</h1>${detalle ? `<p>${esc(detalle)}</p>` : ""}</section>`;
+  app.innerHTML = `<header class="cabecera"><div class="cabecera-fila">${MARCA}</div></header>
+    <section class="tarjeta"><h2>${esc(titulo)}</h2>${detalle ? `<p>${esc(detalle)}</p>` : ""}</section>`;
 }
 
 async function cargar() {
@@ -89,7 +87,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
         <ul class="abiertos">${abiertos
           .map(
             (r) =>
-              `<li><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="urgente">Urgente</em>' : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
+              `<li><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="insignia">Urgente</em>' : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
           )
           .join("")}</ul>
         <p class="suave">TI ya fue avisado. Solo reporta si es otra falla.</p>
@@ -97,16 +95,19 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     : "";
 
   app.innerHTML = `
-    ${MARCA}
     <header class="cabecera">
+      <div class="cabecera-fila">
+        ${MARCA}
+        <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
+      </div>
+      <p class="ubicacion">${aula.piso != null ? `Piso ${aula.piso} · ` : ""}Sede SMP1</p>
       <h1>${esc(aula.nombre)}</h1>
-      <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
     </header>
     ${aviso}
     ${reportados}
-    <form class="tarjeta" id="form">
+    <form id="form">
       <h2>¿Qué está fallando?</h2>
-      <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false">${iconoSvg(v)}${e}</button>`).join("")}</div>
+      <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false"><span class="ic">${iconoSvg(v)}</span>${e}</button>`).join("")}</div>
       <h2>¿Te impide dar la clase ahora?</h2>
       <div class="segmentado" id="bloquea">
         <button type="button" data-valor="1">Sí, me lo impide</button>
@@ -118,7 +119,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
         <div class="vista-foto" id="vista"></div>
         <label class="boton-foto" id="elegir-foto">${iconoSvg("camara")}<span id="texto-foto">Tomar o elegir foto</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
       </div>
-      <button type="submit" class="enviar" id="enviar" disabled>Reportar a TI</button>
+      <button type="submit" class="enviar" id="enviar" disabled>Avisar a TI</button>
       <p class="error" id="error" role="alert"></p>
     </form>
     <p class="pie">Reportando como ${esc(email)}</p>`;
@@ -130,6 +131,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
   const elegir = document.getElementById("elegir-foto")!;
   const textoFoto = document.getElementById("texto-foto")!;
   let previas: string[] = [];
+  const textoEnviar = () => (bloquea ? "Avisar a TI · urgente" : "Avisar a TI");
 
   function pintarFotos() {
     for (const u of previas) URL.revokeObjectURL(u);
@@ -181,6 +183,8 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     const b = (e.target as HTMLElement).closest("button");
     if (!b) return;
     bloquea = b.dataset.valor === "1";
+    enviar.textContent = textoEnviar();
+    enviar.classList.toggle("urgente", bloquea);
     for (const x of b.parentElement!.children) {
       x.classList.toggle("activo", x === b);
       x.classList.toggle("urgente", x === b && bloquea);
@@ -204,7 +208,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
       const { error: msg } = ((await res?.json().catch(() => ({}))) ?? {}) as { error?: string };
       error.textContent = msg ?? "No se pudo enviar. Revisa tu conexión e intenta de nuevo.";
       enviar.disabled = false;
-      enviar.textContent = "Reportar a TI";
+      enviar.textContent = textoEnviar();
       return;
     }
 

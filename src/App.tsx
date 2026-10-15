@@ -19,11 +19,17 @@ export type Ruta =
   | { pantalla: "qr" }
   | { pantalla: "aula"; id: number };
 
-const PESTANAS: { pantalla: "registro" | "dashboard" | "observatorio" | "fichas"; etiqueta: string; icono: NombreIcono }[] = [
+const PESTANAS: {
+  pantalla: "registro" | "dashboard" | "observatorio" | "fichas" | "qr";
+  etiqueta: string;
+  icono: NombreIcono;
+  soloPc?: boolean; // en el celular la barra inferior solo tiene espacio para cuatro
+}[] = [
   { pantalla: "registro", etiqueta: "Registrar", icono: "registrar" },
   { pantalla: "dashboard", etiqueta: "Dashboard", icono: "dashboard" },
   { pantalla: "observatorio", etiqueta: "Observatorio", icono: "observatorio" },
   { pantalla: "fichas", etiqueta: "Fichas", icono: "fichas" },
+  { pantalla: "qr", etiqueta: "QR de aulas", icono: "qr", soloPc: true },
 ];
 
 function rutaActual(): Ruta {
@@ -92,26 +98,34 @@ export default function App() {
     );
   }
 
-  const pestana = ruta.pantalla === "aula" || ruta.pantalla === "qr" ? "dashboard" : ruta.pantalla;
+  const pestana = ruta.pantalla === "aula" ? "dashboard" : ruta.pantalla;
+  const usuario = estado.sesion.modo === "local" ? "TI (local)" : estado.sesion.email.split("@")[0];
 
   return (
-    <>
+    <div className="app">
       <header className="cabecera-app">
-        <div className="cabecera-contenido">
-          <Logo />
-          <nav className="barra" aria-label="Secciones">
-            {PESTANAS.map((p) => (
-              <button
-                key={p.pantalla}
-                className={pestana === p.pantalla ? "activo" : ""}
-                aria-current={pestana === p.pantalla ? "page" : undefined}
-                onClick={() => ir({ pantalla: p.pantalla })}
-              >
-                <Icono nombre={p.icono} />
-                <span>{p.etiqueta}</span>
-              </button>
-            ))}
-          </nav>
+        <Logo />
+        <nav className="barra" aria-label="Secciones">
+          {PESTANAS.map((p) => (
+            <button
+              key={p.pantalla}
+              className={[pestana === p.pantalla ? "activo" : "", p.soloPc ? "solo-pc" : ""].join(" ").trim()}
+              aria-current={pestana === p.pantalla ? "page" : undefined}
+              onClick={() => ir({ pantalla: p.pantalla })}
+            >
+              <Icono nombre={p.icono} />
+              <span>{p.etiqueta}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="usuario">
+          <span className="avatar" aria-hidden="true">
+            {usuario.charAt(0).toUpperCase()}
+          </span>
+          <span className="usuario-texto">
+            <strong>{usuario}</strong>
+            <small>Área de TI</small>
+          </span>
         </div>
       </header>
       <main>
@@ -122,6 +136,6 @@ export default function App() {
         {ruta.pantalla === "qr" && <ImprimirQr onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "aula" && <DetalleAula id={ruta.id} onNoAutorizado={salir} ir={ir} />}
       </main>
-    </>
+    </div>
   );
 }

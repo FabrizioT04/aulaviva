@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AulaConEstado, EventoEnVivo, Reporte } from "../../shared/tipos";
+import type { AulaConEstado, EventoEnVivo, Metricas, Reporte } from "../../shared/tipos";
 import type { Ruta } from "../App";
 import { api, NoAutorizado, urlEnVivo } from "../api";
 import FormResolver from "../FormResolver";
@@ -17,6 +17,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
   const [abiertos, setAbiertos] = useState<Reporte[]>([]);
   const [conectado, setConectado] = useState(false);
   const [resolviendo, setResolviendo] = useState<number | null>(null);
+  const [atencionProm, setAtencionProm] = useState<number | null>(null);
 
   const cargarReportes = useCallback(() => {
     api<Reporte[]>("/api/reportes?estado=abiertos")
@@ -29,6 +30,9 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
       .then(setAulas)
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : null));
     cargarReportes();
+    api<Metricas>("/api/metricas?dias=30")
+      .then((m) => setAtencionProm(m.resumen.prom_atencion_min))
+      .catch(() => null);
   }, [cargarReportes, onNoAutorizado]);
 
   // Conexión en vivo con el Durable Object; se reconecta si se cae
@@ -80,55 +84,69 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
     }
   }
 
-  const bloquean = abiertos.filter((r) => r.bloquea_clase).length;
+  const bloqueantes = abiertos.filter((r) => r.bloquea_clase);
   const enAtencion = abiertos.filter((r) => r.estado === "en_atencion").length;
   const operativas = aulas.filter((a) => a.semaforo === "verde").length;
   const pisos = [...new Set(aulas.map((a) => a.piso))].sort((a, b) => (a ?? 99) - (b ?? 99));
+  const hoy = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Lima" });
 
   return (
     <div className="dashboard">
       <header className="cabecera-pagina">
         <div>
-          <h1>Dashboard</h1>
-          <p className={conectado ? "en-vivo" : "en-vivo desconectado"}>
-            <i /> {conectado ? "En vivo" : "Reconectando…"}
-          </p>
+          <p className="antetitulo">{hoy.charAt(0).toUpperCase() + hoy.slice(1)}</p>
+          <h1>Estado de las aulas</h1>
         </div>
-        <button className="secundario" onClick={() => ir({ pantalla: "qr" })}>
-          <Icono nombre="qr" /> QR de aulas
-        </button>
+        <div className="acciones">
+          <span className={conectado ? "en-vivo" : "en-vivo desconectado"}>
+            <i /> {conectado ? "En vivo" : "Reconectando…"}
+          </span>
+          <button className="primario" onClick={() => ir({ pantalla: "registro" })}>
+            <Icono nombre="registrar" /> Registrar incidencia
+          </button>
+        </div>
       </header>
 
-      <section className="resumen">
+      <section className="resumen" aria-label="Resumen">
         <div className="dato">
           <span>Reportes abiertos</span>
-          <strong>{abiertos.length}</strong>
+          <strong className="num">{abiertos.length}</strong>
+          <small>{enAtencion === 1 ? "1 en atención" : `${enAtencion} en atención`}</small>
         </div>
-        <div className={bloquean ? "dato alerta" : "dato"}>
+        <div className={bloqueantes.length ? "dato alerta" : "dato"}>
           <span>Bloquean la clase</span>
-          <strong>{bloquean}</strong>
+          <strong className="num">{bloqueantes.length}</strong>
+          <small>
+            {bloqueantes.length
+              ? `${bloqueantes[0].aula_nombre} · hace ${duracion(minutosDesde(bloqueantes[0].reportado_en))}`
+              : "Ninguna clase detenida"}
+          </small>
         </div>
         <div className="dato">
-          <span>En atención</span>
-          <strong>{enAtencion}</strong>
+          <span>Atención promedio</span>
+          <strong className="num">{duracion(atencionProm)}</strong>
+          <small>Últimos 30 días</small>
         </div>
         <div className="dato">
           <span>Aulas operativas</span>
-          <strong>
+          <strong className="num">
             {operativas}
-            <small> de {aulas.length}</small>
+            <small> / {aulas.length}</small>
           </strong>
+          <span className="progreso" aria-hidden="true">
+            <span style={{ width: `${aulas.length ? (operativas / aulas.length) * 100 : 0}%` }} />
+          </span>
         </div>
       </section>
 
       <div className="columnas">
         <section className="tarjeta">
           <div className="tarjeta-cabecera">
-            <h2>Aulas</h2>
+            <h2>Mapa de aulas</h2>
             <div className="leyenda">
-              <span><i className="punto verde" /> Operativa</span>
-              <span><i className="punto amarillo" /> Con falla</span>
-              <span><i className="punto rojo" /> Bloquea la clase</span>
+              <span><i className="muestra verde" /> Operativa</span>
+              <span><i className="muestra amarillo" /> Con falla</span>
+              <span><i className="muestra rojo" /> Bloquea</span>
             </div>
           </div>
           {pisos.map((piso) => (
@@ -144,7 +162,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                       onClick={() => ir({ pantalla: "aula", id: a.id })}
                       aria-label={`${a.nombre}: ${a.reportes_abiertos} reportes abiertos`}
                     >
-                      <strong>{a.codigo}</strong>
+                      {a.codigo}
                       {a.reportes_abiertos > 0 && <span className="cuenta">{a.reportes_abiertos}</span>}
                     </button>
                   ))}
@@ -155,48 +173,50 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
 
         <section className="tarjeta">
           <div className="tarjeta-cabecera">
-            <h2>Reportes abiertos</h2>
+            <h2>Cola de atención</h2>
+            <span className="nota">Ordenada por urgencia</span>
           </div>
           {abiertos.length === 0 && (
-            <p className="vacio todo-bien">
+            <p className="todo-bien">
               <Icono nombre="check" /> Todas las aulas operativas.
             </p>
           )}
           <ul className="reportes">
             {abiertos.map((r) => (
               <li key={r.id} className={r.bloquea_clase ? "reporte bloquea" : "reporte"}>
-                <span className={`tipo-icono ${r.tipo_falla}`}>
-                  <Icono nombre={r.tipo_falla} />
-                </span>
-                <div className="reporte-cuerpo">
-                  <div className="reporte-titulo">
-                    <strong>{r.aula_nombre}</strong>
-                    <span>{ETIQUETA_FALLA[r.tipo_falla]}</span>
-                  </div>
-                  <div className="insignias">
-                    {r.bloquea_clase ? <span className="insignia roja">Bloquea la clase</span> : null}
-                    {r.estado === "en_atencion" && <span className="insignia azul">En atención</span>}
-                    <span className="hace">
-                      <Icono nombre="reloj" /> Hace {duracion(minutosDesde(r.reportado_en))}
-                    </span>
-                  </div>
-                  {r.reportado_por_nombre && <small>{r.reportado_por_nombre}</small>}
-                  {r.descripcion && <p className="descripcion">{r.descripcion}</p>}
-                  {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} />}
-                  {resolviendo === r.id ? (
-                    <FormResolver
-                      onGuardar={(causa, hice) => resolver(r, causa, hice)}
-                      onCancelar={() => setResolviendo(null)}
-                    />
-                  ) : (
-                    <div className="acciones">
-                      {r.estado === "abierto" && <button onClick={() => atender(r)}>Atender</button>}
-                      <button className="primario" onClick={() => setResolviendo(r.id)}>
-                        Resolver
-                      </button>
+                <div className="reporte-fila">
+                  <span className={`tipo-icono ${r.tipo_falla}`}>
+                    <Icono nombre={r.tipo_falla} />
+                  </span>
+                  <div className="reporte-cuerpo">
+                    <div className="reporte-titulo">
+                      <strong>{r.aula_nombre}</strong>
+                      <span>{ETIQUETA_FALLA[r.tipo_falla]}</span>
+                      {r.bloquea_clase ? <span className="insignia roja">Bloquea la clase</span> : null}
+                      {r.estado === "en_atencion" && <span className="insignia azul">En atención</span>}
                     </div>
-                  )}
+                    <small>
+                      Hace {duracion(minutosDesde(r.reportado_en))} · {r.origen === "qr" ? "por QR" : "por WhatsApp"}
+                      {r.fotos > 0 ? ` · ${r.fotos === 1 ? "1 foto" : `${r.fotos} fotos`}` : ""}
+                      {r.reportado_por_nombre ? ` · ${r.reportado_por_nombre}` : ""}
+                    </small>
+                    {r.descripcion && <p className="descripcion">“{r.descripcion}”</p>}
+                    {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} />}
+                  </div>
                 </div>
+                {resolviendo === r.id ? (
+                  <FormResolver
+                    onGuardar={(causa, hice) => resolver(r, causa, hice)}
+                    onCancelar={() => setResolviendo(null)}
+                  />
+                ) : (
+                  <div className="acciones">
+                    {r.estado === "abierto" && <button onClick={() => atender(r)}>Atender</button>}
+                    <button className="primario" onClick={() => setResolviendo(r.id)}>
+                      Resolver
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -20,6 +20,7 @@ export interface Reporte {
   descripcion: string | null;
   reportado_por_nombre: string | null;
   estado: EstadoReporte;
+  origen: "whatsapp" | "qr";
   reportado_en: string;
   atendido_en: string | null;
   resuelto_en: string | null;
