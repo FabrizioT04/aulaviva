@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AulaConEstado, TipoFalla } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
+import Icono from "../Icono";
 
 const TIPOS: { valor: TipoFalla; etiqueta: string }[] = [
   { valor: "internet", etiqueta: "Internet" },
@@ -88,121 +89,130 @@ export default function Registro({ onNoAutorizado }: { onNoAutorizado: () => voi
   }
 
   return (
-    <form className="tarjeta registro" onSubmit={enviar}>
-      <h2>Registro rápido</h2>
-
-      <label>
-        Aula
-        <input
-          list="lista-aulas"
-          value={aulaTexto}
-          onChange={(e) => setAulaTexto(e.target.value)}
-          placeholder="Escribe 204 o Aula 204"
-          inputMode="search"
-        />
-        <datalist id="lista-aulas">
-          {aulas.map((a) => (
-            <option key={a.id} value={a.nombre} />
-          ))}
-        </datalist>
-      </label>
-
-      <fieldset>
-        <legend>Tipo de falla</legend>
-        <div className="chips">
-          {TIPOS.map((t) => (
-            <button
-              type="button"
-              key={t.valor}
-              className={tipo === t.valor ? "chip activo" : "chip"}
-              onClick={() => setTipo(t.valor)}
-            >
-              {t.etiqueta}
-            </button>
-          ))}
+    <div className="registro">
+      <header className="cabecera-pagina">
+        <div>
+          <h1>Registrar incidencia</h1>
+          <p className="subtitulo">Para lo que llega por WhatsApp o te cuentan en persona.</p>
         </div>
-      </fieldset>
+      </header>
+      <form className="tarjeta" onSubmit={enviar}>
 
-      <fieldset>
-        <legend>¿Bloquea la clase ahora mismo?</legend>
-        <div className="chips">
-          <button type="button" className={bloquea ? "chip peligro activo" : "chip"} onClick={() => setBloquea(true)}>
-            Sí
-          </button>
-          <button type="button" className={!bloquea ? "chip activo" : "chip"} onClick={() => setBloquea(false)}>
-            No
-          </button>
-        </div>
-      </fieldset>
+        <label>
+          Aula
+          <input
+            list="lista-aulas"
+            value={aulaTexto}
+            onChange={(e) => setAulaTexto(e.target.value)}
+            placeholder="Escribe 204 o Aula 204"
+            inputMode="search"
+          />
+          <datalist id="lista-aulas">
+            {aulas.map((a) => (
+              <option key={a.id} value={a.nombre} />
+            ))}
+          </datalist>
+        </label>
 
-      <label>
-        Docente que reporta (opcional)
-        <input value={docente} onChange={(e) => setDocente(e.target.value)} />
-      </label>
-
-      <label>
-        Detalle (opcional)
-        <textarea rows={2} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
-      </label>
-
-      <label>
-        ¿A qué hora llegó el mensaje?
-        <input type="datetime-local" value={llegoEn} max={ahoraLocal()} onChange={(e) => setLlegoEn(e.target.value)} />
-      </label>
-
-      <fieldset>
-        <legend>¿Ya lo resolviste?</legend>
-        <div className="chips">
-          <button type="button" className={!resuelto ? "chip activo" : "chip"} onClick={() => setResuelto(false)}>
-            No, queda pendiente
-          </button>
-          <button type="button" className={resuelto ? "chip activo" : "chip"} onClick={() => setResuelto(true)}>
-            Sí, ya está resuelto
-          </button>
-        </div>
-      </fieldset>
-
-      {resuelto && (
-        <>
-          <div className="horas">
-            <label>
-              Llegué al aula
-              <input type="datetime-local" value={atendidoEn} onChange={(e) => setAtendidoEn(e.target.value)} />
-            </label>
-            <label>
-              Quedó resuelto
-              <input type="datetime-local" value={resueltoEn} onChange={(e) => setResueltoEn(e.target.value)} />
-            </label>
+        <fieldset>
+          <legend>Tipo de falla</legend>
+          <div className="opciones-falla">
+            {TIPOS.map((t) => (
+              <button
+                type="button"
+                key={t.valor}
+                className={tipo === t.valor ? "opcion activo" : "opcion"}
+                aria-pressed={tipo === t.valor}
+                onClick={() => setTipo(t.valor)}
+              >
+                <Icono nombre={t.valor} />
+                {t.etiqueta}
+              </button>
+            ))}
           </div>
-          <label>
-            ¿Qué encontraste? (causa, si la sabes)
-            <textarea
-              rows={2}
-              value={causa}
-              onChange={(e) => setCausa(e.target.value)}
-              placeholder="Ej. el cable HDMI estaba suelto detrás del proyector"
-            />
-          </label>
-          <label>
-            ¿Qué hiciste para resolverlo?
-            <textarea
-              rows={3}
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              placeholder="Ej. reinicié el switch del piso 3 y volvió el internet"
-            />
-          </label>
-        </>
-      )}
+        </fieldset>
 
-      <button
-        className="primario"
-        type="submit"
-        disabled={!aula || !tipo || !llegoEn || (resuelto && (!atendidoEn || !resueltoEn || !notas.trim())) || enviando}
-      >
-        {enviando ? "Registrando…" : resuelto ? "Registrar como resuelto" : "Registrar incidencia"}
-      </button>
-      {mensaje && <p className={mensaje.ok ? "aviso ok" : "aviso error"}>{mensaje.texto}</p>}
-    </form>
+        <fieldset>
+          <legend>¿Bloquea la clase ahora mismo?</legend>
+          <div className="segmentado">
+            <button type="button" className={bloquea ? "activo peligro" : ""} onClick={() => setBloquea(true)}>
+              Sí, bloquea
+            </button>
+            <button type="button" className={!bloquea ? "activo" : ""} onClick={() => setBloquea(false)}>
+              No
+            </button>
+          </div>
+        </fieldset>
+
+        <label>
+          Docente que reporta (opcional)
+          <input value={docente} onChange={(e) => setDocente(e.target.value)} />
+        </label>
+
+        <label>
+          Detalle (opcional)
+          <textarea rows={2} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
+        </label>
+
+        <label>
+          ¿A qué hora llegó el mensaje?
+          <input type="datetime-local" value={llegoEn} max={ahoraLocal()} onChange={(e) => setLlegoEn(e.target.value)} />
+        </label>
+
+        <fieldset>
+          <legend>¿Ya lo resolviste?</legend>
+          <div className="segmentado">
+            <button type="button" className={!resuelto ? "activo" : ""} onClick={() => setResuelto(false)}>
+              Queda pendiente
+            </button>
+            <button type="button" className={resuelto ? "activo exito" : ""} onClick={() => setResuelto(true)}>
+              Ya está resuelto
+            </button>
+          </div>
+        </fieldset>
+
+        {resuelto && (
+          <>
+            <div className="horas">
+              <label>
+                Llegué al aula
+                <input type="datetime-local" value={atendidoEn} onChange={(e) => setAtendidoEn(e.target.value)} />
+              </label>
+              <label>
+                Quedó resuelto
+                <input type="datetime-local" value={resueltoEn} onChange={(e) => setResueltoEn(e.target.value)} />
+              </label>
+            </div>
+            <label>
+              ¿Qué encontraste? (causa, si la sabes)
+              <textarea
+                rows={2}
+                value={causa}
+                onChange={(e) => setCausa(e.target.value)}
+                placeholder="Ej. el cable HDMI estaba suelto detrás del proyector"
+              />
+            </label>
+            <label>
+              ¿Qué hiciste para resolverlo?
+              <textarea
+                rows={3}
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                placeholder="Ej. reinicié el switch del piso 3 y volvió el internet"
+              />
+            </label>
+          </>
+        )}
+
+        <button
+          className="primario"
+          type="submit"
+          disabled={!aula || !tipo || !llegoEn || (resuelto && (!atendidoEn || !resueltoEn || !notas.trim())) || enviando}
+        >
+          {enviando ? "Registrando…" : resuelto ? "Registrar como resuelto" : "Registrar incidencia"}
+        </button>
+        {mensaje && <p className={mensaje.ok ? "aviso ok" : "aviso error"}>{mensaje.texto}</p>}
+      </form>
+    </div>
   );
 }

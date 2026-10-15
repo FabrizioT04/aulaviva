@@ -73,33 +73,39 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
 
   return (
     <div className="observatorio">
-      <div className="filtros" role="group" aria-label="Periodo">
-        {PERIODOS.map((p) => (
-          <button key={p.dias} className={dias === p.dias ? "chip activo" : "chip"} onClick={() => setDias(p.dias)}>
-            {p.etiqueta}
-          </button>
-        ))}
-      </div>
+      <header className="cabecera-pagina">
+        <div>
+          <h1>Observatorio</h1>
+          <p className="subtitulo">Cómo van las incidencias de la sede.</p>
+        </div>
+        <div className="segmentado compacto" role="group" aria-label="Periodo">
+          {PERIODOS.map((p) => (
+            <button key={p.dias} className={dias === p.dias ? "activo" : ""} onClick={() => setDias(p.dias)}>
+              {p.etiqueta}
+            </button>
+          ))}
+        </div>
+      </header>
 
       {!m ? (
         <p className="vacio">Cargando…</p>
       ) : (
         <>
-          <section className="indicadores">
-            <div className="indicador">
+          <section className="resumen">
+            <div className="dato">
               <span>Incidencias</span>
               <strong>{m.resumen.total}</strong>
               <small>{m.resumen.abiertos ?? 0} abiertas</small>
             </div>
-            <div className="indicador">
+            <div className="dato">
               <span>Bloquearon la clase</span>
               <strong>{m.resumen.bloqueantes ?? 0}</strong>
             </div>
-            <div className="indicador">
+            <div className="dato">
               <span>Atención promedio</span>
               <strong>{duracion(m.resumen.prom_atencion_min)}</strong>
             </div>
-            <div className="indicador">
+            <div className="dato">
               <span>Resolución promedio</span>
               <strong>{duracion(m.resumen.prom_resolucion_min)}</strong>
             </div>

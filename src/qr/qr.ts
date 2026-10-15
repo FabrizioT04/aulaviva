@@ -1,5 +1,6 @@
 // Página que abre el docente al escanear el QR del aula.
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
+import { iconoSvg } from "../../shared/iconos";
 import type { EstadoAulaQr, TipoFalla } from "../../shared/tipos";
 import "./qr.css";
 
@@ -54,8 +55,13 @@ async function comprimir(archivo: File): Promise<Blob> {
   );
 }
 
+const MARCA = `<div class="marca">
+    <span class="logo-marca">${iconoSvg("pulso")}</span>
+    <span class="logo-texto"><strong>AulaViva</strong><small>Reportar una falla a TI</small></span>
+  </div>`;
+
 function mensaje(titulo: string, detalle = "") {
-  app.innerHTML = `<section class="tarjeta"><h1>${esc(titulo)}</h1>${detalle ? `<p>${esc(detalle)}</p>` : ""}</section>`;
+  app.innerHTML = `${MARCA}<section class="tarjeta"><h1>${esc(titulo)}</h1>${detalle ? `<p>${esc(detalle)}</p>` : ""}</section>`;
 }
 
 async function cargar() {
@@ -83,7 +89,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
         <ul class="abiertos">${abiertos
           .map(
             (r) =>
-              `<li><span><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? " · urgente" : ""}</span><span class="estado-reporte">${ESTADO[r.estado] ?? ""}</span></li>`,
+              `<li><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="urgente">Urgente</em>' : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
           )
           .join("")}</ul>
         <p class="suave">TI ya fue avisado. Solo reporta si es otra falla.</p>
@@ -91,6 +97,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     : "";
 
   app.innerHTML = `
+    ${MARCA}
     <header class="cabecera">
       <h1>${esc(aula.nombre)}</h1>
       <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
@@ -99,17 +106,17 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     ${reportados}
     <form class="tarjeta" id="form">
       <h2>¿Qué está fallando?</h2>
-      <div class="chips" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}">${e}</button>`).join("")}</div>
+      <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false">${iconoSvg(v)}${e}</button>`).join("")}</div>
       <h2>¿Te impide dar la clase ahora?</h2>
-      <div class="chips" id="bloquea">
-        <button type="button" data-valor="1">Sí</button>
+      <div class="segmentado" id="bloquea">
+        <button type="button" data-valor="1">Sí, me lo impide</button>
         <button type="button" data-valor="0" class="activo">No</button>
       </div>
       <label>Detalle (opcional)<textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. el proyector no detecta la laptop"></textarea></label>
       <div class="foto">
         <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
         <div class="vista-foto" id="vista"></div>
-        <label class="boton-foto" id="elegir-foto"><span id="texto-foto">Tomar o elegir foto</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
+        <label class="boton-foto" id="elegir-foto">${iconoSvg("camara")}<span id="texto-foto">Tomar o elegir foto</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
       </div>
       <button type="submit" class="enviar" id="enviar" disabled>Reportar a TI</button>
       <p class="error" id="error" role="alert"></p>
@@ -163,7 +170,10 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     const b = (e.target as HTMLElement).closest("button");
     if (!b) return;
     tipo = b.dataset.tipo as TipoFalla;
-    for (const x of b.parentElement!.children) x.classList.toggle("activo", x === b);
+    for (const x of b.parentElement!.children) {
+      x.classList.toggle("activo", x === b);
+      x.setAttribute("aria-pressed", String(x === b));
+    }
     enviar.disabled = false;
   });
 
@@ -215,7 +225,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
 
     const espera = bloquea ? minutos(estado.prom_atencion_urgente_min) : null;
     const confirmacion = `<section class="tarjeta exito">
-        <h2>Listo, TI fue avisado</h2>
+        <h2><span class="check">${iconoSvg("check")}</span>Listo, TI fue avisado</h2>
         <p>${
           espera
             ? `En casos urgentes, TI suele llegar en unos <strong>${espera}</strong>.`

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Ruta } from "../App";
 import type { AulaConEstado } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
+import Icono from "../Icono";
 
 interface Props {
   onNoAutorizado: () => void;
@@ -40,7 +41,7 @@ export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
     <div className="imprimir-qr">
       <div className="no-imprimir acciones-qr">
         <button className="volver" onClick={() => ir({ pantalla: "dashboard" })}>
-          ← Dashboard
+          <Icono nombre="volver" /> Dashboard
         </button>
         <button className="primario" onClick={() => print()} disabled={!qrs.length}>
           Imprimir {qrs.length} QR
@@ -58,6 +59,7 @@ export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
             <figcaption>
               <strong>{aula.nombre}</strong>
               <span>Escanea para reportar una falla a TI</span>
+              <em>AulaViva · Soporte TI</em>
             </figcaption>
           </figure>
         ))}

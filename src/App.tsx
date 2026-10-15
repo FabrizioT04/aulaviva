@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import type { NombreIcono } from "../shared/iconos";
 import { consultarSesion, guardarToken, type EstadoSesion } from "./api";
+import Icono from "./Icono";
+import Logo from "./Logo";
 import Acceso from "./pages/Acceso";
 import DetalleAula from "./pages/DetalleAula";
 import Fichas from "./pages/Fichas";
@@ -15,6 +18,13 @@ export type Ruta =
   | { pantalla: "fichas" }
   | { pantalla: "qr" }
   | { pantalla: "aula"; id: number };
+
+const PESTANAS: { pantalla: "registro" | "dashboard" | "observatorio" | "fichas"; etiqueta: string; icono: NombreIcono }[] = [
+  { pantalla: "registro", etiqueta: "Registrar", icono: "registrar" },
+  { pantalla: "dashboard", etiqueta: "Dashboard", icono: "dashboard" },
+  { pantalla: "observatorio", etiqueta: "Observatorio", icono: "observatorio" },
+  { pantalla: "fichas", etiqueta: "Fichas", icono: "fichas" },
+];
 
 function rutaActual(): Ruta {
   const p = location.pathname;
@@ -66,7 +76,7 @@ export default function App() {
   if (estado.tipo === "sin-acceso") {
     return (
       <main className="acceso">
-        <h1>AulaViva</h1>
+        <Logo />
         <p>{estado.detalle}</p>
       </main>
     );
@@ -86,23 +96,24 @@ export default function App() {
 
   return (
     <>
-      <nav className="barra">
-        <button className={pestana === "registro" ? "activo" : ""} onClick={() => ir({ pantalla: "registro" })}>
-          Registrar
-        </button>
-        <button className={pestana === "dashboard" ? "activo" : ""} onClick={() => ir({ pantalla: "dashboard" })}>
-          Dashboard
-        </button>
-        <button
-          className={pestana === "observatorio" ? "activo" : ""}
-          onClick={() => ir({ pantalla: "observatorio" })}
-        >
-          Observatorio
-        </button>
-        <button className={pestana === "fichas" ? "activo" : ""} onClick={() => ir({ pantalla: "fichas" })}>
-          Fichas
-        </button>
-      </nav>
+      <header className="cabecera-app">
+        <div className="cabecera-contenido">
+          <Logo />
+          <nav className="barra" aria-label="Secciones">
+            {PESTANAS.map((p) => (
+              <button
+                key={p.pantalla}
+                className={pestana === p.pantalla ? "activo" : ""}
+                aria-current={pestana === p.pantalla ? "page" : undefined}
+                onClick={() => ir({ pantalla: p.pantalla })}
+              >
+                <Icono nombre={p.icono} />
+                <span>{p.etiqueta}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
       <main>
         {ruta.pantalla === "registro" && <Registro onNoAutorizado={salir} />}
         {ruta.pantalla === "dashboard" && <Dashboard onNoAutorizado={salir} ir={ir} />}

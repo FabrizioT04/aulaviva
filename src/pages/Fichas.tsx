@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Ficha, TipoFalla } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import { ETIQUETA_FALLA } from "../formato";
+import Icono from "../Icono";
 
 interface Props {
   onNoAutorizado: () => void;
@@ -56,18 +57,20 @@ export default function Fichas({ onNoAutorizado }: Props) {
 
   return (
     <div className="fichas">
-      <div className="cabecera-aula">
-        <h1>Fichas de solución</h1>
+      <div className="cabecera-pagina">
+        <div>
+          <h1>Fichas de solución</h1>
+          <p className="subtitulo">
+            Lo que un docente puede probar antes de llamar a TI. El asistente usará estas fichas y los casos resueltos
+            para sugerir soluciones desde el QR del aula.
+          </p>
+        </div>
         {editando === null && (
           <button className="primario" onClick={() => setEditando(0)}>
             Nueva ficha
           </button>
         )}
       </div>
-      <p className="intro">
-        Lo que un docente puede probar antes de llamar a TI. El asistente usará estas fichas y los casos resueltos para
-        sugerir soluciones desde el QR del aula.
-      </p>
 
       {editando === 0 && <FormFicha inicial={VACIA} onGuardar={guardar} onCancelar={() => setEditando(null)} />}
 
@@ -82,6 +85,9 @@ export default function Fichas({ onNoAutorizado }: Props) {
         return (
           <section key={tipo} className="grupo-fichas">
             <h2>
+              <span className={`tipo-icono ${tipo}`}>
+                <Icono nombre={tipo} />
+              </span>
               {ETIQUETA_FALLA[tipo]} <span className="contador">{delTipo.length}</span>
             </h2>
             {delTipo.map((f) =>
@@ -158,14 +164,16 @@ function FormFicha({ inicial, onGuardar, onCancelar }: FormProps) {
     <form className="tarjeta ficha form-ficha" onSubmit={enviar}>
       <fieldset>
         <legend>Tipo de falla</legend>
-        <div className="chips">
+        <div className="opciones-falla">
           {TIPOS.map((t) => (
             <button
               type="button"
               key={t}
-              className={datos.tipo_falla === t ? "chip activo" : "chip"}
+              className={datos.tipo_falla === t ? "opcion activo" : "opcion"}
+              aria-pressed={datos.tipo_falla === t}
               onClick={() => setDatos({ ...datos, tipo_falla: t })}
             >
+              <Icono nombre={t} />
               {ETIQUETA_FALLA[t]}
             </button>
           ))}
