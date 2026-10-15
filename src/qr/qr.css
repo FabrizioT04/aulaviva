@@ -43,3 +43,10 @@ textarea { font: inherit; font-size: 16px; padding: 10px; border-radius: 10px; b
 .abiertos li:first-child { border-top: 0; }
 .abiertos .estado-reporte { color: var(--suave); font-size: 0.9rem; }
 .exito { border-color: var(--verde); }
+.foto { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.etiqueta-foto { font-weight: 600; font-size: 0.95rem; }
+.boton-foto { display: block; text-align: center; padding: 12px; border: 1px dashed var(--borde); border-radius: 12px; color: var(--primario); font-weight: 600; cursor: pointer; }
+.boton-foto[hidden], .vista-foto[hidden] { display: none; }
+.vista-foto { display: flex; align-items: center; gap: 12px; }
+.vista-foto img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid var(--borde); }
+.vista-foto button { font: inherit; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }

@@ -7,6 +7,7 @@ export { SedeEnVivo };
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
+  FOTOS: R2Bucket;
   SEDE_EN_VIVO: DurableObjectNamespace<SedeEnVivo>;
   // Cloudflare Access (producción)
   ACCESS_TEAM_DOMAIN?: string; // ej. https://innova-ti.cloudflareaccess.com
@@ -165,6 +166,21 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
     return json(creado, 201);
   }
 
+  const foto = pathname.match(/^\/api\/reportes\/(\d+)\/foto$/);
+  if (foto && metodo === "GET") {
+    const fila = await env.DB.prepare("SELECT foto_key FROM reporte WHERE id = ?")
+      .bind(Number(foto[1]))
+      .first<{ foto_key: string | null }>();
+    const objeto = fila?.foto_key ? await env.FOTOS.get(fila.foto_key) : null;
+    if (!objeto) return json({ error: "Este reporte no tiene foto" }, 404);
+    return new Response(objeto.body, {
+      headers: {
+        "Content-Type": objeto.httpMetadata?.contentType ?? "image/jpeg",
+        "Cache-Control": "private, max-age=86400",
+      },
+    });
+  }
+
   const coincide = pathname.match(/^\/api\/reportes\/(\d+)$/);
   if (coincide && metodo === "PATCH") {
     const id = Number(coincide[1]);
@@ -199,7 +215,7 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
 
 // Rutas del QR: las usa el docente desde su celular (y TI para probar)
 async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
-  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes)?$/);
+  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?)?$/);
   if (!coincide) return json({ error: "Ruta no encontrada" }, 404);
   const codigo = coincide[1];
 
@@ -230,7 +246,11 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): 
     return json(estado);
   }
 
-  if (coincide[2] && request.method === "POST") {
+  if (coincide[3] && request.method === "PUT") {
+    return subirFoto(request, env, sesion, aula.id, Number(coincide[3]));
+  }
+
+  if (coincide[2] && !coincide[3] && request.method === "POST") {
     const datos = await request.json<Record<string, unknown>>().catch(() => null);
     const tipo = datos?.tipo_falla as TipoFalla;
     if (!TIPOS_FALLA.includes(tipo)) return json({ error: "Elige el tipo de falla" }, 400);
@@ -264,6 +284,39 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): 
   }
 
   return json({ error: "Ruta no encontrada" }, 404);
+}
+
+const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const MAX_FOTO_BYTES = 3 * 1024 * 1024; // el celular la comprime antes a ~200 KB
+
+// Foto de evidencia: solo el docente que creó el reporte, una vez y en los 15 minutos siguientes
+async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: number, reporteId: number) {
+  const tipo = (request.headers.get("Content-Type") ?? "").split(";")[0].trim();
+  const extension = TIPOS_FOTO[tipo];
+  if (!extension) return json({ error: "La foto debe ser JPG, PNG o WebP" }, 415);
+  if (Number(request.headers.get("Content-Length") ?? 0) > MAX_FOTO_BYTES) {
+    return json({ error: "La foto es demasiado grande" }, 413);
+  }
+
+  const reporte = await env.DB.prepare(
+    `SELECT r.id FROM reporte r JOIN profesor p ON p.id = r.profesor_id
+     WHERE r.id = ? AND r.aula_id = ? AND p.email = ? AND r.foto_key IS NULL
+       AND r.reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-15 minutes')`,
+  )
+    .bind(reporteId, aulaId, sesion.email)
+    .first();
+  if (!reporte) return json({ error: "No se puede agregar una foto a este reporte" }, 403);
+
+  const datos = await request.arrayBuffer();
+  if (datos.byteLength === 0 || datos.byteLength > MAX_FOTO_BYTES) {
+    return json({ error: "La foto está vacía o es demasiado grande" }, 413);
+  }
+
+  const clave = `reportes/${reporteId}-${crypto.randomUUID()}.${extension}`;
+  await env.FOTOS.put(clave, datos, { httpMetadata: { contentType: tipo } });
+  await env.DB.prepare("UPDATE reporte SET foto_key = ? WHERE id = ?").bind(clave, reporteId).run();
+  await avisarCambio(env, aulaId);
+  return json({ ok: true }, 201);
 }
 
 // Recalcula el semáforo del aula y lo envía a todos los dashboards abiertos

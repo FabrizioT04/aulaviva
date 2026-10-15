@@ -49,12 +49,19 @@ En la aplicación que creaste, copia el **Application Audience (AUD) Tag**. Lueg
 "vars": {
   "ACCESS_TEAM_DOMAIN": "https://innova-ti.cloudflareaccess.com",
   "ACCESS_AUD": "pega-aqui-el-aud-tag",
-  "TI_EMAILS": "tu.correo@innovaschools.edu.pe",
   "DOMINIO_DOCENTES": "innovaschools.edu.pe"
 }
 ```
 
-`TI_EMAILS` acepta varios correos separados por coma. Publica de nuevo con `npm run deploy`.
+Publica con `npm run deploy`. Después guarda los correos de TI como secreto, para que no queden en el repositorio público:
+
+```bash
+npx wrangler secret put TI_EMAILS
+# escribe los correos separados por coma, sin espacios:
+# tu.correo@innovaschools.edu.pe,otro.correo@innovaschools.edu.pe
+```
+
+Para agregar o quitar a alguien de TI, vuelve a correr ese comando con la lista completa.
 
 Desde ese momento la clave `TOKEN_TI` deja de funcionar en producción: solo entra quien pasa por Access.
 

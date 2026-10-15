@@ -1,7 +1,7 @@
 # AulaViva
 
 Plataforma para registrar incidencias tecnológicas de las aulas y ver su estado en vivo.
-Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects, todo en un solo Worker.
+Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un solo Worker.
 
 ## Qué incluye
 
@@ -15,14 +15,16 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects, todo en un solo
 
 ### Sprint 2 · Autorreporte por QR
 - **Página del QR** (`/r/<aula>`): el docente escanea, elige la falla y si bloquea la clase, y TI lo ve al instante en el dashboard. Es una página aparte sin React (unos 3 KB) para que cargue rápido en el celular. Muestra lo ya reportado para evitar duplicados y, si es urgente, el tiempo promedio de atención.
+- **Foto de evidencia** (opcional): el celular la reduce a 1280 px en JPEG antes de subirla (una foto de 5 MB queda en unos 400 KB), se guarda en R2 y TI la ve en el dashboard y en el detalle del aula.
 - **QR imprimibles** (`/qr-aulas`): un QR por aula, listo para imprimir.
-- **Acceso con Cloudflare Access**: TI (correos en `TI_EMAILS`) usa todo el panel; los docentes (`@innovaschools.edu.pe`) solo la página del QR. Guía: [docs/cloudflare-access.md](docs/cloudflare-access.md).
+- **Acceso con Cloudflare Access**: TI (correos del secreto `TI_EMAILS`) usa todo el panel; los docentes (`@innovaschools.edu.pe`) solo la página del QR. Guía: [docs/cloudflare-access.md](docs/cloudflare-access.md).
 - **Sin Access** (desarrollo local): TI entra con la clave `TOKEN_TI`, y `DEV_EMAIL_DOCENTE` simula a un docente en la página del QR.
 
 ## Estructura
 
 ```
 migrations/0001_inicial.sql   tablas Aula, Activo, Profesor, Reporte
+migrations/0002_foto_reporte.sql  columna foto_key del reporte
 seed/aulas.sql                aulas de ejemplo (cámbialas por las reales)
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
@@ -52,6 +54,7 @@ Entra con la clave que pusiste en `.dev.vars`. Para probar la página del docent
 ```bash
 npx wrangler login
 npx wrangler d1 create incidencias     # copia el database_id que devuelve
+npx wrangler r2 bucket create aulaviva-fotos   # fotos de evidencia
 # pega ese id en wrangler.jsonc (campo database_id)
 npm run db:migrar:remoto
 npm run db:semilla:remoto
@@ -76,10 +79,13 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/sesion` | Quién está conectado y su rol |
 | GET | `/api/qr/:codigo` | Estado del aula para el docente |
 | POST | `/api/qr/:codigo/reportes` | Reporte del docente `{tipo_falla, bloquea_clase, descripcion}` |
+| PUT | `/api/qr/:codigo/reportes/:id/foto` | Foto del reporte (JPEG, PNG o WebP, máx. 3 MB), solo su autor y en los 15 minutos siguientes |
+| GET | `/api/reportes/:id/foto` | Ver la foto (solo TI) |
 
 Con Access, la sesión viaja en la cookie de Cloudflare y el Worker verifica el token `Cf-Access-Jwt-Assertion`. Sin Access, las rutas de TI piden `Authorization: Bearer <TOKEN_TI>` (el WebSocket usa `?token=`). Las rutas `/api/qr/*` son para docentes y TI; el resto, solo TI.
 
 ## Próximos pasos
 
-1. Sprint 2: fotos de evidencia (comprimidas en el celular y guardadas en R2).
+1. Endpoint de resumen semanal para el reporte de los viernes.
 2. Importar el historial del grupo de WhatsApp para el Observatorio.
+3. Sprint 3: asistente RAG sobre las notas de resolución.
