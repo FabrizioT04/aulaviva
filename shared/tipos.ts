@@ -28,6 +28,18 @@ export interface Reporte {
   fotos: number; // cuántas fotos de evidencia tiene (0 a 3)
 }
 
+// Ficha de solución escrita por TI para una falla común
+export interface Ficha {
+  id: number;
+  tipo_falla: TipoFalla;
+  titulo: string;
+  sintomas: string | null;
+  pasos_docente: string | null; // un paso por línea
+  cuando_llamar_ti: string | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
 // Mensaje que el Durable Object envía a los dashboards abiertos
 export interface EventoEnVivo {
   tipo: "cambio";

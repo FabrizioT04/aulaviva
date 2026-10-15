@@ -133,3 +133,18 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--fondo); }
 .form-resolver { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--borde); }
 .form-resolver .acciones { justify-content: flex-end; }
 .reportes li > div:first-child { flex: 1 1 260px; min-width: 0; }
+
+.intro { color: var(--suave); margin: 0 0 16px; }
+.grupo-fichas { margin-bottom: 20px; }
+.grupo-fichas h2 { display: flex; align-items: center; gap: 8px; }
+.contador { font-size: 0.8rem; font-weight: 500; color: var(--suave); background: var(--superficie); border: 1px solid var(--borde); border-radius: 999px; padding: 1px 8px; }
+.ficha { margin-bottom: 12px; }
+.ficha h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.ficha .sintomas { color: var(--suave); margin: 0 0 8px; }
+.ficha ol { margin: 0 0 8px; padding-left: 22px; }
+.ficha ol li { margin-bottom: 4px; }
+.llamar-ti { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--amarillo) 15%, transparent); }
+.enlace.peligro { color: var(--rojo); }
+.form-ficha .acciones { justify-content: flex-end; }
+.form-ficha .acciones .primario { width: auto; padding: 10px 16px; }
+@media (max-width: 420px) { .barra { gap: 4px; padding: 8px; } .barra button { font-size: 0.9rem; padding: 10px 4px; } }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { consultarSesion, guardarToken, type EstadoSesion } from "./api";
 import Acceso from "./pages/Acceso";
 import DetalleAula from "./pages/DetalleAula";
+import Fichas from "./pages/Fichas";
 import Dashboard from "./pages/Dashboard";
 import ImprimirQr from "./pages/ImprimirQr";
 import Observatorio from "./pages/Observatorio";
@@ -11,6 +12,7 @@ export type Ruta =
   | { pantalla: "registro" }
   | { pantalla: "dashboard" }
   | { pantalla: "observatorio" }
+  | { pantalla: "fichas" }
   | { pantalla: "qr" }
   | { pantalla: "aula"; id: number };
 
@@ -20,6 +22,7 @@ function rutaActual(): Ruta {
   if (aula) return { pantalla: "aula", id: Number(aula[1]) };
   if (p.startsWith("/dashboard")) return { pantalla: "dashboard" };
   if (p.startsWith("/observatorio")) return { pantalla: "observatorio" };
+  if (p.startsWith("/fichas")) return { pantalla: "fichas" };
   if (p.startsWith("/qr-aulas")) return { pantalla: "qr" };
   return { pantalla: "registro" };
 }
@@ -96,11 +99,15 @@ export default function App() {
         >
           Observatorio
         </button>
+        <button className={pestana === "fichas" ? "activo" : ""} onClick={() => ir({ pantalla: "fichas" })}>
+          Fichas
+        </button>
       </nav>
       <main>
         {ruta.pantalla === "registro" && <Registro onNoAutorizado={salir} />}
         {ruta.pantalla === "dashboard" && <Dashboard onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "observatorio" && <Observatorio onNoAutorizado={salir} ir={ir} />}
+        {ruta.pantalla === "fichas" && <Fichas onNoAutorizado={salir} />}
         {ruta.pantalla === "qr" && <ImprimirQr onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "aula" && <DetalleAula id={ruta.id} onNoAutorizado={salir} ir={ir} />}
       </main>
