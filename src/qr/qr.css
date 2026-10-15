@@ -79,3 +79,4 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .miniatura { position: relative; }
 .miniatura img { display: block; width: 88px; height: 88px; object-fit: cover; border-radius: 14px; border: 1px solid var(--borde); }
 .miniatura button { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); font-size: 0.8rem; line-height: 1; }
+.cabecera .seccion { margin: 8px 0 0; align-self: flex-start; font-size: 0.9rem; font-weight: 800; padding: 5px 12px; border-radius: 999px; background: var(--primario-suave); color: var(--primario); }

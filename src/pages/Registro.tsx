@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AulaConEstado, TipoFalla } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
+import { descripcionAula } from "../formato";
 import Icono from "../Icono";
 
 const TIPOS: { valor: TipoFalla; etiqueta: string }[] = [
@@ -42,7 +43,11 @@ export default function Registro({ onNoAutorizado }: { onNoAutorizado: () => voi
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : null));
   }, [onNoAutorizado]);
 
-  const aula = aulas.find((a) => a.nombre === aulaTexto || a.codigo === aulaTexto);
+  // Se puede escribir el número ("204"), el nombre ("Aula 204") o la sección que dice el docente ("3B")
+  const buscado = aulaTexto.trim().toUpperCase();
+  const aula = aulas.find(
+    (a) => a.nombre.toUpperCase() === buscado || a.codigo === buscado || a.seccion?.toUpperCase() === buscado,
+  );
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -104,14 +109,19 @@ export default function Registro({ onNoAutorizado }: { onNoAutorizado: () => voi
             list="lista-aulas"
             value={aulaTexto}
             onChange={(e) => setAulaTexto(e.target.value)}
-            placeholder="Escribe 204 o Aula 204"
+            placeholder="Escribe 204 o la sección, como 3B"
             inputMode="search"
           />
           <datalist id="lista-aulas">
             {aulas.map((a) => (
-              <option key={a.id} value={a.nombre} />
+              <option key={a.id} value={a.nombre} label={descripcionAula(a)} />
             ))}
           </datalist>
+          {aula && (
+            <span className="aula-elegida">
+              {aula.nombre} · {descripcionAula(aula)}
+            </span>
+          )}
         </label>
 
         <fieldset>

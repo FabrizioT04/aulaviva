@@ -5,7 +5,7 @@ import { api, NoAutorizado, urlEnVivo } from "../api";
 import FormResolver from "../FormResolver";
 import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
-import { duracion, ETIQUETA_FALLA, minutosDesde } from "../formato";
+import { descripcionAula, duracion, ETIQUETA_FALLA, minutosDesde } from "../formato";
 
 interface Props {
   onNoAutorizado: () => void;
@@ -160,9 +160,11 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                       key={a.id}
                       className={`aula ${a.semaforo}`}
                       onClick={() => ir({ pantalla: "aula", id: a.id })}
-                      aria-label={`${a.nombre}: ${a.reportes_abiertos} reportes abiertos`}
+                      aria-label={`${a.nombre}${a.seccion ? ` (${a.seccion})` : ""}: ${a.reportes_abiertos} reportes abiertos`}
+                      title={`${a.nombre} · ${descripcionAula(a)}`}
                     >
                       {a.codigo}
+                      {a.seccion && <span className="seccion">{a.seccion}</span>}
                       {a.reportes_abiertos > 0 && <span className="cuenta">{a.reportes_abiertos}</span>}
                     </button>
                   ))}
@@ -191,6 +193,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                   <div className="reporte-cuerpo">
                     <div className="reporte-titulo">
                       <strong>{r.aula_nombre}</strong>
+                      {r.aula_seccion && <span className="seccion-reporte">{r.aula_seccion}</span>}
                       <span>{ETIQUETA_FALLA[r.tipo_falla]}</span>
                       {r.bloquea_clase ? <span className="insignia roja">Bloquea la clase</span> : null}
                       {r.estado === "en_atencion" && <span className="insignia azul">En atención</span>}

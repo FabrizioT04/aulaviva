@@ -264,3 +264,9 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .llamar-ti { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: var(--amarillo-suave); }
 .form-ficha .acciones { justify-content: flex-end; }
 .form-ficha .acciones .primario { width: auto; }
+
+/* Sección del aula ("4A") junto al número */
+.aula { height: 58px; grid-template-rows: auto auto; align-content: center; gap: 1px; line-height: 1.1; }
+.aula .seccion { font-size: 0.66rem; font-weight: 700; opacity: 0.75; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
+.seccion-reporte { font-size: 0.75rem; font-weight: 800; padding: 3px 8px; border-radius: 8px; background: var(--superficie-2); color: var(--suave); border: 1px solid var(--borde); }
+.aula-elegida { font-size: 0.85rem; font-weight: 600; color: var(--verde); }

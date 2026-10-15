@@ -57,7 +57,10 @@ export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
           <figure key={aula.id} className="qr">
             <div className="qr-imagen" dangerouslySetInnerHTML={{ __html: svg }} />
             <figcaption>
-              <strong>{aula.nombre}</strong>
+              <strong>
+                {aula.nombre}
+                {aula.seccion ? ` · ${aula.seccion}` : ""}
+              </strong>
               <span>Escanea para reportar una falla a TI</span>
               <em>AulaViva · Soporte TI</em>
             </figcaption>

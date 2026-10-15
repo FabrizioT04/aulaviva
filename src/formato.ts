@@ -35,3 +35,8 @@ export function fechaCorta(fecha: string): string {
     minute: "2-digit",
   });
 }
+
+// "4A · Primaria · Pabellón A", con lo que tenga el aula
+export function descripcionAula(a: { seccion: string | null; nivel: string | null; pabellon: string | null }): string {
+  return [a.seccion, a.nivel, a.pabellon && `Pabellón ${a.pabellon}`].filter(Boolean).join(" · ");
+}

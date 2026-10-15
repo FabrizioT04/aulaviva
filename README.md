@@ -31,7 +31,8 @@ migrations/0002_foto_reporte.sql  primera versión de la foto del reporte
 migrations/0003_fotos_multiples.sql  tabla foto_reporte (hasta 3 fotos por reporte)
 migrations/0004_causa.sql          columna causa: qué se encontró, aparte de qué se hizo
 migrations/0005_fichas.sql         tabla ficha (fichas de solución de TI)
-seed/aulas.sql                aulas de ejemplo (cámbialas por las reales)
+migrations/0006_secciones.sql      pabellón, nivel y sección de cada aula (cuadro de asignación 2026)
+seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
 src/                          panel de TI en React (Registro, Dashboard, Detalle, Observatorio, QR)
