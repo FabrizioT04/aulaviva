@@ -3,6 +3,7 @@ import type { NombreIcono } from "../shared/iconos";
 import { consultarSesion, guardarToken, type EstadoSesion } from "./api";
 import Icono from "./Icono";
 import Logo from "./Logo";
+import SelectorTema from "./SelectorTema";
 import Acceso from "./pages/Acceso";
 import DetalleAula from "./pages/DetalleAula";
 import Fichas from "./pages/Fichas";
@@ -118,6 +119,7 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <SelectorTema />
         <div className="usuario">
           <span className="avatar" aria-hidden="true">
             {usuario.charAt(0).toUpperCase()}
