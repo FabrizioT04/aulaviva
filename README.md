@@ -7,7 +7,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 
 ### Sprint 1 · Panel de TI
 
-- **Registro rápido** (`/`): aula, tipo de falla, si bloquea la clase, docente y detalle.
+- **Registro rápido** (`/`): aula, tipo de falla, si bloquea la clase, docente, detalle y la hora real del mensaje de WhatsApp. Si TI ya lo atendió, se registra resuelto de una vez con la hora de llegada, la hora de solución y qué se hizo.
 - **Dashboard en vivo** (`/dashboard`): semáforo por aula (verde, amarillo, rojo) y lista de reportes abiertos ordenada por urgencia. Se actualiza sola por WebSocket. Toca un aula para ver su detalle.
 - **Detalle de aula** (`/aula/:id`): historial completo, tiempos promedio y cómo se resolvió cada caso.
 - **Observatorio** (`/observatorio`): incidencias, bloqueos y tiempos promedio de atención y resolución; incidencias por tipo de falla y aulas con más incidencias (7, 30 o 90 días).
@@ -74,7 +74,7 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/reportes` | Últimos 100 reportes |
 | GET | `/api/aulas/:id` | Detalle de un aula con su historial y promedios |
 | GET | `/api/metricas?dias=30` | Indicadores del Observatorio |
-| POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, bloquea_clase, reportado_por_nombre, descripcion}` |
+| POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, bloquea_clase, reportado_por_nombre, descripcion, reportado_en?}`; para registrarlo ya resuelto agrega `resuelto: true, atendido_en, resuelto_en, notas_resolucion` |
 | PATCH | `/api/reportes/:id` | `{estado: "en_atencion"}` o `{estado: "resuelto", notas_resolucion}` |
 | GET | `/api/en-vivo` | WebSocket del dashboard |
 | GET | `/api/sesion` | Quién está conectado y su rol |
