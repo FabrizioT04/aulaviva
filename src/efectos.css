@@ -1,0 +1,207 @@
+/* Profundidad y animaciones del panel de TI.
+   Claro, "maqueta 3D": botones con canto, tarjetas que se inclinan y pisos en isométrico.
+   Oscuro, "control holográfico": mapa inclinado con línea de escaneo, brillos y radar.
+   Todo se apaga con "reducir movimiento" del sistema (al final del archivo). */
+
+:root {
+  --canto: #1e3fae;
+  --canto-rojo: #a9242a;
+  --resorte: cubic-bezier(0.3, 1.6, 0.5, 1);
+  --salida: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brillo: rgb(138 180 255 / 0.55);
+    --brillo-rojo: rgb(255 90 95 / 0.7);
+    --brillo-ambar: rgb(245 185 65 / 0.55);
+  }
+  /* Cuadrícula tenue de fondo, como una pantalla de control */
+  body {
+    background-image: linear-gradient(rgb(138 180 255 / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(138 180 255 / 0.045) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+}
+@media (prefers-color-scheme: dark) and (min-width: 900px) {
+  .app { background: linear-gradient(90deg, var(--superficie) 0 247px, var(--borde) 247px 248px, transparent 248px); }
+}
+
+@keyframes pantalla { from { opacity: 0; transform: translateY(14px); } }
+@keyframes voltear { from { opacity: 0; transform: rotateX(-28deg) translateY(26px); } }
+@keyframes encender { 0% { opacity: 0; filter: brightness(2.5) blur(4px); } 40% { opacity: 1; } 100% { filter: none; } }
+@keyframes latir { to { transform: scale(3); opacity: 0; } }
+@keyframes onda { from { opacity: 0.9; transform: scale(0.94); } to { opacity: 0; transform: scale(1.5); } }
+@keyframes caer { from { opacity: 0; transform: translateZ(100px); } }
+@keyframes flotar { 0%, 100% { transform: translateZ(8px); } 50% { transform: translateZ(28px); } }
+@keyframes saltar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes materializar { from { opacity: 0; transform: translateZ(50px); filter: blur(5px); } }
+@keyframes brillar { 50% { filter: brightness(1.35); } }
+@keyframes escanear { 0% { top: 0; opacity: 0; } 8%, 92% { opacity: 0.7; } 100% { top: 100%; opacity: 0; } }
+@keyframes deslizar { from { opacity: 0; transform: translateX(36px); } }
+@keyframes crecer { from { transform: scaleX(0); } }
+@keyframes rebote { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-8deg); } 100% { transform: scale(1); } }
+
+/* Cada pantalla entra suave. Solo "backwards": al terminar no deja transform,
+   así las ventanas fijas (foto en grande) siguen cubriendo toda la pantalla. */
+.app > main > * { animation: pantalla 0.5s var(--salida) backwards; }
+
+/* Menú */
+.barra button { transition: background 0.2s, color 0.2s, transform 0.3s var(--resorte), box-shadow 0.25s; }
+@media (min-width: 900px) {
+  .barra button:hover { transform: translateX(4px); }
+  .barra button.activo { background: var(--primario); color: var(--primario-texto); box-shadow: 0 4px 0 var(--canto), 0 12px 20px -10px rgb(47 91 234 / 0.7); }
+  .barra button.activo:hover { background: var(--primario); color: var(--primario-texto); }
+  .logo-marca { box-shadow: 0 4px 0 var(--canto); }
+}
+@media (max-width: 899px) {
+  .barra button.activo .icono { animation: rebote 0.5s var(--resorte); }
+}
+@media (prefers-color-scheme: dark) {
+  .logo-marca { box-shadow: 0 0 16px -2px rgb(43 212 154 / 0.6); }
+}
+@media (prefers-color-scheme: dark) and (min-width: 900px) {
+  .barra button.activo, .barra button.activo:hover { background: rgb(138 180 255 / 0.08); color: var(--primario); box-shadow: 0 0 0 1px rgb(138 180 255 / 0.45), 0 0 22px -4px var(--brillo); }
+}
+
+/* Botones principales: canto en claro, brillo en oscuro */
+.primario { box-shadow: 0 4px 0 var(--canto); transition: transform 0.12s, box-shadow 0.12s, background 0.2s; }
+.primario:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 0 var(--canto), 0 14px 22px -12px rgb(47 91 234 / 0.6); }
+.primario:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--canto); }
+form > .primario { box-shadow: 0 5px 0 var(--canto), var(--sombra-boton); }
+.primario:disabled { box-shadow: none; }
+@media (prefers-color-scheme: dark) {
+  .primario, form > .primario { box-shadow: 0 0 22px -6px var(--brillo); }
+  .primario:hover:not(:disabled) { transform: none; box-shadow: 0 0 32px -4px var(--brillo); }
+  .primario:active:not(:disabled) { transform: scale(0.98); box-shadow: 0 0 14px -6px var(--brillo); }
+}
+
+/* Indicador "En vivo" que late */
+.en-vivo i { position: relative; }
+.en-vivo:not(.desconectado) i::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--verde-punto); animation: latir 1.6s ease-out infinite; }
+
+/* Tarjetas de números: entran girando y se inclinan al pasar el mouse */
+.resumen { perspective: 1000px; }
+.dato { transition: transform 0.45s var(--salida), box-shadow 0.45s, border-color 0.3s; animation: voltear 0.8s var(--salida) backwards; }
+.dato:nth-child(2) { animation-delay: 0.08s; }
+.dato:nth-child(3) { animation-delay: 0.16s; }
+.dato:nth-child(4) { animation-delay: 0.24s; }
+.dato.alerta { box-shadow: 0 6px 0 var(--canto-rojo), 0 18px 30px -16px rgb(224 56 62 / 0.7); }
+.progreso span { transition: width 1.2s var(--salida); }
+@media (hover: hover) {
+  .dato:hover { transform: rotateX(9deg) translateY(-5px); box-shadow: 0 28px 36px -24px rgb(47 91 234 / 0.5); }
+  .dato.alerta:hover { box-shadow: 0 6px 0 var(--canto-rojo), 0 28px 36px -20px rgb(224 56 62 / 0.75); }
+}
+@media (prefers-color-scheme: dark) {
+  .dato { animation-name: encender; }
+  .dato.alerta { box-shadow: 0 0 30px -10px var(--brillo-rojo); }
+  .dato.alerta strong { text-shadow: 0 0 18px var(--brillo-rojo); }
+}
+@media (prefers-color-scheme: dark) and (hover: hover) {
+  .dato:hover { border-color: rgb(138 180 255 / 0.5); box-shadow: 0 24px 40px -20px rgb(138 180 255 / 0.4); }
+  .dato.alerta:hover { border-color: var(--rojo); box-shadow: 0 0 40px -8px var(--brillo-rojo); }
+}
+
+/* Mapa de aulas */
+.aula { animation-delay: calc(var(--i, 0) * 35ms); }
+.aula.rojo::after { content: ""; position: absolute; inset: -5px; border-radius: 18px; border: 2px solid var(--rojo); animation: onda 1.6s ease-out infinite; pointer-events: none; }
+
+/* Claro: aulas con canto; las que fallan saltan */
+@media (prefers-color-scheme: light) {
+  .aula { box-shadow: 0 4px 0 #d9dde6; transition: transform 0.25s var(--resorte), box-shadow 0.2s; }
+  .aula:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #d9dde6; }
+  .aula:active { transform: translateY(3px); box-shadow: 0 1px 0 #d9dde6; }
+  .aula.amarillo { background: #ffd88a; border-color: #f2c063; color: #6b4300; box-shadow: 0 4px 0 #e0a843; animation: saltar 2.6s ease-in-out 1s infinite; }
+  .aula.rojo { box-shadow: 0 4px 0 var(--canto-rojo), 0 10px 18px -8px rgb(224 56 62 / 0.5); animation: saltar 1.5s ease-in-out 1s infinite; }
+
+  /* Con espacio suficiente, cada piso se dibuja como una maqueta isométrica */
+  .mapa { container-type: inline-size; }
+  @container (min-width: 420px) {
+    .mapa .piso { perspective: 1600px; }
+    .mapa .piso + .piso { margin-top: 6px; }
+    .mapa .piso h3 { margin-bottom: 0; }
+    .mapa .grilla {
+      width: 372px; margin: 22px auto 34px; padding: 10px; gap: 8px; border-radius: 14px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      background: #dfe4ee; transform: rotateX(58deg) rotateZ(-36deg); transform-style: preserve-3d;
+      box-shadow: 1px 1px 0 #c3cad8, 2px 2px 0 #c3cad8, 3px 3px 0 #c3cad8, 4px 4px 0 #bcc4d3, 5px 5px 0 #bcc4d3, 6px 6px 0 #b3bccd, 16px 20px 30px rgb(20 22 26 / 0.16);
+    }
+    .mapa .aula {
+      height: 50px; border: 0; transform: translateZ(8px); transform-style: preserve-3d;
+      transition: transform 0.35s var(--salida);
+      box-shadow: 1px 1px 0 #d4d9e3, 2px 2px 0 #d4d9e3, 3px 3px 0 #d4d9e3, 4px 4px 0 #c7cdd9, 5px 5px 0 #c7cdd9, 6px 6px 0 #bac1cf;
+      animation: caer 0.8s var(--salida) backwards;
+      animation-delay: calc(var(--i, 0) * 35ms);
+    }
+    .mapa .aula:hover, .mapa .aula:focus-visible { transform: translateZ(24px); box-shadow: 1px 1px 0 #d4d9e3, 2px 2px 0 #d4d9e3, 3px 3px 0 #d4d9e3, 4px 4px 0 #c7cdd9, 5px 5px 0 #c7cdd9, 6px 6px 0 #bac1cf; }
+    .mapa .aula:active { transform: translateZ(4px); }
+    .mapa .aula.amarillo {
+      box-shadow: 1px 1px 0 #ecb755, 2px 2px 0 #ecb755, 3px 3px 0 #ecb755, 4px 4px 0 #dca240, 5px 5px 0 #dca240, 6px 6px 0 #c98f2e;
+      animation: caer 0.8s var(--salida) backwards, flotar 2.6s ease-in-out infinite;
+      animation-delay: calc(var(--i, 0) * 35ms), 1s;
+    }
+    .mapa .aula.rojo {
+      box-shadow: 1px 1px 0 #c42a30, 2px 2px 0 #c42a30, 3px 3px 0 #c42a30, 4px 4px 0 #b3262c, 5px 5px 0 #b3262c, 6px 6px 0 #9c1f25;
+      animation: caer 0.8s var(--salida) backwards, flotar 1.5s ease-in-out infinite;
+      animation-delay: calc(var(--i, 0) * 35ms), 1s;
+    }
+    .mapa .aula.rojo::after { inset: -6px; border-radius: 11px; }
+  }
+}
+
+/* Oscuro: todo el mapa es un tablero inclinado que se escanea */
+@media (prefers-color-scheme: dark) {
+  .mapa { perspective: 1300px; }
+  .tablero {
+    position: relative; margin-top: -40px; padding: 16px; border-radius: 20px; border: 1px solid rgb(138 180 255 / 0.22);
+    background: rgb(138 180 255 / 0.03); transform: rotateX(22deg); transform-origin: center 70%; transform-style: preserve-3d;
+    box-shadow: 0 40px 60px -30px rgb(0 0 0 / 0.8), inset 0 0 40px rgb(138 180 255 / 0.05);
+  }
+  /* Al inclinarse, el tablero deja un hueco arriba; el margen negativo lo compensa.
+     En el celular el tablero es alto, así que se inclina menos */
+  @media (max-width: 899px) { .tablero { margin-top: -28px; transform: rotateX(12deg); transform-origin: center 85%; } }
+  .tablero::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; pointer-events: none;
+    background: var(--primario); box-shadow: 0 0 18px 4px rgb(138 180 255 / 0.5); animation: escanear 4.5s linear infinite;
+  }
+  .mapa .piso, .mapa .grilla { transform-style: preserve-3d; }
+  .mapa .grilla { background: transparent; padding: 0; }
+  .aula { transition: transform 0.35s var(--salida), box-shadow 0.3s, border-color 0.2s; animation: materializar 0.8s ease-out backwards; animation-delay: calc(var(--i, 0) * 35ms); }
+  .aula:hover, .aula:focus-visible { transform: translateZ(22px); border-color: var(--primario); box-shadow: 0 0 22px -2px var(--brillo), 0 16px 18px -10px #000; }
+  .aula.amarillo { box-shadow: inset 0 -3px 0 var(--amarillo), 0 0 18px -4px var(--brillo-ambar); animation: materializar 0.8s ease-out backwards, brillar 2.2s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 35ms), 1s; }
+  .aula.rojo { transform: translateZ(14px); box-shadow: inset 0 -3px 0 var(--rojo), 0 0 26px -2px var(--brillo-rojo); animation: materializar 0.8s ease-out backwards, brillar 1.2s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 35ms), 1s; }
+  .aula.rojo::before { content: ""; position: absolute; inset: -5px; border-radius: 18px; border: 2px solid var(--rojo); animation: onda 1.6s ease-out 0.8s infinite; pointer-events: none; }
+}
+
+/* Cola de atención: los reportes entran deslizándose. Sin transform al pasar el mouse
+   porque dentro puede abrirse la foto en grande (posición fija). */
+.reporte { animation: deslizar 0.6s var(--salida) backwards; animation-delay: calc(var(--i, 0) * 90ms + 0.2s); transition: box-shadow 0.3s, border-color 0.3s; }
+.reporte.bloquea .tipo-icono { position: relative; }
+.reporte.bloquea .tipo-icono::after { content: ""; position: absolute; inset: -4px; border-radius: 18px; border: 2px solid var(--rojo); animation: onda 1.6s ease-out infinite; pointer-events: none; }
+.tipo-icono { box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.08), inset 0 2px 0 rgb(255 255 255 / 0.55); }
+@media (hover: hover) { .reporte:hover { box-shadow: 0 18px 28px -22px rgb(20 22 26 / 0.45); } }
+@media (prefers-color-scheme: dark) {
+  .tipo-icono { box-shadow: none; }
+  .reporte.bloquea { box-shadow: 0 0 26px -12px var(--brillo-rojo); }
+  .reporte:hover { border-color: #2f3d50; box-shadow: none; }
+  .reporte.bloquea:hover { border-color: var(--rojo); box-shadow: 0 0 30px -10px var(--brillo-rojo); }
+}
+
+/* Registro: la falla elegida se levanta */
+.opcion, .segmentado button { transition: transform 0.4s var(--resorte), box-shadow 0.3s, background 0.2s, color 0.2s; }
+.opcion .icono-caja { transition: transform 0.45s var(--resorte); }
+.opcion.activo { transform: translateY(-4px); background: var(--primario); border-color: var(--primario); color: var(--primario-texto); box-shadow: 0 6px 0 var(--canto), 0 18px 24px -14px rgb(47 91 234 / 0.6); }
+.opcion.activo .icono-caja { background: var(--superficie); color: var(--primario); transform: scale(1.1) rotate(-8deg); }
+.segmentado button.activo { transform: translateY(-1px); }
+@media (prefers-color-scheme: dark) {
+  .opcion.activo { background: var(--primario-suave); color: var(--primario); box-shadow: 0 0 0 1px rgb(138 180 255 / 0.4), 0 0 26px -6px var(--brillo); }
+  .opcion.activo .icono-caja { background: var(--primario); color: var(--primario-texto); box-shadow: 0 0 14px var(--brillo); }
+}
+
+/* Observatorio: las barras crecen al aparecer */
+.barra-relleno { transform-origin: left; animation: crecer 0.9s var(--salida) backwards; }
+@media (prefers-color-scheme: dark) { .barra-relleno { box-shadow: 0 0 12px var(--brillo); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition-duration: 0.01ms !important; }
+  .tablero::after { display: none; }
+}

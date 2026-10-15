@@ -3,6 +3,7 @@
 import { iconoSvg } from "../../shared/iconos";
 import type { EstadoAulaQr, TipoFalla } from "../../shared/tipos";
 import "./qr.css";
+import "./qr-efectos.css";
 
 const TIPOS: [TipoFalla, string][] = [
   ["internet", "Internet"],
@@ -100,9 +101,14 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
         ${MARCA}
         <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
       </div>
-      <p class="ubicacion">${[aula.piso != null && `Piso ${aula.piso}`, aula.pabellon && `Pabellón ${esc(aula.pabellon)}`, "Sede SMP1"].filter(Boolean).join(" · ")}</p>
-      <h1>${esc(aula.nombre)}</h1>
-      ${aula.seccion ? `<p class="seccion">${esc(aula.seccion)}${aula.nivel ? ` · ${esc(aula.nivel)}` : ""}</p>` : ""}
+      <div class="cabecera-aula">
+        <div class="cabecera-texto">
+          <p class="ubicacion">${[aula.piso != null && `Piso ${aula.piso}`, aula.pabellon && `Pabellón ${esc(aula.pabellon)}`, "Sede SMP1"].filter(Boolean).join(" · ")}</p>
+          <h1>${esc(aula.nombre)}</h1>
+          ${aula.seccion ? `<p class="seccion">${esc(aula.seccion)}${aula.nivel ? ` · ${esc(aula.nivel)}` : ""}</p>` : ""}
+        </div>
+        <div class="cubo-escena" aria-hidden="true"><div class="cubo ${aula.semaforo}">${esc(aula.codigo)}</div></div>
+      </div>
     </header>
     ${aviso}
     ${reportados}
