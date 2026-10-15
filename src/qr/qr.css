@@ -46,7 +46,9 @@ textarea { font: inherit; font-size: 16px; padding: 10px; border-radius: 10px; b
 .foto { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .etiqueta-foto { font-weight: 600; font-size: 0.95rem; }
 .boton-foto { display: block; text-align: center; padding: 12px; border: 1px dashed var(--borde); border-radius: 12px; color: var(--primario); font-weight: 600; cursor: pointer; }
-.boton-foto[hidden], .vista-foto[hidden] { display: none; }
-.vista-foto { display: flex; align-items: center; gap: 12px; }
-.vista-foto img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid var(--borde); }
-.vista-foto button { font: inherit; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
+.boton-foto[hidden] { display: none; }
+.vista-foto { display: flex; gap: 10px; flex-wrap: wrap; }
+.vista-foto:empty { display: none; }
+.miniatura { position: relative; }
+.miniatura img { display: block; width: 88px; height: 88px; object-fit: cover; border-radius: 10px; border: 1px solid var(--borde); }
+.miniatura button { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); font-size: 0.8rem; line-height: 1; }

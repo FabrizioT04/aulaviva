@@ -42,7 +42,8 @@ const SQL_PROMEDIOS = `
   ROUND(AVG((julianday(resuelto_en) - julianday(reportado_en)) * 1440), 1) AS prom_resolucion_min`;
 
 const SQL_REPORTES = `
-  SELECT r.*, a.nombre AS aula_nombre
+  SELECT r.*, a.nombre AS aula_nombre,
+    (SELECT COUNT(*) FROM foto_reporte f WHERE f.reporte_id = r.id) AS fotos
   FROM reporte r JOIN aula a ON a.id = r.aula_id`;
 
 export default {
@@ -166,13 +167,16 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
     return json(creado, 201);
   }
 
-  const foto = pathname.match(/^\/api\/reportes\/(\d+)\/foto$/);
+  // Foto número n (0, 1 o 2) del reporte, en el orden en que se subieron
+  const foto = pathname.match(/^\/api\/reportes\/(\d+)\/fotos\/(\d)$/);
   if (foto && metodo === "GET") {
-    const fila = await env.DB.prepare("SELECT foto_key FROM reporte WHERE id = ?")
-      .bind(Number(foto[1]))
-      .first<{ foto_key: string | null }>();
-    const objeto = fila?.foto_key ? await env.FOTOS.get(fila.foto_key) : null;
-    if (!objeto) return json({ error: "Este reporte no tiene foto" }, 404);
+    const fila = await env.DB.prepare(
+      "SELECT r2_key FROM foto_reporte WHERE reporte_id = ? ORDER BY id LIMIT 1 OFFSET ?",
+    )
+      .bind(Number(foto[1]), Number(foto[2]))
+      .first<{ r2_key: string }>();
+    const objeto = fila ? await env.FOTOS.get(fila.r2_key) : null;
+    if (!objeto) return json({ error: "Este reporte no tiene esa foto" }, 404);
     return new Response(objeto.body, {
       headers: {
         "Content-Type": objeto.httpMetadata?.contentType ?? "image/jpeg",
@@ -288,8 +292,9 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): 
 
 const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_FOTO_BYTES = 3 * 1024 * 1024; // el celular la comprime antes a ~200 KB
+const MAX_FOTOS = 3;
 
-// Foto de evidencia: solo el docente que creó el reporte, una vez y en los 15 minutos siguientes
+// Fotos de evidencia: solo el docente que creó el reporte, hasta 3 y en los 15 minutos siguientes
 async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: number, reporteId: number) {
   const tipo = (request.headers.get("Content-Type") ?? "").split(";")[0].trim();
   const extension = TIPOS_FOTO[tipo];
@@ -300,10 +305,11 @@ async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: num
 
   const reporte = await env.DB.prepare(
     `SELECT r.id FROM reporte r JOIN profesor p ON p.id = r.profesor_id
-     WHERE r.id = ? AND r.aula_id = ? AND p.email = ? AND r.foto_key IS NULL
-       AND r.reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-15 minutes')`,
+     WHERE r.id = ? AND r.aula_id = ? AND p.email = ?
+       AND r.reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-15 minutes')
+       AND (SELECT COUNT(*) FROM foto_reporte f WHERE f.reporte_id = r.id) < ?`,
   )
-    .bind(reporteId, aulaId, sesion.email)
+    .bind(reporteId, aulaId, sesion.email, MAX_FOTOS)
     .first();
   if (!reporte) return json({ error: "No se puede agregar una foto a este reporte" }, 403);
 
@@ -314,7 +320,18 @@ async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: num
 
   const clave = `reportes/${reporteId}-${crypto.randomUUID()}.${extension}`;
   await env.FOTOS.put(clave, datos, { httpMetadata: { contentType: tipo } });
-  await env.DB.prepare("UPDATE reporte SET foto_key = ? WHERE id = ?").bind(clave, reporteId).run();
+  // Vuelve a contar al guardar, por si llegan dos fotos a la vez
+  const guardada = await env.DB.prepare(
+    `INSERT INTO foto_reporte (reporte_id, r2_key)
+     SELECT ?, ? WHERE (SELECT COUNT(*) FROM foto_reporte WHERE reporte_id = ?) < ?
+     RETURNING id`,
+  )
+    .bind(reporteId, clave, reporteId, MAX_FOTOS)
+    .first();
+  if (!guardada) {
+    await env.FOTOS.delete(clave);
+    return json({ error: `El reporte ya tiene ${MAX_FOTOS} fotos` }, 409);
+  }
   await avisarCambio(env, aulaId);
   return json({ ok: true }, 201);
 }
