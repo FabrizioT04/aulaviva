@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useState } from "react";
 import type { AulaConEstado, EventoEnVivo, Metricas, Reporte } from "../../shared/tipos";
 import type { Ruta } from "../App";
 import { api, NoAutorizado, urlEnVivo } from "../api";
+import Contador from "../Contador";
 import FormResolver from "../FormResolver";
 import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
@@ -110,12 +111,12 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
       <section className="resumen" aria-label="Resumen">
         <div className="dato">
           <span>Reportes abiertos</span>
-          <strong className="num">{abiertos.length}</strong>
+          <strong className="num"><Contador valor={abiertos.length} /></strong>
           <small>{enAtencion === 1 ? "1 en atención" : `${enAtencion} en atención`}</small>
         </div>
         <div className={bloqueantes.length ? "dato alerta" : "dato"}>
           <span>Bloquean la clase</span>
-          <strong className="num">{bloqueantes.length}</strong>
+          <strong className="num"><Contador valor={bloqueantes.length} /></strong>
           <small>
             {bloqueantes.length
               ? `${bloqueantes[0].aula_nombre} · hace ${duracion(minutosDesde(bloqueantes[0].reportado_en))}`
@@ -130,7 +131,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
         <div className="dato">
           <span>Aulas operativas</span>
           <strong className="num">
-            {operativas}
+            <Contador valor={operativas} />
             <small> / {aulas.length}</small>
           </strong>
           <span className="progreso" aria-hidden="true">
@@ -149,28 +150,33 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
               <span><i className="muestra rojo" /> Bloquea</span>
             </div>
           </div>
-          {pisos.map((piso) => (
-            <div key={piso ?? "otras"} className="piso">
-              <h3>{piso == null ? "Otras" : `Piso ${piso}`}</h3>
-              <div className="grilla">
-                {aulas
-                  .filter((a) => a.piso === piso)
-                  .map((a) => (
-                    <button
-                      key={a.id}
-                      className={`aula ${a.semaforo}`}
-                      onClick={() => ir({ pantalla: "aula", id: a.id })}
-                      aria-label={`${a.nombre}${a.seccion ? ` (${a.seccion})` : ""}: ${a.reportes_abiertos} reportes abiertos`}
-                      title={`${a.nombre} · ${descripcionAula(a)}`}
-                    >
-                      {a.codigo}
-                      {a.seccion && <span className="seccion">{a.seccion}</span>}
-                      {a.reportes_abiertos > 0 && <span className="cuenta">{a.reportes_abiertos}</span>}
-                    </button>
-                  ))}
-              </div>
+          <div className="mapa">
+            <div className="tablero">
+              {pisos.map((piso) => (
+                <div key={piso ?? "otras"} className="piso">
+                  <h3>{piso == null ? "Otras" : `Piso ${piso}`}</h3>
+                  <div className="grilla">
+                    {aulas
+                      .filter((a) => a.piso === piso)
+                      .map((a, i) => (
+                        <button
+                          key={a.id}
+                          className={`aula ${a.semaforo}`}
+                          style={{ "--i": i } as CSSProperties}
+                          onClick={() => ir({ pantalla: "aula", id: a.id })}
+                          aria-label={`${a.nombre}${a.seccion ? ` (${a.seccion})` : ""}: ${a.reportes_abiertos} reportes abiertos`}
+                          title={`${a.nombre} · ${descripcionAula(a)}`}
+                        >
+                          {a.codigo}
+                          {a.seccion && <span className="seccion">{a.seccion}</span>}
+                          {a.reportes_abiertos > 0 && <span className="cuenta">{a.reportes_abiertos}</span>}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </section>
 
         <section className="tarjeta">
@@ -184,8 +190,12 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
             </p>
           )}
           <ul className="reportes">
-            {abiertos.map((r) => (
-              <li key={r.id} className={r.bloquea_clase ? "reporte bloquea" : "reporte"}>
+            {abiertos.map((r, i) => (
+              <li
+                key={r.id}
+                className={r.bloquea_clase ? "reporte bloquea" : "reporte"}
+                style={{ "--i": i } as CSSProperties}
+              >
                 <div className="reporte-fila">
                   <span className={`tipo-icono ${r.tipo_falla}`}>
                     <Icono nombre={r.tipo_falla} />
