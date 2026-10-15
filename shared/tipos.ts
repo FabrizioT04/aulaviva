@@ -53,7 +53,7 @@ export interface Metricas {
 
 export interface Sesion {
   email: string;
-  rol: "ti" | "docente";
+  rol: "ti" | "docente" | "servicio"; // servicio = el reporte semanal del viernes
   modo: "access" | "local";
 }
 
