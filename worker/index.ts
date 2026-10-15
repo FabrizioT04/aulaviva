@@ -13,6 +13,7 @@ export interface Env {
   ACCESS_TEAM_DOMAIN?: string; // ej. https://innova-ti.cloudflareaccess.com
   ACCESS_AUD?: string; // "Application Audience (AUD) Tag" de la aplicación de Access
   TI_EMAILS?: string; // correos de TI separados por coma
+  ACCESS_SERVICE_TOKEN_ID?: string; // Client ID del service token que usa el reporte semanal
   DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
   // Desarrollo local sin Access
   TOKEN_TI?: string;
@@ -64,6 +65,12 @@ export default {
         return sesion ? json(sesion) : json({ error: "No autorizado", access: accessConfigurado(env) }, 401);
       }
       if (!sesion) return json({ error: "No autorizado" }, 401);
+
+      // El reporte semanal (Apps Script) entra con un service token y solo puede leer esto
+      if (url.pathname === "/api/resumen-semanal" && request.method === "GET" && sesion.rol !== "docente") {
+        return await resumenSemanal(url, env);
+      }
+      if (sesion.rol === "servicio") return json({ error: "Este acceso solo sirve para el resumen semanal" }, 403);
 
       if (url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion);
 
@@ -363,6 +370,64 @@ async function avisarCambio(env: Env, aulaId: number) {
   if (!aula) return;
   const evento: EventoEnVivo = { tipo: "cambio", aula };
   await sede(env).difundir(evento);
+}
+
+// Resumen de una semana para el correo del viernes. Las fechas son días de Lima (UTC-5,
+// sin horario de verano): ?desde=2026-10-12&hasta=2026-10-18. Por defecto, la semana actual.
+async function resumenSemanal(url: URL, env: Env): Promise<Response> {
+  const DIA = 86_400_000;
+  const LIMA = -5 * 3_600_000;
+  const hoyLima = new Date(Date.now() + LIMA);
+  const lunes = new Date(Date.UTC(hoyLima.getUTCFullYear(), hoyLima.getUTCMonth(), hoyLima.getUTCDate()));
+  lunes.setUTCDate(lunes.getUTCDate() - ((lunes.getUTCDay() + 6) % 7));
+  const dia = (texto: string | null, porDefecto: Date) => {
+    if (!texto) return porDefecto;
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(texto) ? new Date(`${texto}T00:00:00Z`) : new Date(NaN);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const desde = dia(url.searchParams.get("desde"), lunes);
+  const hasta = dia(url.searchParams.get("hasta"), new Date(lunes.getTime() + 6 * DIA));
+  if (!desde || !hasta || hasta < desde || hasta.getTime() - desde.getTime() > 31 * DIA) {
+    return json({ error: "Usa ?desde=AAAA-MM-DD&hasta=AAAA-MM-DD, con hasta 31 días" }, 400);
+  }
+  // Medianoche de Lima expresada en UTC
+  const inicio = new Date(desde.getTime() - LIMA).toISOString();
+  const fin = new Date(hasta.getTime() + DIA - LIMA).toISOString();
+  const filtro = "r.reportado_en >= ? AND r.reportado_en < ?";
+
+  const [resumen, porTipo, reportes, anteriores] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(estado = 'resuelto'), 0) AS resueltos,
+              COALESCE(SUM(estado <> 'resuelto'), 0) AS pendientes,
+              COALESCE(SUM(bloquea_clase), 0) AS urgentes,
+              ${SQL_PROMEDIOS}
+       FROM reporte r WHERE ${filtro}`,
+    ).bind(inicio, fin),
+    env.DB.prepare(
+      `SELECT tipo_falla, COUNT(*) AS n FROM reporte r WHERE ${filtro} GROUP BY tipo_falla ORDER BY n DESC`,
+    ).bind(inicio, fin),
+    env.DB.prepare(
+      `SELECT r.reportado_en, a.nombre AS aula, r.tipo_falla, r.bloquea_clase, r.estado, r.origen,
+              r.descripcion, r.notas_resolucion,
+              ROUND((julianday(r.atendido_en) - julianday(r.reportado_en)) * 1440) AS atencion_min,
+              ROUND((julianday(r.resuelto_en) - julianday(r.reportado_en)) * 1440) AS resolucion_min
+       FROM reporte r JOIN aula a ON a.id = r.aula_id
+       WHERE ${filtro} ORDER BY r.reportado_en`,
+    ).bind(inicio, fin),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM reporte r WHERE r.estado <> 'resuelto' AND r.reportado_en < ?`,
+    ).bind(inicio),
+  ]);
+  const fecha = (d: Date) => d.toISOString().slice(0, 10);
+  return json({
+    desde: fecha(desde),
+    hasta: fecha(hasta),
+    resumen: resumen.results[0],
+    por_tipo: porTipo.results,
+    reportes: reportes.results,
+    pendientes_anteriores: (anteriores.results[0] as { n: number }).n,
+  });
 }
 
 function sede(env: Env) {

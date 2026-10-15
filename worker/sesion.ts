@@ -35,6 +35,11 @@ async function sesionAccess(request: Request, env: Env): Promise<Sesion | null> 
 
   try {
     const { payload } = await jwtVerify(token, jwks, { issuer: equipo, audience: env.ACCESS_AUD });
+    // Un service token no trae correo: se reconoce por su Client ID (common_name)
+    const servicio = env.ACCESS_SERVICE_TOKEN_ID?.trim();
+    if (servicio && !payload.email && payload.common_name === servicio) {
+      return { email: "reporte-semanal", rol: "servicio", modo: "access" };
+    }
     const email = typeof payload.email === "string" ? payload.email.toLowerCase() : "";
     const rol = rolDe(email, env);
     return email && rol ? { email, rol, modo: "access" } : null;

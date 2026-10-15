@@ -71,6 +71,16 @@ Desde ese momento la clave `TOKEN_TI` deja de funcionar en producción: solo ent
 2. Abre `https://aulaviva.<tu-cuenta>.workers.dev/r/204` desde otro celular con un correo de docente: debe ver solo el formulario del aula 204.
 3. Si un docente abre el panel de TI, verá un aviso de que no tiene permiso.
 
+## Acceso para el reporte semanal
+
+El correo de los viernes (Apps Script) lee `GET /api/resumen-semanal` con un **service token** de Access, sin usuario ni contraseña:
+
+1. **Access → Service credentials → Service Tokens → Create Service Token**, nombre `reporte-semanal`. Copia el Client ID y el Client Secret.
+2. En la aplicación AulaViva agrega una política con acción **Service Auth** e **Include → Service Token → reporte-semanal**.
+3. Guarda el Client ID en el Worker: `npx wrangler secret put ACCESS_SERVICE_TOKEN_ID`.
+
+Ese token solo puede leer el resumen semanal; cualquier otra ruta le responde 403.
+
 ## Imprimir los QR
 
 En el dashboard, toca **QR de aulas** y luego **Imprimir**. Imprímelos después de publicar, porque cada QR guarda la dirección de la app.
