@@ -1,54 +1,64 @@
-:root {
-  --fondo: #f1f5f9;
-  --superficie: #ffffff;
-  --texto: #0f172a;
-  --suave: #64748b;
-  --borde: #e2e8f0;
-  --primario: #2563eb;
-  --verde: #16a34a;
-  --amarillo: #eab308;
-  --rojo: #dc2626;
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --fondo: #0b1120; --superficie: #111827; --texto: #e5e7eb; --suave: #94a3b8; --borde: #1f2937; }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--fondo); color: var(--texto); }
-main { max-width: 480px; margin: 0 auto; padding: 16px; }
-h1 { font-size: 1.5rem; margin: 0; }
+@import "../tokens.css";
+
+main { max-width: 480px; margin: 0 auto; padding: 0 16px 24px; }
+h1 { font-size: 1.75rem; margin: 0; letter-spacing: -0.02em; }
 h2 { font-size: 1rem; margin: 0 0 10px; }
 .suave, .pie { color: var(--suave); font-size: 0.85rem; }
-.pie { text-align: center; }
-.cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0 16px; flex-wrap: wrap; }
-.estado { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 4px 10px; border-radius: 999px; background: var(--superficie); border: 1px solid var(--borde); }
-.estado i { width: 10px; height: 10px; border-radius: 50%; }
-.estado.verde i { background: var(--verde); }
-.estado.amarillo i { background: var(--amarillo); }
-.estado.rojo i { background: var(--rojo); }
-.tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+.pie { text-align: center; margin-top: 16px; }
+
+.marca { display: flex; align-items: center; gap: 10px; margin: 0 -16px; padding: 12px 16px; background: var(--marca); color: var(--marca-texto); }
+.marca .logo-marca { width: 28px; height: 28px; border-radius: 8px; }
+.marca .logo-marca .icono { width: 18px; height: 18px; }
+
+.cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 20px 0 16px; flex-wrap: wrap; }
+.estado { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; padding: 5px 12px; border-radius: 999px; }
+.estado i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.estado.verde { background: var(--verde-suave); color: var(--verde); }
+.estado.amarillo { background: var(--amarillo-suave); color: var(--amarillo); }
+.estado.rojo { background: var(--rojo-suave); color: var(--rojo); }
+
+.tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: 16px; padding: 18px; margin-bottom: 12px; box-shadow: var(--sombra); }
 .tarjeta p { margin: 8px 0 0; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-.chips button { font: inherit; font-size: 1rem; padding: 12px 18px; border-radius: 999px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
-.chips button.activo { background: var(--primario); border-color: var(--primario); color: #fff; }
-.chips button.urgente { background: var(--rojo); border-color: var(--rojo); }
+
+.opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.opciones button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 8px; font: inherit; font-size: 1.02rem; font-weight: 600; border-radius: 14px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
+.opciones .icono { width: 30px; height: 30px; color: var(--suave); }
+.opciones button.activo { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); box-shadow: inset 0 0 0 1px var(--primario); }
+.opciones button.activo .icono { color: var(--primario); }
+
+.segmentado { display: flex; padding: 4px; gap: 4px; border-radius: 14px; background: var(--fondo); border: 1px solid var(--borde); margin-bottom: 20px; }
+.segmentado button { flex: 1; font: inherit; font-weight: 600; padding: 13px 10px; border: 0; border-radius: 10px; background: transparent; color: var(--suave); }
+.segmentado button.activo { background: var(--superficie); color: var(--texto); box-shadow: var(--sombra), 0 0 0 1px var(--borde); }
+.segmentado button.urgente { background: var(--rojo); color: #fff; box-shadow: none; }
+
 label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 0.95rem; }
-textarea { font: inherit; font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); }
-.enviar { width: 100%; margin-top: 16px; padding: 16px; font: inherit; font-size: 1.05rem; font-weight: 700; border: 0; border-radius: 12px; background: var(--primario); color: #fff; }
+textarea { font: inherit; font-size: 16px; font-weight: 400; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--texto); resize: vertical; }
+textarea:focus { outline: 2px solid color-mix(in srgb, var(--primario) 35%, transparent); border-color: var(--primario); }
+.enviar { width: 100%; margin-top: 18px; padding: 16px; font: inherit; font-size: 1.05rem; font-weight: 700; border: 0; border-radius: 14px; background: var(--primario); color: #fff; }
 .enviar:disabled { opacity: 0.45; }
 .error { color: var(--rojo); margin: 10px 0 0; min-height: 1em; }
+
 .abiertos { list-style: none; margin: 0; padding: 0; }
-.abiertos li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--borde); }
-.abiertos li:first-child { border-top: 0; }
-.abiertos .estado-reporte { color: var(--suave); font-size: 0.9rem; }
-.exito { border-color: var(--verde); }
-.foto { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.abiertos li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--borde); }
+.abiertos li:first-child { border-top: 0; padding-top: 0; }
+.abierto-texto { flex: 1; }
+.urgente { font-style: normal; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--rojo-suave); color: var(--rojo); margin-left: 4px; }
+.estado-reporte { font-size: 0.8rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--amarillo-suave); color: var(--amarillo); }
+.estado-reporte.en_atencion { background: var(--primario-suave); color: var(--primario); }
+.tipo-icono { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--fondo); color: var(--suave); }
+.tipo-icono .icono { width: 18px; height: 18px; }
+
+.exito { border-color: color-mix(in srgb, var(--verde) 45%, transparent); background: var(--verde-suave); }
+.exito h2 { display: flex; align-items: center; gap: 10px; color: var(--verde); font-size: 1.1rem; }
+.check { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--verde); color: #fff; }
+.check .icono { width: 18px; height: 18px; }
+
+.foto { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .etiqueta-foto { font-weight: 600; font-size: 0.95rem; }
-.boton-foto { display: block; text-align: center; padding: 12px; border: 1px dashed var(--borde); border-radius: 12px; color: var(--primario); font-weight: 600; cursor: pointer; }
+.boton-foto { display: flex; align-items: center; justify-content: center; gap: 8px; flex-direction: row; padding: 14px; border: 1.5px dashed var(--borde); border-radius: 14px; color: var(--primario); font-weight: 600; cursor: pointer; }
 .boton-foto[hidden] { display: none; }
 .vista-foto { display: flex; gap: 10px; flex-wrap: wrap; }
 .vista-foto:empty { display: none; }
 .miniatura { position: relative; }
-.miniatura img { display: block; width: 88px; height: 88px; object-fit: cover; border-radius: 10px; border: 1px solid var(--borde); }
+.miniatura img { display: block; width: 88px; height: 88px; object-fit: cover; border-radius: 12px; border: 1px solid var(--borde); }
 .miniatura button { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); font-size: 0.8rem; line-height: 1; }

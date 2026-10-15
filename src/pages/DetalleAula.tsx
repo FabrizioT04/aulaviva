@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Ruta } from "../App";
 import type { DetalleAula as Detalle } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
+import Icono from "../Icono";
 import FotosReporte from "../FotosReporte";
 import { duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, fechaCorta, minutosEntre } from "../formato";
 
@@ -37,25 +38,25 @@ export default function DetalleAula({ id, onNoAutorizado, ir }: Props) {
   return (
     <div className="detalle">
       <button className="volver" onClick={() => ir({ pantalla: "dashboard" })}>
-        ← Dashboard
+        <Icono nombre="volver" /> Dashboard
       </button>
-      <header className="cabecera-aula">
+      <header className="cabecera-pagina">
         <h1>{aula.nombre}</h1>
         <span className={`etiqueta ${aula.semaforo}`}>
           <i className={`punto ${aula.semaforo}`} /> {SEMAFORO[aula.semaforo]}
         </span>
       </header>
 
-      <section className="indicadores">
-        <div className="indicador">
+      <section className="resumen">
+        <div className="dato">
           <span>Incidencias</span>
           <strong>{resumen.total}</strong>
         </div>
-        <div className="indicador">
+        <div className="dato">
           <span>Atención promedio</span>
           <strong>{duracion(resumen.prom_atencion_min)}</strong>
         </div>
-        <div className="indicador">
+        <div className="dato">
           <span>Resolución promedio</span>
           <strong>{duracion(resumen.prom_resolucion_min)}</strong>
         </div>

@@ -1,11 +1,12 @@
 import { useState } from "react";
+import Logo from "../Logo";
 
 export default function Acceso({ onIngresar }: { onIngresar: (token: string) => void }) {
   const [clave, setClave] = useState("");
   return (
     <main className="acceso">
-      <h1>AulaViva</h1>
-      <p>Incidencias tecnológicas de aulas · Soporte de TI, Innova Schools</p>
+      <Logo />
+      <p>Incidencias tecnológicas de las aulas de Innova Schools.</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
