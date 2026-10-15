@@ -26,6 +26,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 migrations/0001_inicial.sql   tablas Aula, Activo, Profesor, Reporte
 migrations/0002_foto_reporte.sql  primera versión de la foto del reporte
 migrations/0003_fotos_multiples.sql  tabla foto_reporte (hasta 3 fotos por reporte)
+migrations/0004_causa.sql          columna causa: qué se encontró, aparte de qué se hizo
 seed/aulas.sql                aulas de ejemplo (cámbialas por las reales)
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
@@ -74,8 +75,8 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/reportes` | Últimos 100 reportes |
 | GET | `/api/aulas/:id` | Detalle de un aula con su historial y promedios |
 | GET | `/api/metricas?dias=30` | Indicadores del Observatorio |
-| POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, bloquea_clase, reportado_por_nombre, descripcion, reportado_en?}`; para registrarlo ya resuelto agrega `resuelto: true, atendido_en, resuelto_en, notas_resolucion` |
-| PATCH | `/api/reportes/:id` | `{estado: "en_atencion"}` o `{estado: "resuelto", notas_resolucion}` |
+| POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, bloquea_clase, reportado_por_nombre, descripcion, reportado_en?}`; para registrarlo ya resuelto agrega `resuelto: true, atendido_en, resuelto_en, causa, notas_resolucion` |
+| PATCH | `/api/reportes/:id` | `{estado: "en_atencion"}` o `{estado: "resuelto", causa, notas_resolucion}` |
 | GET | `/api/en-vivo` | WebSocket del dashboard |
 | GET | `/api/sesion` | Quién está conectado y su rol |
 | GET | `/api/qr/:codigo` | Estado del aula para el docente |

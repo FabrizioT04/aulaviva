@@ -173,8 +173,8 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
     }
     const creado = await env.DB.prepare(
       `INSERT INTO reporte (aula_id, tipo_falla, bloquea_clase, descripcion, reportado_por_nombre, origen,
-         reportado_en, estado, atendido_en, resuelto_en, notas_resolucion)
-       VALUES (?, ?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?) RETURNING id`,
+         reportado_en, estado, atendido_en, resuelto_en, causa, notas_resolucion)
+       VALUES (?, ?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
       .bind(
         aulaId,
@@ -186,6 +186,7 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
         resuelto ? "resuelto" : "abierto",
         atendidoEn,
         resueltoEn,
+        resuelto ? texto(datos?.causa) : null,
         resuelto ? texto(datos?.notas_resolucion) : null,
       )
       .first<{ id: number }>();
@@ -228,9 +229,10 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
         `UPDATE reporte SET estado = 'resuelto',
            atendido_en = COALESCE(atendido_en, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
            resuelto_en = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+           causa = ?,
            notas_resolucion = ?
          WHERE id = ? AND estado <> 'resuelto' RETURNING aula_id`,
-      ).bind(texto(datos?.notas_resolucion), id);
+      ).bind(texto(datos?.causa), texto(datos?.notas_resolucion), id);
     } else {
       return json({ error: "Estado no válido" }, 400);
     }
@@ -409,7 +411,7 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
     ).bind(inicio, fin),
     env.DB.prepare(
       `SELECT r.reportado_en, a.nombre AS aula, r.tipo_falla, r.bloquea_clase, r.estado, r.origen,
-              r.descripcion, r.notas_resolucion,
+              r.descripcion, r.causa, r.notas_resolucion,
               ROUND((julianday(r.atendido_en) - julianday(r.reportado_en)) * 1440) AS atencion_min,
               ROUND((julianday(r.resuelto_en) - julianday(r.reportado_en)) * 1440) AS resolucion_min
        FROM reporte r JOIN aula a ON a.id = r.aula_id

@@ -23,7 +23,8 @@ export interface Reporte {
   reportado_en: string;
   atendido_en: string | null;
   resuelto_en: string | null;
-  notas_resolucion: string | null;
+  causa: string | null; // qué se encontró al revisar
+  notas_resolucion: string | null; // qué se hizo para resolverlo
   fotos: number; // cuántas fotos de evidencia tiene (0 a 3)
 }
 

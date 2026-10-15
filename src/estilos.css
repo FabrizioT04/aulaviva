@@ -130,3 +130,6 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--fondo); }
 .foto-grande { position: fixed; inset: 0; z-index: 10; background: rgb(0 0 0 / 0.85); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .foto-grande img { max-width: 100%; max-height: 100%; border-radius: 8px; }
 .horas { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 12px; }
+.form-resolver { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--borde); }
+.form-resolver .acciones { justify-content: flex-end; }
+.reportes li > div:first-child { flex: 1 1 260px; min-width: 0; }
