@@ -58,8 +58,39 @@ async function comprimir(archivo: File): Promise<Blob> {
 
 const MARCA = `<span class="marca"><span class="logo-marca">${iconoSvg("pulso")}</span><strong>AulaViva</strong></span>`;
 
+// Botón de tema: alterna claro y oscuro y lo recuerda en el celular.
+// qr.html aplica el tema guardado antes de pintar; los estilos leen data-tema (ver vite.config.ts).
+type Tema = "claro" | "oscuro";
+const FONDO: Record<Tema, string> = { claro: "#f4f5f8", oscuro: "#0b0f14" };
+
+function temaActual(): Tema {
+  const t = document.documentElement.dataset.tema;
+  if (t === "claro" || t === "oscuro") return t;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
+}
+
+function botonTema(): string {
+  const oscuro = temaActual() === "oscuro";
+  return `<button type="button" class="boton-tema" id="boton-tema" aria-label="${oscuro ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}">${iconoSvg(oscuro ? "sol" : "luna")}</button>`;
+}
+
+app.addEventListener("click", (e) => {
+  const boton = (e.target as HTMLElement).closest("#boton-tema");
+  if (!boton) return;
+  const nuevo: Tema = temaActual() === "oscuro" ? "claro" : "oscuro";
+  document.documentElement.dataset.tema = nuevo;
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) meta.content = FONDO[nuevo];
+  try {
+    localStorage.setItem("tema", nuevo);
+  } catch {
+    // Sin almacenamiento (modo privado): el tema dura hasta recargar
+  }
+  boton.outerHTML = botonTema();
+  document.getElementById("boton-tema")?.focus();
+});
+
 function mensaje(titulo: string, detalle = "") {
-  app.innerHTML = `<header class="cabecera"><div class="cabecera-fila">${MARCA}</div></header>
+  app.innerHTML = `<header class="cabecera"><div class="cabecera-fila">${MARCA}${botonTema()}</div></header>
     <section class="tarjeta"><h2>${esc(titulo)}</h2>${detalle ? `<p>${esc(detalle)}</p>` : ""}</section>`;
 }
 
@@ -99,7 +130,10 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     <header class="cabecera">
       <div class="cabecera-fila">
         ${MARCA}
-        <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
+        <span class="cabecera-acciones">
+          <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
+          ${botonTema()}
+        </span>
       </div>
       <div class="cabecera-aula">
         <div class="cabecera-texto">
