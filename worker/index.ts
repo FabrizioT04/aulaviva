@@ -144,6 +144,8 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
     return json(results);
   }
 
+  // TI registra lo que llega por WhatsApp. Puede indicar la hora real del mensaje y, si ya
+  // lo atendió, registrarlo resuelto de una vez para que los tiempos queden bien medidos.
   if (pathname === "/api/reportes" && metodo === "POST") {
     const datos = await request.json<Record<string, unknown>>().catch(() => null);
     const aulaId = Number(datos?.aula_id);
@@ -151,9 +153,21 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
     if (!Number.isInteger(aulaId) || !TIPOS_FALLA.includes(tipo)) {
       return json({ error: "Faltan el aula o el tipo de falla" }, 400);
     }
+    const ahora = new Date().toISOString();
+    const reportadoEn = datos?.reportado_en == null ? ahora : fecha(datos.reportado_en);
+    const resuelto = datos?.resuelto === true;
+    const atendidoEn = resuelto ? fecha(datos?.atendido_en ?? ahora) : null;
+    const resueltoEn = resuelto ? fecha(datos?.resuelto_en ?? ahora) : null;
+    if (!reportadoEn || (resuelto && (!atendidoEn || !resueltoEn))) {
+      return json({ error: "Alguna fecha no es válida o está en el futuro" }, 400);
+    }
+    if (resuelto && !(reportadoEn <= atendidoEn! && atendidoEn! <= resueltoEn!)) {
+      return json({ error: "Las horas deben ir en orden: mensaje, llegada al aula, resuelto" }, 400);
+    }
     const creado = await env.DB.prepare(
-      `INSERT INTO reporte (aula_id, tipo_falla, bloquea_clase, descripcion, reportado_por_nombre, origen)
-       VALUES (?, ?, ?, ?, ?, 'whatsapp') RETURNING id`,
+      `INSERT INTO reporte (aula_id, tipo_falla, bloquea_clase, descripcion, reportado_por_nombre, origen,
+         reportado_en, estado, atendido_en, resuelto_en, notas_resolucion)
+       VALUES (?, ?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?) RETURNING id`,
     )
       .bind(
         aulaId,
@@ -161,6 +175,11 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
         datos?.bloquea_clase ? 1 : 0,
         texto(datos?.descripcion),
         texto(datos?.reportado_por_nombre),
+        reportadoEn,
+        resuelto ? "resuelto" : "abierto",
+        atendidoEn,
+        resueltoEn,
+        resuelto ? texto(datos?.notas_resolucion) : null,
       )
       .first<{ id: number }>();
     await avisarCambio(env, aulaId);
@@ -352,6 +371,15 @@ function sede(env: Env) {
 
 function texto(valor: unknown): string | null {
   return typeof valor === "string" && valor.trim() ? valor.trim().slice(0, 1000) : null;
+}
+
+// Fecha ISO de hasta un año atrás y no futura (con 5 min de margen por relojes desfasados)
+function fecha(valor: unknown): string | null {
+  if (typeof valor !== "string") return null;
+  const ms = Date.parse(valor);
+  const ahora = Date.now();
+  if (Number.isNaN(ms) || ms > ahora + 5 * 60_000 || ms < ahora - 366 * 86_400_000) return null;
+  return new Date(Math.min(ms, ahora)).toISOString();
 }
 
 function json(datos: unknown, status = 200) {
