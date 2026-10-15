@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AulaConEstado, EventoEnVivo, Reporte } from "../../shared/tipos";
 import type { Ruta } from "../App";
 import { api, NoAutorizado, urlEnVivo } from "../api";
-import FotoReporte from "../FotoReporte";
+import FotosReporte from "../FotosReporte";
 import { duracion, ETIQUETA_FALLA, minutosDesde } from "../formato";
 
 interface Props {
@@ -117,7 +117,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                   {r.estado === "en_atencion" ? " · En atención" : ""}
                 </small>
                 {r.descripcion && <small>{r.descripcion}</small>}
-                {r.foto_key && <FotoReporte reporteId={r.id} />}
+                {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} />}
               </div>
               <div className="acciones">
                 {r.estado === "abierto" && <button onClick={() => cambiarEstado(r, "en_atencion")}>Atender</button>}
