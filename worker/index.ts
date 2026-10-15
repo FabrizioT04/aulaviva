@@ -26,7 +26,7 @@ const SEDE = "smp1";
 // El semáforo se calcula a partir de los reportes no resueltos:
 // rojo = alguno bloquea la clase, amarillo = falla sin bloqueo, verde = operativa.
 const SQL_AULAS = `
-  SELECT a.id, a.codigo, a.nombre, a.piso,
+  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion,
          COUNT(r.id) AS reportes_abiertos,
          CASE
            WHEN SUM(r.bloquea_clase) > 0 THEN 'rojo'
@@ -43,7 +43,7 @@ const SQL_PROMEDIOS = `
   ROUND(AVG((julianday(resuelto_en) - julianday(reportado_en)) * 1440), 1) AS prom_resolucion_min`;
 
 const SQL_REPORTES = `
-  SELECT r.*, a.nombre AS aula_nombre,
+  SELECT r.*, a.nombre AS aula_nombre, a.seccion AS aula_seccion,
     (SELECT COUNT(*) FROM foto_reporte f WHERE f.reporte_id = r.id) AS fotos
   FROM reporte r JOIN aula a ON a.id = r.aula_id`;
 
@@ -449,7 +449,7 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
       `SELECT tipo_falla, COUNT(*) AS n FROM reporte r WHERE ${filtro} GROUP BY tipo_falla ORDER BY n DESC`,
     ).bind(inicio, fin),
     env.DB.prepare(
-      `SELECT r.reportado_en, a.nombre AS aula, r.tipo_falla, r.bloquea_clase, r.estado, r.origen,
+      `SELECT r.reportado_en, a.nombre || COALESCE(' · ' || a.seccion, '') AS aula, r.tipo_falla, r.bloquea_clase, r.estado, r.origen,
               r.descripcion, r.causa, r.notas_resolucion,
               ROUND((julianday(r.atendido_en) - julianday(r.reportado_en)) * 1440) AS atencion_min,
               ROUND((julianday(r.resuelto_en) - julianday(r.reportado_en)) * 1440) AS resolucion_min

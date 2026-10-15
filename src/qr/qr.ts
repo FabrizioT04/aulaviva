@@ -100,8 +100,9 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
         ${MARCA}
         <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
       </div>
-      <p class="ubicacion">${aula.piso != null ? `Piso ${aula.piso} · ` : ""}Sede SMP1</p>
+      <p class="ubicacion">${[aula.piso != null && `Piso ${aula.piso}`, aula.pabellon && `Pabellón ${esc(aula.pabellon)}`, "Sede SMP1"].filter(Boolean).join(" · ")}</p>
       <h1>${esc(aula.nombre)}</h1>
+      ${aula.seccion ? `<p class="seccion">${esc(aula.seccion)}${aula.nivel ? ` · ${esc(aula.nivel)}` : ""}</p>` : ""}
     </header>
     ${aviso}
     ${reportados}

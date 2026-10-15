@@ -7,6 +7,9 @@ export interface AulaConEstado {
   codigo: string;
   nombre: string;
   piso: number | null;
+  pabellon: string | null; // "A", "B" o "C"
+  nivel: string | null; // Inicial, Primaria, Secundaria, Varios, Rotaciones
+  seccion: string | null; // grado y sección que conocen los docentes, ej. "4A"
   semaforo: Semaforo;
   reportes_abiertos: number;
 }
@@ -15,6 +18,7 @@ export interface Reporte {
   id: number;
   aula_id: number;
   aula_nombre: string;
+  aula_seccion: string | null;
   tipo_falla: TipoFalla;
   bloquea_clase: number;
   descripcion: string | null;

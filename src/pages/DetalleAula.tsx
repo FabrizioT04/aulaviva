@@ -4,7 +4,7 @@ import type { DetalleAula as Detalle } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import Icono from "../Icono";
 import FotosReporte from "../FotosReporte";
-import { duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, fechaCorta, minutosEntre } from "../formato";
+import { descripcionAula, duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, fechaCorta, minutosEntre } from "../formato";
 
 const SEMAFORO: Record<string, string> = {
   verde: "Operativa",
@@ -41,7 +41,10 @@ export default function DetalleAula({ id, onNoAutorizado, ir }: Props) {
         <Icono nombre="volver" /> Dashboard
       </button>
       <header className="cabecera-pagina">
-        <h1>{aula.nombre}</h1>
+        <div>
+          <h1>{aula.nombre}</h1>
+          {descripcionAula(aula) && <p className="subtitulo">{descripcionAula(aula)}</p>}
+        </div>
         <span className={`etiqueta ${aula.semaforo}`}>
           <i className={`punto ${aula.semaforo}`} /> {SEMAFORO[aula.semaforo]}
         </span>
