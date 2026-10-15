@@ -4,8 +4,17 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/r/*"]
+  },
+  // Cloudflare Access: completa estos valores al configurar Access (ver docs/cloudflare-access.md).
+  // Mientras ACCESS_TEAM_DOMAIN y ACCESS_AUD estén vacíos, TI entra con la clave TOKEN_TI.
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    "TI_EMAILS": "",
+    "DOMINIO_DOCENTES": "innovaschools.edu.pe"
   },
   "d1_databases": [
     {

@@ -49,3 +49,17 @@ export interface Metricas {
   por_tipo: { tipo_falla: TipoFalla; n: number }[];
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
 }
+
+export interface Sesion {
+  email: string;
+  rol: "ti" | "docente";
+  modo: "access" | "local";
+}
+
+// Lo que ve el docente al escanear el QR de un aula
+export interface EstadoAulaQr {
+  aula: AulaConEstado;
+  abiertos: Pick<Reporte, "id" | "tipo_falla" | "bloquea_clase" | "estado" | "reportado_en">[];
+  prom_atencion_urgente_min: number | null; // promedio de los últimos 90 días
+  email: string;
+}

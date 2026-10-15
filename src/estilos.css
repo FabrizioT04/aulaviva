@@ -102,3 +102,24 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--fondo); }
 .barra-pista { height: 12px; }
 .barra-relleno { display: block; height: 100%; min-width: 2px; background: var(--primario); border-radius: 0 4px 4px 0; }
 .barra-valor { text-align: right; font-variant-numeric: tabular-nums; color: var(--suave); font-size: 0.9rem; }
+
+.cabecera-dashboard { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.cabecera-dashboard .en-vivo { margin: 0; }
+.enlace { border: 0; background: transparent; color: var(--primario); padding: 4px 0; font-weight: 600; }
+
+.acciones-qr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.acciones-qr .volver { margin: 0; }
+.hoja-qr { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.qr { margin: 0; padding: 12px; background: #fff; color: #0f172a; border: 1px solid var(--borde); border-radius: 12px; text-align: center; break-inside: avoid; }
+.qr-imagen svg { width: 100%; height: auto; display: block; }
+.qr figcaption { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.qr figcaption strong { font-size: 1.1rem; }
+.qr figcaption span { font-size: 0.7rem; color: #475569; }
+
+@media print {
+  .barra, .no-imprimir { display: none !important; }
+  body { background: #fff; }
+  main { max-width: none; padding: 0; }
+  .hoja-qr { grid-template-columns: repeat(3, 1fr); gap: 8mm; }
+  .qr { border: 1px dashed #94a3b8; border-radius: 0; }
+}
