@@ -79,7 +79,12 @@ export default function DetalleAula({ id, onNoAutorizado, ir }: Props) {
               </small>
               {r.descripcion && <small>{r.descripcion}</small>}
               {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} />}
-              {r.notas_resolucion && <p className="solucion">Solución: {r.notas_resolucion}</p>}
+              {(r.causa || r.notas_resolucion) && (
+                <p className="solucion">
+                  {r.causa && <>Causa: {r.causa}<br /></>}
+                  {r.notas_resolucion && <>Qué se hizo: {r.notas_resolucion}</>}
+                </p>
+              )}
             </li>
           ))}
         </ul>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AulaConEstado, EventoEnVivo, Reporte } from "../../shared/tipos";
 import type { Ruta } from "../App";
 import { api, NoAutorizado, urlEnVivo } from "../api";
+import FormResolver from "../FormResolver";
 import FotosReporte from "../FotosReporte";
 import { duracion, ETIQUETA_FALLA, minutosDesde } from "../formato";
 
@@ -14,6 +15,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
   const [abiertos, setAbiertos] = useState<Reporte[]>([]);
   const [conectado, setConectado] = useState(false);
+  const [resolviendo, setResolviendo] = useState<number | null>(null);
 
   const cargarReportes = useCallback(() => {
     api<Reporte[]>("/api/reportes?estado=abiertos")
@@ -56,19 +58,24 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
     };
   }, [cargarReportes]);
 
-  async function cambiarEstado(reporte: Reporte, estado: "en_atencion" | "resuelto") {
-    let notas: string | null = null;
-    if (estado === "resuelto") {
-      notas = prompt("¿Cómo se resolvió? (esto alimentará el asistente del Sprint 3)");
-      if (notas === null) return;
+  async function atender(reporte: Reporte) {
+    try {
+      await api(`/api/reportes/${reporte.id}`, { method: "PATCH", body: JSON.stringify({ estado: "en_atencion" }) });
+    } catch (e) {
+      if (e instanceof NoAutorizado) onNoAutorizado();
     }
+  }
+
+  async function resolver(reporte: Reporte, causa: string, hice: string) {
     try {
       await api(`/api/reportes/${reporte.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ estado, notas_resolucion: notas }),
+        body: JSON.stringify({ estado: "resuelto", causa, notas_resolucion: hice }),
       });
+      setResolviendo(null);
     } catch (e) {
-      if (e instanceof NoAutorizado) onNoAutorizado();
+      if (e instanceof NoAutorizado) return onNoAutorizado();
+      throw e;
     }
   }
 
@@ -118,13 +125,18 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                 </small>
                 {r.descripcion && <small>{r.descripcion}</small>}
                 {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} />}
+                {resolviendo === r.id && (
+                  <FormResolver onGuardar={(causa, hice) => resolver(r, causa, hice)} onCancelar={() => setResolviendo(null)} />
+                )}
               </div>
-              <div className="acciones">
-                {r.estado === "abierto" && <button onClick={() => cambiarEstado(r, "en_atencion")}>Atender</button>}
-                <button className="primario" onClick={() => cambiarEstado(r, "resuelto")}>
-                  Resolver
-                </button>
-              </div>
+              {resolviendo !== r.id && (
+                <div className="acciones">
+                  {r.estado === "abierto" && <button onClick={() => atender(r)}>Atender</button>}
+                  <button className="primario" onClick={() => setResolviendo(r.id)}>
+                    Resolver
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

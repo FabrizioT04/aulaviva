@@ -30,6 +30,7 @@ export default function Registro({ onNoAutorizado }: { onNoAutorizado: () => voi
   const [resuelto, setResuelto] = useState(false);
   const [atendidoEn, setAtendidoEn] = useState(ahoraLocal);
   const [resueltoEn, setResueltoEn] = useState(ahoraLocal);
+  const [causa, setCausa] = useState("");
   const [notas, setNotas] = useState("");
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -61,6 +62,7 @@ export default function Registro({ onNoAutorizado }: { onNoAutorizado: () => voi
             resuelto: true,
             atendido_en: aIso(atendidoEn),
             resuelto_en: aIso(resueltoEn),
+            causa,
             notas_resolucion: notas,
           }),
         }),
@@ -75,6 +77,7 @@ export default function Registro({ onNoAutorizado }: { onNoAutorizado: () => voi
       setResuelto(false);
       setAtendidoEn(ahoraLocal());
       setResueltoEn(ahoraLocal());
+      setCausa("");
       setNotas("");
     } catch (err) {
       if (err instanceof NoAutorizado) return onNoAutorizado();
@@ -171,6 +174,15 @@ export default function Registro({ onNoAutorizado }: { onNoAutorizado: () => voi
               <input type="datetime-local" value={resueltoEn} onChange={(e) => setResueltoEn(e.target.value)} />
             </label>
           </div>
+          <label>
+            ¿Qué encontraste? (causa, si la sabes)
+            <textarea
+              rows={2}
+              value={causa}
+              onChange={(e) => setCausa(e.target.value)}
+              placeholder="Ej. el cable HDMI estaba suelto detrás del proyector"
+            />
+          </label>
           <label>
             ¿Qué hiciste para resolverlo?
             <textarea
