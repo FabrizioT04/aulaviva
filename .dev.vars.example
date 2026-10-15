@@ -4,3 +4,6 @@ TOKEN_TI=cambia-esta-clave
 
 # Simula a un docente para probar la página del QR en http://localhost:5173/r/204
 DEV_EMAIL_DOCENTE=docente.prueba@innovaschools.edu.pe
+
+# Desactiva Cloudflare Access en local (en producción lo activa wrangler.jsonc)
+ACCESS_AUD=

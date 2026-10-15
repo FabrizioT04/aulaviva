@@ -17,7 +17,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Página del QR** (`/r/<aula>`): el docente escanea, elige la falla y si bloquea la clase, y TI lo ve al instante en el dashboard. Es una página aparte sin React (unos 3 KB) para que cargue rápido en el celular. Muestra lo ya reportado para evitar duplicados y, si es urgente, el tiempo promedio de atención.
 - **Foto de evidencia** (opcional): el celular la reduce a 1280 px en JPEG antes de subirla (una foto de 5 MB queda en unos 400 KB), se guarda en R2 y TI la ve en el dashboard y en el detalle del aula.
 - **QR imprimibles** (`/qr-aulas`): un QR por aula, listo para imprimir.
-- **Acceso con Cloudflare Access**: TI (correos en `TI_EMAILS`) usa todo el panel; los docentes (`@innovaschools.edu.pe`) solo la página del QR. Guía: [docs/cloudflare-access.md](docs/cloudflare-access.md).
+- **Acceso con Cloudflare Access**: TI (correos del secreto `TI_EMAILS`) usa todo el panel; los docentes (`@innovaschools.edu.pe`) solo la página del QR. Guía: [docs/cloudflare-access.md](docs/cloudflare-access.md).
 - **Sin Access** (desarrollo local): TI entra con la clave `TOKEN_TI`, y `DEV_EMAIL_DOCENTE` simula a un docente en la página del QR.
 
 ## Estructura
