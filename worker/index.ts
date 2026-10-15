@@ -212,6 +212,45 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
     });
   }
 
+  if (pathname === "/api/fichas" && metodo === "GET") {
+    const { results } = await env.DB.prepare(
+      "SELECT * FROM ficha ORDER BY tipo_falla, titulo COLLATE NOCASE",
+    ).all();
+    return json(results);
+  }
+
+  const ficha = pathname.match(/^\/api\/fichas(?:\/(\d+))?$/);
+  if (ficha && (metodo === "POST" || metodo === "PUT")) {
+    const datos = await request.json<Record<string, unknown>>().catch(() => null);
+    const tipo = datos?.tipo_falla as TipoFalla;
+    const titulo = texto(datos?.titulo);
+    if (!TIPOS_FALLA.includes(tipo) || !titulo) return json({ error: "Faltan el tipo de falla o el título" }, 400);
+    const valores = [tipo, titulo, texto(datos?.sintomas), texto(datos?.pasos_docente), texto(datos?.cuando_llamar_ti)];
+    if (metodo === "POST" && !ficha[1]) {
+      const creada = await env.DB.prepare(
+        `INSERT INTO ficha (tipo_falla, titulo, sintomas, pasos_docente, cuando_llamar_ti)
+         VALUES (?, ?, ?, ?, ?) RETURNING id`,
+      )
+        .bind(...valores)
+        .first<{ id: number }>();
+      return json(creada, 201);
+    }
+    if (metodo === "PUT" && ficha[1]) {
+      const cambiada = await env.DB.prepare(
+        `UPDATE ficha SET tipo_falla = ?, titulo = ?, sintomas = ?, pasos_docente = ?, cuando_llamar_ti = ?,
+           actualizado_en = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ? RETURNING id`,
+      )
+        .bind(...valores, Number(ficha[1]))
+        .first();
+      return cambiada ? json({ ok: true }) : json({ error: "Ficha no encontrada" }, 404);
+    }
+  }
+  if (ficha?.[1] && metodo === "DELETE") {
+    const borrada = await env.DB.prepare("DELETE FROM ficha WHERE id = ? RETURNING id").bind(Number(ficha[1])).first();
+    return borrada ? json({ ok: true }) : json({ error: "Ficha no encontrada" }, 404);
+  }
+
   const coincide = pathname.match(/^\/api\/reportes\/(\d+)$/);
   if (coincide && metodo === "PATCH") {
     const id = Number(coincide[1]);

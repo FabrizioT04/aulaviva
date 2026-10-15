@@ -20,6 +20,9 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Acceso con Cloudflare Access**: TI (correos del secreto `TI_EMAILS`) usa todo el panel; los docentes (`@innovaschools.edu.pe`) solo la página del QR. Guía: [docs/cloudflare-access.md](docs/cloudflare-access.md).
 - **Sin Access** (desarrollo local): TI entra con la clave `TOKEN_TI`, y `DEV_EMAIL_DOCENTE` simula a un docente en la página del QR.
 
+### Sprint 3 · Base del asistente
+- **Fichas de solución** (`/fichas`): TI escribe, por tipo de falla, cómo se ve la falla, los pasos que el docente puede probar solo y cuándo llamar a TI. Junto con los casos resueltos (causa y qué se hizo) serán la base del asistente.
+
 ## Estructura
 
 ```
@@ -27,6 +30,7 @@ migrations/0001_inicial.sql   tablas Aula, Activo, Profesor, Reporte
 migrations/0002_foto_reporte.sql  primera versión de la foto del reporte
 migrations/0003_fotos_multiples.sql  tabla foto_reporte (hasta 3 fotos por reporte)
 migrations/0004_causa.sql          columna causa: qué se encontró, aparte de qué se hizo
+migrations/0005_fichas.sql         tabla ficha (fichas de solución de TI)
 seed/aulas.sql                aulas de ejemplo (cámbialas por las reales)
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
@@ -77,6 +81,9 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/metricas?dias=30` | Indicadores del Observatorio |
 | POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, bloquea_clase, reportado_por_nombre, descripcion, reportado_en?}`; para registrarlo ya resuelto agrega `resuelto: true, atendido_en, resuelto_en, causa, notas_resolucion` |
 | PATCH | `/api/reportes/:id` | `{estado: "en_atencion"}` o `{estado: "resuelto", causa, notas_resolucion}` |
+| GET | `/api/fichas` | Fichas de solución |
+| POST | `/api/fichas` | Crear `{tipo_falla, titulo, sintomas, pasos_docente, cuando_llamar_ti}` (un paso por línea) |
+| PUT / DELETE | `/api/fichas/:id` | Editar o borrar una ficha |
 | GET | `/api/en-vivo` | WebSocket del dashboard |
 | GET | `/api/sesion` | Quién está conectado y su rol |
 | GET | `/api/qr/:codigo` | Estado del aula para el docente |
@@ -89,6 +96,6 @@ Con Access, la sesión viaja en la cookie de Cloudflare y el Worker verifica el 
 
 ## Próximos pasos
 
-1. Endpoint de resumen semanal para el reporte de los viernes.
-2. Importar el historial del grupo de WhatsApp para el Observatorio.
-3. Sprint 3: asistente RAG sobre las notas de resolución.
+1. Importar el historial del grupo de WhatsApp.
+2. Rediseño visual del panel y de la página del QR.
+3. Sprint 3: asistente RAG sobre las fichas y los casos resueltos.
