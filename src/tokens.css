@@ -1,45 +1,60 @@
-/* Colores y medidas que comparten el panel de TI y la página del QR */
+/* Colores y medidas que comparten el panel de TI y la página del QR.
+   Claro: tarjetas blancas y aireadas. Oscuro: estilo "centro de control". */
 :root {
-  --fondo: #f4f6fa;
+  --fondo: #f4f5f8;
   --superficie: #ffffff;
-  --superficie-2: #f8fafc;
-  --texto: #0f1b2d;
-  --suave: #5b6779;
-  --borde: #e2e7ef;
-  --marca: #0f2744;
-  --marca-texto: #e8eef8;
-  --primario: #1d5bd8;
-  --primario-suave: #e9f0fd;
-  --verde: #15803d;
-  --verde-suave: #e7f6ec;
-  --amarillo: #d97706;
-  --amarillo-suave: #fdf3e2;
-  --rojo: #dc2626;
-  --rojo-suave: #fdeaea;
-  --radio: 14px;
-  --sombra: 0 1px 2px rgb(15 27 45 / 0.05), 0 2px 8px rgb(15 27 45 / 0.04);
+  --superficie-2: #f7f8fa;
+  --texto: #14161a;
+  --suave: #5f6672;
+  --tenue: #8a919c;
+  --borde: #e6e8ee;
+  --primario: #2f5bea;
+  --primario-texto: #ffffff;
+  --primario-suave: #eef2ff;
+  --verde: #157a42;
+  --verde-punto: #1f9d55;
+  --verde-suave: #e6f6ec;
+  --amarillo: #a35f00;
+  --amarillo-fuerte: #f6c46a;
+  --amarillo-suave: #fff4e0;
+  --amarillo-borde: #f6d59a;
+  --rojo: #e0383e;
+  --rojo-texto: #c42a30;
+  --rojo-suave: #fff1f1;
+  --rojo-borde: #f7c9cb;
+  --radio: 20px;
+  --radio-sm: 12px;
+  --sombra: 0 1px 2px rgb(20 22 26 / 0.04);
+  --sombra-boton: 0 10px 24px rgb(47 91 234 / 0.28);
   color-scheme: light;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #0b1220;
-    --superficie: #121b2c;
-    --superficie-2: #0f1727;
-    --texto: #e6ebf3;
-    --suave: #96a3b8;
-    --borde: #223049;
-    --marca: #0a1628;
-    --primario: #4d82f0;
-    --primario-suave: #172a4d;
-    --verde: #22a355;
-    --verde-suave: #10291b;
-    --amarillo: #f0a12c;
-    --amarillo-suave: #33240b;
-    --rojo: #ef4b4b;
-    --rojo-suave: #3a1515;
+    --fondo: #0b0f14;
+    --superficie: #0f151d;
+    --superficie-2: #111821;
+    --texto: #e8edf2;
+    --suave: #9fb0c3;
+    --tenue: #6b7a8c;
+    --borde: #1f2833;
+    --primario: #8ab4ff;
+    --primario-texto: #0b0f14;
+    --primario-suave: #14213a;
+    --verde: #2bd49a;
+    --verde-punto: #2bd49a;
+    --verde-suave: #0f2a22;
+    --amarillo: #f5b941;
+    --amarillo-fuerte: #f5b941;
+    --amarillo-suave: #1e1709;
+    --amarillo-borde: #6b4a12;
+    --rojo: #ff5a5f;
+    --rojo-texto: #ff7a7e;
+    --rojo-suave: #1a0d10;
+    --rojo-borde: #5c1d22;
     --sombra: none;
+    --sombra-boton: none;
     color-scheme: dark;
   }
 }
@@ -47,11 +62,15 @@
 body { margin: 0; background: var(--fondo); color: var(--texto); line-height: 1.45; }
 .icono { width: 1.25em; height: 1.25em; flex: none; }
 .icono-caja { display: inline-flex; }
+.num { font-variant-numeric: tabular-nums; }
 
 /* Marca */
-.logo { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
-.logo-marca { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--primario); color: #fff; }
-.logo-marca .icono { width: 20px; height: 20px; }
-.logo-texto { display: flex; flex-direction: column; line-height: 1.1; }
-.logo-texto strong { font-size: 1.05rem; letter-spacing: -0.01em; }
-.logo-texto small { font-size: 0.72rem; opacity: 0.7; }
+.logo { display: inline-flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+.logo-marca { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--primario); color: var(--primario-texto); flex: none; }
+.logo-marca .icono { width: 22px; height: 22px; stroke-width: 2.4; }
+.logo-texto { display: flex; flex-direction: column; line-height: 1.15; }
+.logo-texto strong { font-size: 1.12rem; font-weight: 800; letter-spacing: -0.02em; }
+.logo-texto small { font-size: 0.75rem; color: var(--suave); }
+@media (prefers-color-scheme: dark) {
+  .logo-marca { background: transparent; border: 1px solid var(--verde); color: var(--verde); }
+}
