@@ -9,6 +9,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- La fuente carga sin bloquear: con datos lentos la página se ve primero con la del sistema -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'" />
+    <script>
+      // Aplica el tema elegido antes de pintar, para que no parpadee
+      try {
+        var tema = localStorage.getItem("tema");
+        if (tema === "claro" || tema === "oscuro") {
+          document.documentElement.dataset.tema = tema;
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+            m.content = tema === "oscuro" ? "#0b0f14" : "#f4f5f8";
+          });
+        }
+      } catch (e) {}
+    </script>
     <title>Reportar falla · AulaViva</title>
   </head>
   <body>

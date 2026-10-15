@@ -270,3 +270,21 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .aula .seccion { font-size: 0.66rem; font-weight: 700; opacity: 0.75; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
 .seccion-reporte { font-size: 0.75rem; font-weight: 800; padding: 3px 8px; border-radius: 8px; background: var(--superficie-2); color: var(--suave); border: 1px solid var(--borde); }
 .aula-elegida { font-size: 0.85rem; font-weight: 600; color: var(--verde); }
+
+/* Selector de tema: Claro / Oscuro / Automático */
+.selector-tema { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--superficie-2); border: 1px solid var(--borde); }
+.selector-tema button { flex: 1; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; padding: 6px 4px; border: 0; border-radius: 10px; background: transparent; color: var(--suave); font-size: 0.75rem; }
+.selector-tema button:hover { border: 0; color: var(--texto); }
+.selector-tema button.activo { background: var(--superficie); color: var(--texto); box-shadow: 0 1px 3px rgb(20 22 26 / 0.12), 0 0 0 1px var(--borde); }
+.selector-tema .icono { width: 17px; height: 17px; }
+@media (min-width: 900px) {
+  .selector-tema { margin-top: auto; }
+  .selector-tema + .usuario { margin-top: -16px; }
+}
+@media (max-width: 899px) {
+  .selector-tema .etiqueta-tema { display: none; }
+  .selector-tema button { min-width: 44px; min-height: 44px; padding: 6px; }
+}
+@media (prefers-color-scheme: dark) {
+  .selector-tema button.activo { color: var(--primario); box-shadow: 0 0 0 1px rgb(138 180 255 / 0.45), 0 0 14px -4px rgb(138 180 255 / 0.6); }
+}
