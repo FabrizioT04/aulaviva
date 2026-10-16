@@ -1,4 +1,4 @@
-import type { AulaConEstado, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { accessConfigurado, obtenerSesion } from "./sesion";
 
@@ -55,6 +55,10 @@ export default {
     if (/^\/r\/[\w-]+\/?$/.test(url.pathname)) {
       return env.ASSETS.fetch(new Request(new URL("/qr", url), request));
     }
+    // Inicio del docente: escanear el QR desde la página o elegir el aula de una lista
+    if (/^\/docente\/?$/.test(url.pathname)) {
+      return env.ASSETS.fetch(new Request(new URL("/docente", url), request));
+    }
     if (!url.pathname.startsWith("/api/")) {
       return new Response("No encontrado", { status: 404 });
     }
@@ -72,7 +76,7 @@ export default {
       }
       if (sesion.rol === "servicio") return json({ error: "Este acceso solo sirve para el resumen semanal" }, 403);
 
-      if (url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion);
+      if (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion);
 
       // El resto de la API es solo para el área de TI
       if (sesion.rol !== "ti") return json({ error: "Solo el área de TI puede usar esta sección" }, 403);
@@ -286,6 +290,12 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
 
 // Rutas del QR: las usa el docente desde su celular (y TI para probar)
 async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
+  // Lista de aulas para el inicio del docente, por si no puede escanear el QR
+  if (url.pathname === "/api/qr" && request.method === "GET") {
+    const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.piso, a.codigo`).all<AulaConEstado>();
+    const respuesta: AulasDocente = { aulas: results, email: sesion.email };
+    return json(respuesta);
+  }
   const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?)?$/);
   if (!coincide) return json({ error: "Ruta no encontrada" }, 404);
   const codigo = coincide[1];

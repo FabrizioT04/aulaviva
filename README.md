@@ -16,6 +16,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 ### Sprint 2 · Autorreporte por QR
 - **Página del QR** (`/r/<aula>`): el docente escanea, elige la falla y si bloquea la clase, y TI lo ve al instante en el dashboard. Es una página aparte sin React (unos 3 KB) para que cargue rápido en el celular. Muestra lo ya reportado para evitar duplicados y, si es urgente, el tiempo promedio de atención.
 - **Fotos de evidencia** (opcional, hasta 3 por reporte): el celular reduce cada una a 1280 px en JPEG antes de subirla (una foto de 5 MB queda en unos 400 KB), se guardan en R2 y TI las ve en el dashboard y en el detalle del aula.
+- **Inicio del docente** (`/docente`): para quien no sabe escanear con la cámara del celular. Un botón grande abre la cámara dentro de la página y lee el QR del aula; también puede elegir su aula de una lista (busca por número o sección). Se puede agregar a la pantalla del celular como app.
 - **QR imprimibles** (`/qr-aulas`): un QR por aula, listo para imprimir.
 - **Acceso con Cloudflare Access**: TI (correos del secreto `TI_EMAILS`) usa todo el panel; los docentes (`@innovaschools.edu.pe`) solo la página del QR. Guía: [docs/cloudflare-access.md](docs/cloudflare-access.md).
 - **Sin Access** (desarrollo local): TI entra con la clave `TOKEN_TI`, y `DEV_EMAIL_DOCENTE` simula a un docente en la página del QR.
@@ -37,6 +38,7 @@ worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
 src/                          panel de TI en React (Registro, Dashboard, Detalle, Observatorio, QR)
 src/qr/ + qr.html              página liviana del QR para docentes
+src/qr/docente.ts + docente.html  inicio del docente: escanear el QR dentro de la página o elegir el aula
 worker/sesion.ts              verificación de Cloudflare Access y roles
 docs/cloudflare-access.md     guía para configurar Access
 shared/tipos.ts               tipos compartidos entre frontend y Worker
@@ -87,6 +89,7 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | PUT / DELETE | `/api/fichas/:id` | Editar o borrar una ficha |
 | GET | `/api/en-vivo` | WebSocket del dashboard |
 | GET | `/api/sesion` | Quién está conectado y su rol |
+| GET | `/api/qr` | Aulas para el inicio del docente |
 | GET | `/api/qr/:codigo` | Estado del aula para el docente |
 | POST | `/api/qr/:codigo/reportes` | Reporte del docente `{tipo_falla, bloquea_clase, descripcion}` |
 | PUT | `/api/qr/:codigo/reportes/:id/foto` | Agrega una foto al reporte (JPEG, PNG o WebP, máx. 3 MB; hasta 3), solo su autor y en los 15 minutos siguientes |

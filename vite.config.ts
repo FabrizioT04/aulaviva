@@ -50,8 +50,9 @@ export default defineConfig({
     client: {
       build: {
         rollupOptions: {
-          // Dos páginas: el panel de TI (React) y la página del QR (liviana, sin React)
-          input: { main: "index.html", qr: "qr.html" },
+          // El panel de TI (React) y dos páginas livianas sin React para el docente:
+          // la del QR de cada aula y su inicio (escanear o elegir el aula)
+          input: { main: "index.html", qr: "qr.html", docente: "docente.html" },
         },
       },
     },

@@ -76,6 +76,12 @@ export interface Sesion {
 }
 
 // Lo que ve el docente al escanear el QR de un aula
+// Inicio del docente (/docente): aulas para elegir sin escanear
+export interface AulasDocente {
+  aulas: AulaConEstado[];
+  email: string;
+}
+
 export interface EstadoAulaQr {
   aula: AulaConEstado;
   abiertos: Pick<Reporte, "id" | "tipo_falla" | "bloquea_clase" | "estado" | "reportado_en">[];

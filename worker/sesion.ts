@@ -58,7 +58,7 @@ async function sesionLocal(request: Request, url: URL, env: Env): Promise<Sesion
   }
   // Para probar la página del QR en tu computadora sin Access
   const esLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-  if (esLocal && env.DEV_EMAIL_DOCENTE && url.pathname.startsWith("/api/qr/")) {
+  if (esLocal && env.DEV_EMAIL_DOCENTE && (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/"))) {
     return { email: env.DEV_EMAIL_DOCENTE.toLowerCase(), rol: "docente", modo: "local" };
   }
   return null;
