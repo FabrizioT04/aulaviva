@@ -68,6 +68,9 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .tipo-icono .icono { width: 20px; height: 20px; }
 
 .exito { border-color: var(--verde); background: var(--verde-suave); }
+.enlace-inicio { color: var(--verde); font-weight: 800; }
+.numero-reporte { font-size: 0.9rem; color: var(--verde); }
+.numero-reporte strong { font-size: 1.05rem; }
 .exito h2 { display: flex; align-items: center; gap: 10px; color: var(--verde); font-size: 1.1rem; margin: 0; }
 .check { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--verde-punto); color: #fff; flex: none; }
 .check .icono { width: 18px; height: 18px; }
