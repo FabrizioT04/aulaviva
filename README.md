@@ -47,6 +47,7 @@ migrations/0011_atencion_tecnica.sql  ticket GLPI, observaciones, quién registr
 migrations/0012_fichas_ti.sql      causas posibles y procedimiento de TI en las fichas
 migrations/0013_asistencia_guiada.sql  autosoluciones del docente y la ficha que vio antes de avisar
 migrations/0014_espacios.sql       Welcome Lobby y Sala de docentes; qué computadora hay en cada ambiente (laptop o AIO)
+migrations/0015_sala_docentes_piso.sql  la Sala de docentes está en el piso 2
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
