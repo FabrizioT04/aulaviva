@@ -202,19 +202,23 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     }
     for (const x of botones) x.disabled = false;
     document.getElementById("aviso-elegir")!.hidden = true;
-    // En "Otro" TI necesita saber qué pasa: el detalle se abre y es obligatorio
+    // En "Otro" TI necesita saber qué pasa, y si ya hay un reporte del mismo tipo, en qué se diferencia:
+    // en ambos casos el detalle se abre y es obligatorio
     const otro = tipo === "otro";
-    document.getElementById("etiqueta-detalle")!.textContent = otro ? "Describe la falla" : "Detalle (opcional)";
-    document.getElementById("titulo-extra")!.textContent = otro ? "Describe la falla" : "Agregar detalle o foto (opcional)";
+    const titulo = otro ? "Describe la falla" : repetido() ? "¿En qué es diferente?" : null;
+    document.getElementById("etiqueta-detalle")!.textContent = titulo ?? "Detalle (opcional)";
+    document.getElementById("titulo-extra")!.textContent = titulo ?? "Agregar detalle o foto (opcional)";
     detalleCampo.placeholder = EJEMPLO[tipo];
-    if (otro) extra.open = true;
+    if (titulo) extra.open = true;
     avisarDuplicado();
   });
 
   // Si ya hay un reporte abierto del mismo tipo, se avisa sin bloquear: puede ser otra falla del mismo equipo
   const avisoDuplicado = document.getElementById("aviso-duplicado")!;
+  const previoDelTipo = () => (tipo && tipo !== "otro" ? abiertos.find((r) => r.tipo_falla === tipo) : undefined);
+  const repetido = () => Boolean(previoDelTipo());
   function avisarDuplicado() {
-    const previo = tipo && tipo !== "otro" ? abiertos.find((r) => r.tipo_falla === tipo) : undefined;
+    const previo = previoDelTipo();
     avisoDuplicado.hidden = !previo;
     if (!previo) return;
     const nombre = ETIQUETA[previo.tipo_falla];
@@ -222,7 +226,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       <p class="aviso-duplicado-titulo">${iconoSvg("info")}Ya existe un reporte de ${nombre}</p>
       <p>TI ya tiene registrada una falla de ${nombre} en esta aula. Estado: <strong>${ESTADO[previo.estado] ?? previo.estado}</strong>.</p>
       <button type="button" class="ver-estado" id="ver-estado">Ver estado del reporte</button>
-      <p class="suave">¿Es una falla diferente? Puedes avisar igual con los botones de abajo.</p>`;
+      <p class="suave">¿Es una falla diferente? Cuenta abajo en qué es diferente y avisa igual.</p>`;
     document.getElementById("ver-estado")!.addEventListener("click", () => {
       const fila = document.querySelector<HTMLElement>(`.abiertos li[data-tipo="${previo.tipo_falla}"]`);
       if (!fila) return;
@@ -247,8 +251,10 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     if (!tipo) return;
     const bloquea = boton.dataset.bloquea === "1";
     const detalle = detalleCampo.value.trim();
-    if (tipo === "otro" && !detalle) {
-      error.textContent = "Escribe en pocas palabras qué está fallando.";
+    if ((tipo === "otro" || repetido()) && !detalle) {
+      error.textContent = repetido()
+        ? "Cuenta en pocas palabras en qué es diferente de la falla ya reportada."
+        : "Escribe en pocas palabras qué está fallando.";
       extra.open = true;
       detalleCampo.focus();
       return;
