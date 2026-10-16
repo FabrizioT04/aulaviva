@@ -39,6 +39,13 @@
 .buscar .icono { width: 20px; height: 20px; flex: none; }
 .buscar input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--texto); font: inherit; font-size: 16px; padding: 12px 0; }
 .buscar input::placeholder { color: var(--tenue); }
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 12px 0 0; font-size: 0.78rem; font-weight: 600; color: var(--suave); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 7px; height: 7px; border-radius: 50%; background: var(--verde-punto); }
+.leyenda i.amarillo { background: var(--amarillo); }
+.leyenda i.rojo { background: var(--rojo); }
+.conteo { margin: 10px 0 0; font-size: 0.85rem; font-weight: 700; color: var(--primario); }
+.conteo:empty { display: none; }
 .grupo-piso h3 { margin: 18px 0 10px; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
 .grupo-piso[hidden], .aula-item[hidden] { display: none; }
 .aulas-docente { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
