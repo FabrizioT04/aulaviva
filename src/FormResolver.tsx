@@ -51,10 +51,10 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
             {similares.casos.map((c) => (
               <li key={c.id}>
                 <div>
-                  <strong>{c.descripcion || "Sin detalle"}</strong>
-                  <small>
+                  <strong>
                     {c.aula_id === aulaId ? "En esta aula" : c.aula_nombre} · {fechaCorta(c.resuelto_en ?? c.reportado_en)}
-                  </small>
+                  </strong>
+                  {c.descripcion && <small>“{c.descripcion}”</small>}
                   {c.causa && <p>Causa: {c.causa}</p>}
                   {c.notas_resolucion && <p>Se hizo: {c.notas_resolucion}</p>}
                 </div>
@@ -75,7 +75,11 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
                 <div>
                   <strong>Ficha: {f.titulo}</strong>
                   {f.causas_posibles && <p>Causas posibles: {f.causas_posibles}</p>}
-                  {f.pasos_ti && <p>Procedimiento: {f.pasos_ti.split("\n").filter(Boolean).join(" · ")}</p>}
+                  {f.pasos_ti ? (
+                    <p>Procedimiento de TI: {f.pasos_ti.split("\n").filter(Boolean).join(" · ")}</p>
+                  ) : (
+                    f.pasos_docente && <p>Lo que puede probar el docente: {f.pasos_docente.split("\n").filter(Boolean).join(" · ")}</p>
+                  )}
                 </div>
               </li>
             ))}

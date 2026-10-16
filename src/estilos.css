@@ -276,6 +276,7 @@ fieldset .segmentado { display: flex; }
 /* Observatorio */
 .observatorio .tarjeta { margin-bottom: 20px; }
 .nota-seccion { margin: -6px 0 12px; color: var(--suave); font-size: 0.88rem; }
+.nota-seccion.pie { margin: 12px 0 0; }
 
 /* Tendencia: una columna por día o semana, una sola serie (sin leyenda) */
 .tendencia { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 180px; padding: 18px 0 0; border-bottom: 1px solid var(--borde); }

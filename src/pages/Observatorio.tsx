@@ -134,7 +134,7 @@ const ESTADOS: { clave: "resuelto" | "pendiente" | "escalado"; etiqueta: string 
 ];
 
 // Cómo quedaron las incidencias del periodo: una barra apilada con su leyenda y números
-function Estados({ datos }: { datos: Metricas["por_estado"] }) {
+function Estados({ datos, escaladas }: { datos: Metricas["por_estado"]; escaladas: number }) {
   const n = (clave: string) => datos.find((d) => d.estado === clave)?.n ?? 0;
   const total = ESTADOS.reduce((s, e) => s + n(e.clave), 0);
   return (
@@ -159,6 +159,11 @@ function Estados({ datos }: { datos: Metricas["por_estado"] }) {
               </li>
             ))}
           </ul>
+          {escaladas > n("escalado") && (
+            <p className="nota-seccion pie">
+              En el periodo se escalaron {escaladas} a GLPI; {escaladas - n("escalado")} ya se resolvieron.
+            </p>
+          )}
         </>
       )}
     </section>
@@ -199,10 +204,7 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
             <div className="dato">
               <span>Incidencias</span>
               <strong>{m.resumen.total}</strong>
-              <small>
-                {m.resumen.abiertos ?? 0} abiertas
-                {m.resumen.escalados ? ` · ${m.resumen.escalados} escaladas a GLPI` : ""}
-              </small>
+              <small>{m.resumen.abiertos ?? 0} sin resolver</small>
             </div>
             <div className="dato">
               <span>Bloquearon la clase</span>
@@ -219,7 +221,7 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
           </section>
 
           <Tendencia dias={dias} datos={m.por_dia} />
-          <Estados datos={m.por_estado} />
+          <Estados datos={m.por_estado} escaladas={m.resumen.escalados ?? 0} />
 
           <section className="tarjeta">
             <h2>Fallas que se repiten</h2>
