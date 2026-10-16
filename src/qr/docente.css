@@ -46,7 +46,16 @@
 .leyenda i.rojo { background: var(--rojo); }
 .conteo { margin: 10px 0 0; font-size: 0.85rem; font-weight: 700; color: var(--primario); }
 .conteo:empty { display: none; }
-.grupo-piso h3 { margin: 18px 0 10px; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
+.grupo-piso { margin-top: 10px; border: 1px solid var(--borde); border-radius: 18px; background: var(--superficie); }
+#lista .grupo-piso:first-child { margin-top: 14px; }
+.grupo-piso summary { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 16px; list-style: none; cursor: pointer; border-radius: 18px; }
+.grupo-piso summary::-webkit-details-marker { display: none; }
+.grupo-piso summary:focus-visible { outline: 3px solid var(--primario-suave); }
+.piso-nombre { font-size: 1rem; font-weight: 800; }
+.piso-info { flex: 1; font-size: 0.82rem; font-weight: 600; color: var(--suave); }
+.grupo-piso summary .icono { width: 20px; height: 20px; color: var(--suave); transition: transform 0.2s; }
+.grupo-piso[open] summary .icono { transform: rotate(180deg); }
+.grupo-piso .aulas-docente { padding: 0 12px 12px; }
 .grupo-piso[hidden], .aula-item[hidden] { display: none; }
 .aulas-docente { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .aula-item {
