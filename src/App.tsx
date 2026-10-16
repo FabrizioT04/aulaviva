@@ -6,6 +6,7 @@ import Logo from "./Logo";
 import Notificaciones from "./Notificaciones";
 import SelectorTema from "./SelectorTema";
 import Acceso from "./pages/Acceso";
+import Danos from "./pages/Danos";
 import DetalleAula from "./pages/DetalleAula";
 import Fichas from "./pages/Fichas";
 import Dashboard from "./pages/Dashboard";
@@ -19,10 +20,17 @@ export type Ruta =
   | { pantalla: "observatorio" }
   | { pantalla: "fichas" }
   | { pantalla: "qr" }
+  | { pantalla: "danos" }
   | { pantalla: "aula"; id: number };
 
 const PESTANAS: {
-  pantalla: "registro" | "dashboard" | "observatorio" | "fichas" | "qr";
+  pantalla:
+    | "registro"
+    | "dashboard"
+    | "observatorio"
+    | "fichas"
+    | "danos"
+    | "qr";
   etiqueta: string;
   corta?: string; // para la barra inferior del celular, si la etiqueta no cabe
   icono: NombreIcono;
@@ -31,9 +39,27 @@ const PESTANAS: {
   { pantalla: "registro", etiqueta: "Registrar", icono: "registrar" },
   { pantalla: "dashboard", etiqueta: "Dashboard", icono: "dashboard" },
   { pantalla: "observatorio", etiqueta: "Observatorio", icono: "observatorio" },
-  { pantalla: "fichas", etiqueta: "Base de conocimiento", corta: "Soluciones", icono: "fichas" },
+  {
+    pantalla: "fichas",
+    etiqueta: "Base de conocimiento",
+    corta: "Soluciones",
+    icono: "fichas",
+  },
+  {
+    pantalla: "danos",
+    etiqueta: "Daños y mantenimiento",
+    corta: "Daños",
+    icono: "dano",
+  },
   { pantalla: "qr", etiqueta: "QR de aulas", icono: "qr", soloPc: true },
 ];
+
+// COA y Mantenimiento solo usan Daños y mantenimiento
+const AREA_USUARIO: Record<string, string> = {
+  ti: "Área de TI",
+  coa: "COA",
+  mantenimiento: "Mantenimiento",
+};
 
 function rutaActual(): Ruta {
   const p = location.pathname;
@@ -43,6 +69,7 @@ function rutaActual(): Ruta {
   if (p.startsWith("/observatorio")) return { pantalla: "observatorio" };
   if (p.startsWith("/fichas")) return { pantalla: "fichas" };
   if (p.startsWith("/qr-aulas")) return { pantalla: "qr" };
+  if (p.startsWith("/danos")) return { pantalla: "danos" };
   return { pantalla: "registro" };
 }
 
@@ -59,7 +86,12 @@ export default function App() {
   const verificar = useCallback(() => {
     consultarSesion()
       .then(setEstado)
-      .catch(() => setEstado({ tipo: "sin-acceso", detalle: "No se pudo conectar. Revisa tu internet." }));
+      .catch(() =>
+        setEstado({
+          tipo: "sin-acceso",
+          detalle: "No se pudo conectar. Revisa tu internet.",
+        }),
+      );
   }, []);
 
   useEffect(verificar, [verificar]);
@@ -81,7 +113,12 @@ export default function App() {
     verificar();
   }, [verificar]);
 
-  if (estado.tipo === "cargando") return <main className="acceso"><p>Cargando…</p></main>;
+  if (estado.tipo === "cargando")
+    return (
+      <main className="acceso">
+        <p>Cargando…</p>
+      </main>
+    );
   if (estado.tipo === "sin-acceso") {
     return (
       <main className="acceso">
@@ -101,35 +138,52 @@ export default function App() {
     );
   }
 
-  const pestana = ruta.pantalla === "aula" ? "dashboard" : ruta.pantalla;
-  const usuario = estado.sesion.modo === "local" ? "TI (local)" : estado.sesion.email.split("@")[0];
+  const { sesion } = estado;
+  const soloDanos = sesion.rol !== "ti";
+  const pantalla: Ruta = soloDanos ? { pantalla: "danos" } : ruta;
+  const pestana =
+    pantalla.pantalla === "aula" ? "dashboard" : pantalla.pantalla;
+  const pestanas = soloDanos
+    ? PESTANAS.filter((p) => p.pantalla === "danos")
+    : PESTANAS;
+  const usuario =
+    sesion.modo === "local"
+      ? `${sesion.rol === "ti" ? "TI" : AREA_USUARIO[sesion.rol]} (local)`
+      : sesion.email.split("@")[0];
 
   return (
     <div className="app">
       <header className="cabecera-app">
         <Logo />
-        <nav className="barra" aria-label="Secciones">
-          {PESTANAS.map((p) => (
-            <button
-              key={p.pantalla}
-              className={[pestana === p.pantalla ? "activo" : "", p.soloPc ? "solo-pc" : ""].join(" ").trim()}
-              aria-current={pestana === p.pantalla ? "page" : undefined}
-              onClick={() => ir({ pantalla: p.pantalla })}
-            >
-              <Icono nombre={p.icono} />
-              {p.corta ? (
-                <>
-                  <span className="etiqueta-larga">{p.etiqueta}</span>
-                  <span className="etiqueta-corta">{p.corta}</span>
-                </>
-              ) : (
-                <span>{p.etiqueta}</span>
-              )}
-            </button>
-          ))}
-        </nav>
+        {pestanas.length > 1 && (
+          <nav className="barra" aria-label="Secciones">
+            {pestanas.map((p) => (
+              <button
+                key={p.pantalla}
+                className={[
+                  pestana === p.pantalla ? "activo" : "",
+                  p.soloPc ? "solo-pc" : "",
+                ]
+                  .join(" ")
+                  .trim()}
+                aria-current={pestana === p.pantalla ? "page" : undefined}
+                onClick={() => ir({ pantalla: p.pantalla })}
+              >
+                <Icono nombre={p.icono} />
+                {p.corta ? (
+                  <>
+                    <span className="etiqueta-larga">{p.etiqueta}</span>
+                    <span className="etiqueta-corta">{p.corta}</span>
+                  </>
+                ) : (
+                  <span>{p.etiqueta}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+        )}
         <div className="controles-cabecera">
-          <Notificaciones />
+          {!soloDanos && <Notificaciones />}
           <SelectorTema />
         </div>
         <div className="usuario">
@@ -138,17 +192,30 @@ export default function App() {
           </span>
           <span className="usuario-texto">
             <strong>{usuario}</strong>
-            <small>Área de TI</small>
+            <small>{AREA_USUARIO[sesion.rol] ?? "Área de TI"}</small>
           </span>
         </div>
       </header>
       <main>
-        {ruta.pantalla === "registro" && <Registro onNoAutorizado={salir} ir={ir} />}
-        {ruta.pantalla === "dashboard" && <Dashboard onNoAutorizado={salir} ir={ir} />}
-        {ruta.pantalla === "observatorio" && <Observatorio onNoAutorizado={salir} ir={ir} />}
-        {ruta.pantalla === "fichas" && <Fichas onNoAutorizado={salir} />}
-        {ruta.pantalla === "qr" && <ImprimirQr onNoAutorizado={salir} ir={ir} />}
-        {ruta.pantalla === "aula" && <DetalleAula id={ruta.id} onNoAutorizado={salir} ir={ir} />}
+        {pantalla.pantalla === "danos" && (
+          <Danos sesion={sesion} onNoAutorizado={salir} />
+        )}
+        {pantalla.pantalla === "registro" && (
+          <Registro onNoAutorizado={salir} ir={ir} />
+        )}
+        {pantalla.pantalla === "dashboard" && (
+          <Dashboard onNoAutorizado={salir} ir={ir} />
+        )}
+        {pantalla.pantalla === "observatorio" && (
+          <Observatorio onNoAutorizado={salir} ir={ir} />
+        )}
+        {pantalla.pantalla === "fichas" && <Fichas onNoAutorizado={salir} />}
+        {pantalla.pantalla === "qr" && (
+          <ImprimirQr onNoAutorizado={salir} ir={ir} />
+        )}
+        {pantalla.pantalla === "aula" && (
+          <DetalleAula id={pantalla.id} onNoAutorizado={salir} ir={ir} />
+        )}
       </main>
     </div>
   );

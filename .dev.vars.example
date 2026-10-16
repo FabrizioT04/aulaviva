@@ -7,3 +7,7 @@ DEV_EMAIL_DOCENTE=docente.prueba@innovaschools.edu.pe
 
 # Desactiva Cloudflare Access en local (en producción lo activa wrangler.jsonc)
 ACCESS_AUD=
+
+# Opcional: para probar la vista de COA y de Mantenimiento (solo ven Daños y mantenimiento)
+# TOKEN_COA=clave-coa
+# TOKEN_MANTENIMIENTO=clave-mantenimiento

@@ -149,7 +149,7 @@ export interface Recurrente {
 
 export interface Sesion {
   email: string;
-  rol: "ti" | "docente" | "servicio"; // servicio = el reporte semanal del viernes
+  rol: "ti" | "coa" | "mantenimiento" | "docente" | "servicio"; // servicio = el reporte semanal del viernes; COA y Mantenimiento solo ven Daños
   modo: "access" | "local";
 }
 

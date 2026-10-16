@@ -6,6 +6,8 @@ entró (verificando la firma del token de Access) y decide su rol:
 | Rol | Quién | Qué puede usar |
 |---|---|---|
 | TI | Los correos de `TI_EMAILS` | Todo: registro, dashboard, observatorio, QR |
+| COA | Los correos de `COA_EMAILS` | Solo Daños y mantenimiento: las Chromebooks dañadas |
+| Mantenimiento | Los correos de `MANTENIMIENTO_EMAILS` | Solo Daños y mantenimiento: los desperfectos del local |
 | Docente | Cualquier `@innovaschools.edu.pe` | Solo la página del QR (`/r/<aula>`) |
 
 Cualquier otro correo queda fuera. Los menús del panel de Cloudflare pueden cambiar de nombre con el tiempo; si algo no coincide, busca la opción equivalente.
@@ -62,6 +64,15 @@ npx wrangler secret put TI_EMAILS
 ```
 
 Para agregar o quitar a alguien de TI, vuelve a correr ese comando con la lista completa.
+
+COA y Mantenimiento entran al mismo panel, pero solo ven la pestaña Daños y mantenimiento y lo de su área. Sus correos van en otros dos secretos, con el mismo formato:
+
+```bash
+npx wrangler secret put COA_EMAILS
+npx wrangler secret put MANTENIMIENTO_EMAILS
+```
+
+Si un correo está en `TI_EMAILS`, entra como TI aunque también esté en otra lista.
 
 Desde ese momento la clave `TOKEN_TI` deja de funcionar en producción: solo entra quien pasa por Access.
 
