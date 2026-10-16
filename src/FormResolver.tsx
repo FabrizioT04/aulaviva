@@ -10,7 +10,7 @@ interface Props {
   onCancelar: () => void;
 }
 
-// Qué tan parecido es: síntomas 45 %, tipo 25 %, causa 20 %, aula 10 % (se calcula en el servidor)
+// Qué tan parecido es, de 0 a 1: síntomas, causa (si ya hay diagnóstico) y aula (se calcula en el servidor)
 function Nivel({ relevancia }: { relevancia: number | null }) {
   if (relevancia == null) return null;
   const alto = relevancia >= 0.65;
