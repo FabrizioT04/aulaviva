@@ -55,6 +55,10 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .aviso-duplicado { margin-top: 14px; padding: 14px 16px; border-radius: 16px; background: var(--primario-suave); color: var(--texto); }
 .sugerencia { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--primario-suave); color: var(--texto); font-size: 0.95rem; line-height: 1.4; }
 .sugerencia[hidden] { display: none; }
+.borrador-recuperado { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 16px; padding: 12px 14px; border-radius: 16px; background: var(--primario-suave); color: var(--texto); font-size: 0.95rem; line-height: 1.4; }
+.borrador-recuperado[hidden] { display: none; }
+.borrador-recuperado svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--primario); }
+.borrador-recuperado button { display: inline; margin-left: 4px; padding: 0; border: 0; background: none; color: var(--primario); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; min-height: 0; }
 .sugerencia button { display: inline; margin-left: 4px; padding: 0; border: 0; background: none; color: var(--primario); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; min-height: 0; }
 .aviso-duplicado[hidden] { display: none; }
 .aviso-duplicado p { margin: 0 0 8px; font-size: 0.92rem; }
