@@ -11,6 +11,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Dashboard en vivo** (`/dashboard`): semáforo por aula (verde, amarillo, rojo) y lista de reportes abiertos ordenada por urgencia. Se actualiza sola por WebSocket. Toca un aula para ver su detalle.
 - **Detalle de aula** (`/aula/:id`): historial completo, tiempos promedio y cómo se resolvió cada caso.
 - **Observatorio** (`/observatorio`): incidencias, bloqueos y tiempos promedio de atención y resolución; incidencias por tipo de falla, por dónde llegan los reportes (QR impreso, escáner o lista de /docente, WhatsApp) y aulas con más incidencias (7, 30 o 90 días).
+- **Notificaciones push** (botón de la campana): TI recibe un aviso en la PC o el celular con cada reporte de un docente, aunque el panel esté cerrado. Los urgentes quedan en pantalla hasta tocarlos, y al tocar el aviso se abre el aula. En iPhone, primero hay que agregar el panel a la pantalla de inicio. Las claves se generan una vez con `npm run push:claves`.
 - **Atender y resolver**: guarda `atendido_en` y `resuelto_en` (tus métricas de tiempo) y pide las notas de resolución, que serán la base del asistente RAG del Sprint 3.
 
 ### Sprint 2 · Autorreporte por QR
@@ -34,6 +35,7 @@ migrations/0004_causa.sql          columna causa: qué se encontró, aparte de q
 migrations/0005_fichas.sql         tabla ficha (fichas de solución de TI)
 migrations/0006_secciones.sql      pabellón, nivel y sección de cada aula (cuadro de asignación 2026)
 migrations/0007_entrada.sql       por dónde llegó cada reporte del docente (QR impreso, escáner o lista)
+migrations/0008_push.sql          navegadores de TI suscritos a las notificaciones push
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
@@ -41,6 +43,9 @@ src/                          panel de TI en React (Registro, Dashboard, Detalle
 src/qr/ + qr.html              página liviana del QR para docentes
 src/qr/docente.ts + docente.html  inicio del docente: escanear el QR dentro de la página o elegir el aula
 worker/sesion.ts              verificación de Cloudflare Access y roles
+worker/push.ts                envío de notificaciones push (cifrado RFC 8291 y firma VAPID con WebCrypto)
+public/sw.js                  service worker que muestra las notificaciones en el navegador de TI
+scripts/claves-push.mjs       genera las claves VAPID (npm run push:claves)
 docs/cloudflare-access.md     guía para configurar Access
 shared/tipos.ts               tipos compartidos entre frontend y Worker
 ```
@@ -69,6 +74,9 @@ npx wrangler r2 bucket create aulaviva-fotos   # fotos de evidencia
 npm run db:migrar:remoto
 npm run db:semilla:remoto
 npx wrangler secret put TOKEN_TI       # clave temporal, hasta configurar Access
+npm run push:claves                    # muestra las claves de notificaciones y cómo guardarlas
+npx wrangler secret put VAPID_PUBLICA
+npx wrangler secret put VAPID_PRIVADA
 npm run deploy
 ```
 
@@ -90,6 +98,9 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | PUT / DELETE | `/api/fichas/:id` | Editar o borrar una ficha |
 | GET | `/api/en-vivo` | WebSocket del dashboard |
 | GET | `/api/sesion` | Quién está conectado y su rol |
+| GET | `/api/push` | Clave pública para suscribirse a las notificaciones (`null` si faltan las claves) |
+| POST / DELETE | `/api/push` | Guarda o borra la suscripción push de este navegador (`PushSubscription.toJSON()`) |
+| POST | `/api/push/prueba` | Envía una notificación de prueba a los navegadores de quien la pide |
 | GET | `/api/qr` | Aulas para el inicio del docente |
 | GET | `/api/qr/:codigo` | Estado del aula para el docente |
 | POST | `/api/qr/:codigo/reportes` | Reporte del docente `{tipo_falla, bloquea_clase, descripcion}` |

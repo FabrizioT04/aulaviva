@@ -277,9 +277,32 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .selector-tema button:hover { border: 0; color: var(--texto); }
 .selector-tema button.activo { background: var(--superficie); color: var(--texto); box-shadow: 0 1px 3px rgb(20 22 26 / 0.12), 0 0 0 1px var(--borde); }
 .selector-tema .icono { width: 17px; height: 17px; }
+.controles-cabecera { display: flex; align-items: center; gap: 8px; }
 @media (min-width: 900px) {
-  .selector-tema { margin-top: auto; }
-  .selector-tema + .usuario { margin-top: -16px; }
+  .controles-cabecera { margin-top: auto; flex-direction: column; align-items: stretch; gap: 10px; }
+  .controles-cabecera + .usuario { margin-top: -16px; }
+}
+
+/* Avisos push: en la PC, una fila del menú; en el celular, un botón redondo junto al tema */
+.boton-avisos { position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--suave); font-size: 0.88rem; font-weight: 700; text-align: left; }
+.boton-avisos:hover:not(:disabled) { color: var(--texto); }
+.boton-avisos .icono { width: 18px; height: 18px; }
+.boton-avisos .etiqueta-avisos { flex: 1; }
+.boton-avisos i { width: 8px; height: 8px; border-radius: 50%; background: var(--borde); flex: none; }
+.boton-avisos.activo { color: var(--texto); }
+.boton-avisos.activo i { background: var(--verde-punto); box-shadow: 0 0 0 3px color-mix(in srgb, var(--verde-punto) 22%, transparent); }
+.boton-avisos.inactivo { color: var(--primario); background: var(--primario-suave); border-color: transparent; }
+.boton-avisos.bloqueado i { background: var(--rojo); }
+.aviso-avisos { position: fixed; z-index: 20; right: 24px; bottom: 24px; max-width: 360px; margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--texto); color: var(--superficie); font-size: 0.9rem; font-weight: 600; box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.45); }
+@media (max-width: 899px) {
+  .boton-avisos { justify-content: center; width: 46px; height: 46px; padding: 0; border-radius: 14px; }
+  .boton-avisos .etiqueta-avisos { display: none; }
+  .boton-avisos i { position: absolute; top: 8px; right: 8px; }
+  .aviso-avisos { left: 12px; right: 12px; max-width: none; bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+/* Con la campana y el tema en la cabecera, el subtítulo del logo ya no cabe en celulares angostos */
+@media (max-width: 440px) {
+  .cabecera-app .logo-texto small { display: none; }
 }
 @media (max-width: 899px) {
   .selector-tema .etiqueta-tema { display: none; }
