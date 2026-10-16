@@ -1,7 +1,7 @@
 // Página que abre el docente al escanear el QR del aula.
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
-import { ETIQUETA_FALLA as ETIQUETA, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
+import { etiquetaFalla, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import { sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
@@ -20,7 +20,7 @@ const SEMAFORO: Record<string, string> = {
 const EJEMPLO: Record<TipoFalla, string> = {
   internet: "Ej. no carga ninguna página en la laptop",
   proyector: "Ej. el proyector no detecta la laptop",
-  pc: "Ej. la PC no enciende",
+  pc: "Ej. no enciende o se queda congelada",
   otro: "Ej. la pizarra digital no responde al tacto",
   audio: "Ej. los parlantes no suenan con la laptop",
   impresora: "Ej. la impresora no imprime o se atasca el papel",
@@ -93,6 +93,8 @@ async function cargar() {
 function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
   const avisoPrevio = aviso;
   const { aula, abiertos, email } = estado;
+  // "Laptop" en las aulas, "Computadora" donde hay All in One
+  const ETIQUETA = Object.fromEntries(TIPOS_FALLA.map((t) => [t, etiquetaFalla(t, aula.equipo)])) as Record<TipoFalla, string>;
   let tipo: TipoFalla | null = null;
   const fotos: Blob[] = [];
   const MAX_FOTOS = 3;
@@ -311,7 +313,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     scrollTo(0, 0);
   });
 
-  // Si el detalle habla de otra falla ("No agarra el internet" con PC elegido), se sugiere cambiarla
+  // Si el detalle habla de otra falla ("No agarra el internet" con Laptop elegido), se sugiere cambiarla
   const sugerencia = document.getElementById("sugerencia")!;
   function sugerir() {
     const otro = sugerirTipo(detalleCampo.value, tipo);

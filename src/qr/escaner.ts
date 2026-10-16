@@ -137,7 +137,7 @@ export async function escanearAula(): Promise<string | null> {
         if (codigo) {
           navigator.vibrate?.(60);
           capa.classList.add("leido");
-          aviso.textContent = `Aula ${codigo}`;
+          aviso.textContent = /^\d/.test(codigo) ? `Aula ${codigo}` : codigo; // WL, SD: no son aulas
           await new Promise((r) => setTimeout(r, 350));
           return salir(codigo);
         }

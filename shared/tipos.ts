@@ -7,12 +7,20 @@ export const TIPOS_PRINCIPALES: readonly TipoFalla[] = TIPOS_FALLA.slice(0, 4);
 export const ETIQUETA_FALLA: Record<TipoFalla, string> = {
   internet: "Internet",
   proyector: "Proyector",
-  pc: "PC",
+  pc: "Laptop / Computadora", // en el QR dice solo "Laptop" o "Computadora" según el ambiente (etiquetaFalla)
   otro: "Otro",
   audio: "Audio",
   impresora: "Impresora",
   perifericos: "Periféricos",
 };
+// En las aulas se trabaja con laptops; donde hay All in One (Welcome Lobby, Sala de docentes) los docentes dicen "computadora"
+export type EquipoAula = "laptop" | "aio";
+
+// Nombre de la falla como lo dice el docente en ese ambiente
+export function etiquetaFalla(tipo: TipoFalla, equipo?: EquipoAula): string {
+  if (tipo === "pc" && equipo) return equipo === "aio" ? "Computadora" : "Laptop";
+  return ETIQUETA_FALLA[tipo];
+}
 export type EstadoReporte = "abierto" | "en_atencion" | "escalado" | "resuelto";
 export type Semaforo = "verde" | "amarillo" | "rojo";
 
@@ -24,6 +32,7 @@ export interface AulaConEstado {
   pabellon: string | null; // "A", "B" o "C"
   nivel: string | null; // Inicial, Primaria, Secundaria, Varios, Rotaciones
   seccion: string | null; // grado y sección que conocen los docentes, ej. "4A"
+  equipo: EquipoAula;
   semaforo: Semaforo;
   reportes_abiertos: number;
 }

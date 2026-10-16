@@ -57,7 +57,7 @@ const nombreAmbiente = (seccion: string | null) =>
 
 function botonAula(a: AulaConEstado): string {
   const ambiente = AMBIENTES[(a.seccion ?? "").toUpperCase()]?.split(",")[0];
-  const nombre = `Aula ${a.codigo}${a.seccion ? `, ${ambiente ?? a.seccion}` : ""}, ${SEMAFORO[a.semaforo]}`;
+  const nombre = `${a.nombre}${a.seccion ? `, ${ambiente ?? a.seccion}` : ""}, ${SEMAFORO[a.semaforo]}`;
   return `<a class="aula-item ${a.semaforo}" href="/r/${encodeURIComponent(a.codigo)}?via=lista" aria-label="${esc(nombre)}" data-buscar="${esc(normalizar(`${a.codigo} ${a.seccion ?? ""} ${a.nombre} ${a.nivel ?? ""} ${a.pabellon ? `pabellón ${a.pabellon}` : ""} ${nombreAmbiente(a.seccion)}`))}">
     <strong>${esc(a.codigo)}</strong>${a.seccion ? `<span>${esc(a.seccion)}</span>` : ""}<i aria-hidden="true"></i></a>`;
 }

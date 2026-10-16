@@ -1,5 +1,5 @@
 import { comparar, raices } from "../shared/parecido";
-import { ENTRADAS, ENTRADAS_TI, ETIQUETA_FALLA, TIPOS_FALLA } from "../shared/tipos";
+import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -32,7 +32,7 @@ const ESTADOS: EstadoReporte[] = ["abierto", "en_atencion", "escalado", "resuelt
 // El semáforo se calcula a partir de los reportes no resueltos:
 // rojo = alguno bloquea la clase, amarillo = falla sin bloqueo, verde = operativa.
 const SQL_AULAS = `
-  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion,
+  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion, a.equipo,
          COUNT(r.id) AS reportes_abiertos,
          CASE
            WHEN SUM(r.bloquea_clase) > 0 THEN 'rojo'
@@ -580,7 +580,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
       const bloquea = Boolean(datos?.bloquea_clase);
       ctx.waitUntil(
         notificarTi(env, url.origin, {
-          titulo: `${bloquea ? "Urgente · " : ""}${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}: ${ETIQUETA_FALLA[tipo]}`,
+          titulo: `${bloquea ? "Urgente · " : ""}${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}: ${etiquetaFalla(tipo, aula.equipo)}`,
           cuerpo: [
             bloquea ? "No puede continuar la clase." : null,
             texto(datos?.descripcion),
