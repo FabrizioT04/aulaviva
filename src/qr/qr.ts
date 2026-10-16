@@ -75,7 +75,6 @@ async function cargar() {
 function pintar(estado: EstadoAulaQr, aviso = "") {
   const { aula, abiertos, email } = estado;
   let tipo: TipoFalla | null = null;
-  let bloquea = false;
   const fotos: Blob[] = [];
   const MAX_FOTOS = 3;
 
@@ -115,30 +114,36 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     <form id="form">
       <h2>¿Qué está fallando?</h2>
       <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false"><span class="ic">${iconoSvg(v)}</span>${e}</button>`).join("")}</div>
-      <h2>¿Te impide dar la clase ahora?</h2>
-      <div class="segmentado" id="bloquea">
-        <button type="button" data-valor="1">Sí, me lo impide</button>
-        <button type="button" data-valor="0" class="activo">No</button>
+      <details class="extra" id="extra">
+        <summary>${iconoSvg("registrar")}<span id="titulo-extra">Agregar detalle o foto (opcional)</span></summary>
+        <label><span id="etiqueta-detalle">Detalle (opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. el proyector no detecta la laptop"></textarea></label>
+        <div class="foto">
+          <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
+          <div class="vista-foto" id="vista"></div>
+          <label class="boton-foto" id="elegir-foto">${iconoSvg("camara")}<span id="texto-foto">Tomar o elegir foto</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
+        </div>
+      </details>
+      <div class="acciones-reporte">
+        <button type="button" class="enviar" data-bloquea="0" disabled>Avisar a TI</button>
+        <button type="button" class="enviar boton-urgente" data-bloquea="1" disabled>${iconoSvg("alerta")}No puedo continuar mi clase</button>
       </div>
-      <label>Detalle (opcional)<textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. el proyector no detecta la laptop"></textarea></label>
-      <div class="foto">
-        <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
-        <div class="vista-foto" id="vista"></div>
-        <label class="boton-foto" id="elegir-foto">${iconoSvg("camara")}<span id="texto-foto">Tomar o elegir foto</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
-      </div>
-      <button type="submit" class="enviar" id="enviar" disabled>Avisar a TI</button>
+      <p class="aviso-elegir suave" id="aviso-elegir">Primero elige qué está fallando.</p>
       <p class="error" id="error" role="alert"></p>
     </form>
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
-  const enviar = document.getElementById("enviar") as HTMLButtonElement;
+  // Dos botones en vez de la pregunta "¿Te impide dar la clase?": el docente avisa en dos toques
+  // y nunca queda marcado "no urgente" por no haber respondido
+  const botones = [...document.querySelectorAll<HTMLButtonElement>(".acciones-reporte .enviar")];
+  const textoOriginal = botones.map((b) => b.innerHTML);
+  const extra = document.getElementById("extra") as HTMLDetailsElement;
+  const detalleCampo = document.getElementById("detalle") as HTMLTextAreaElement;
   const error = document.getElementById("error")!;
   const archivo = document.getElementById("archivo") as HTMLInputElement;
   const vista = document.getElementById("vista")!;
   const elegir = document.getElementById("elegir-foto")!;
   const textoFoto = document.getElementById("texto-foto")!;
   let previas: string[] = [];
-  const textoEnviar = () => (bloquea ? "Avisar a TI · urgente" : "Avisar a TI");
 
   function pintarFotos() {
     for (const u of previas) URL.revokeObjectURL(u);
@@ -183,28 +188,32 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
       x.classList.toggle("activo", x === b);
       x.setAttribute("aria-pressed", String(x === b));
     }
-    enviar.disabled = false;
+    for (const x of botones) x.disabled = false;
+    document.getElementById("aviso-elegir")!.hidden = true;
+    // En "Otro" TI necesita saber qué pasa: el detalle se abre y es obligatorio
+    const otro = tipo === "otro";
+    document.getElementById("etiqueta-detalle")!.textContent = otro ? "Describe la falla" : "Detalle (opcional)";
+    document.getElementById("titulo-extra")!.textContent = otro ? "Describe la falla" : "Agregar detalle o foto (opcional)";
+    if (otro) extra.open = true;
   });
 
-  document.getElementById("bloquea")!.addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest("button");
-    if (!b) return;
-    bloquea = b.dataset.valor === "1";
-    enviar.textContent = textoEnviar();
-    enviar.classList.toggle("urgente", bloquea);
-    for (const x of b.parentElement!.children) {
-      x.classList.toggle("activo", x === b);
-      x.classList.toggle("urgente", x === b && bloquea);
-    }
-  });
+  document.getElementById("form")!.addEventListener("submit", (e) => e.preventDefault());
+  for (const boton of botones) boton.addEventListener("click", () => enviarReporte(boton));
 
-  document.getElementById("form")!.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  async function enviarReporte(boton: HTMLButtonElement) {
     if (!tipo) return;
-    enviar.disabled = true;
-    enviar.textContent = "Enviando…";
+    const bloquea = boton.dataset.bloquea === "1";
+    const detalle = detalleCampo.value.trim();
+    if (tipo === "otro" && !detalle) {
+      error.textContent = "Escribe en pocas palabras qué está fallando.";
+      extra.open = true;
+      detalleCampo.focus();
+      return;
+    }
+    const restaurar = () => botones.forEach((b, i) => ((b.disabled = false), (b.innerHTML = textoOriginal[i])));
+    for (const b of botones) b.disabled = true;
+    boton.textContent = "Enviando…";
     error.textContent = "";
-    const detalle = (document.getElementById("detalle") as HTMLTextAreaElement).value;
     const res = await fetch(`/api/qr/${encodeURIComponent(codigo)}/reportes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -214,8 +223,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     if (!res?.ok) {
       const { error: msg } = ((await res?.json().catch(() => ({}))) ?? {}) as { error?: string };
       error.textContent = msg ?? "No se pudo enviar. Revisa tu conexión e intenta de nuevo.";
-      enviar.disabled = false;
-      enviar.textContent = textoEnviar();
+      restaurar();
       return;
     }
 
@@ -224,7 +232,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     if (fotos.length) {
       const { id } = (await res.json()) as { id: number };
       for (const [i, foto] of fotos.entries()) {
-        enviar.textContent = fotos.length > 1 ? `Subiendo foto ${i + 1} de ${fotos.length}…` : "Subiendo foto…";
+        boton.textContent = fotos.length > 1 ? `Subiendo foto ${i + 1} de ${fotos.length}…` : "Subiendo foto…";
         const subida = await fetch(`/api/qr/${encodeURIComponent(codigo)}/reportes/${id}/foto`, {
           method: "PUT",
           headers: { "Content-Type": "image/jpeg" },
@@ -251,7 +259,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     const nuevo = await fetch(`/api/qr/${encodeURIComponent(codigo)}`).then((r) => (r.ok ? r.json() : null));
     pintar((nuevo as EstadoAulaQr) ?? estado, confirmacion);
     scrollTo(0, 0);
-  });
+  }
 }
 
 cargar().catch(() => mensaje("Sin conexión", "Revisa tu internet e intenta de nuevo."));

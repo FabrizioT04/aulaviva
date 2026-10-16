@@ -33,25 +33,28 @@ h2 { font-size: 1.12rem; font-weight: 800; margin: 0 0 12px; letter-spacing: -0.
 .opciones button.activo { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); }
 .opciones button.activo .ic { background: var(--primario); color: var(--primario-texto); }
 
-.segmentado { display: flex; gap: 4px; padding: 4px; border-radius: 16px; background: color-mix(in srgb, var(--borde) 70%, var(--fondo)); margin-bottom: 24px; }
-.segmentado button { flex: 1; min-height: 48px; font: inherit; font-size: 0.95rem; font-weight: 700; border: 0; border-radius: 12px; background: transparent; color: var(--suave); cursor: pointer; }
-.segmentado button.activo { background: var(--superficie); color: var(--texto); box-shadow: 0 1px 3px rgb(20 22 26 / 0.12); }
-.segmentado button.urgente { background: var(--rojo); color: #fff; box-shadow: none; }
-@media (prefers-color-scheme: dark) {
-  .segmentado { background: var(--superficie-2); border: 1px solid var(--borde); }
-  .segmentado button.activo { box-shadow: 0 0 0 1px var(--borde); }
-  .segmentado button.urgente { background: var(--rojo-suave); color: var(--rojo-texto); box-shadow: inset 0 0 0 1px var(--rojo); }
-}
-
 label { display: flex; flex-direction: column; gap: 8px; font-weight: 800; font-size: 1rem; }
 textarea { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); resize: vertical; }
 textarea::placeholder { color: var(--tenue); }
 textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
-.enviar { position: sticky; bottom: 16px; width: 100%; margin-top: 22px; min-height: 58px; font: inherit; font-size: 1.05rem; font-weight: 800; border: 0; border-radius: 18px; background: var(--primario); color: var(--primario-texto); box-shadow: var(--sombra-boton); cursor: pointer; }
-.enviar.urgente { background: var(--rojo); color: #fff; box-shadow: 0 10px 24px rgb(224 56 62 / 0.3); }
-/* Sin transparencia: el botón flota sobre el formulario al hacer scroll */
+/* Dos formas de avisar: normal, o urgente si la clase no puede seguir */
+.acciones-reporte { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.enviar { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 58px; font: inherit; font-size: 1.05rem; font-weight: 800; border: 0; border-radius: 18px; background: var(--primario); color: var(--primario-texto); box-shadow: var(--sombra-boton); cursor: pointer; }
 .enviar:disabled { background: color-mix(in srgb, var(--primario) 40%, var(--superficie)); box-shadow: none; cursor: not-allowed; }
-@media (prefers-color-scheme: dark) { .enviar.urgente { color: var(--fondo); box-shadow: none; } }
+.boton-urgente { min-height: 54px; font-size: 1rem; background: var(--superficie); color: var(--rojo-texto); box-shadow: inset 0 0 0 2px var(--rojo); }
+.boton-urgente .icono { width: 20px; height: 20px; }
+.boton-urgente:disabled { background: var(--superficie); color: color-mix(in srgb, var(--rojo-texto) 45%, var(--superficie)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--rojo) 35%, var(--superficie)); }
+@media (prefers-color-scheme: dark) { .boton-urgente { background: var(--rojo-suave); } }
+.aviso-elegir { margin: 10px 0 0; text-align: center; }
+.aviso-elegir[hidden] { display: none; }
+
+/* Detalle y fotos plegados: la mayoría de los reportes no los necesita */
+.extra { margin-bottom: 18px; }
+.extra summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; list-style: none; cursor: pointer; font-weight: 700; color: var(--suave); }
+.extra summary::-webkit-details-marker { display: none; }
+.extra summary .icono { width: 20px; height: 20px; transition: transform 0.2s; }
+.extra[open] summary { color: var(--texto); margin-bottom: 8px; }
+.extra[open] summary .icono { transform: rotate(45deg); }
 .error { color: var(--rojo-texto); margin: 10px 0 0; min-height: 1em; }
 
 .abiertos { list-style: none; margin: 0; padding: 0; }
