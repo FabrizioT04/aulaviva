@@ -7,7 +7,7 @@ import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
 import "./qr-efectos.css";
 
-const ESTADO: Record<string, string> = { abierto: "En cola", en_atencion: "En atención" };
+const ESTADO: Record<string, string> = { abierto: "En cola", en_atencion: "En atención", escalado: "Escalado" };
 // Lo que el docente ve del aula: "Operativa" confundía si algo fallaba y aún nadie lo había reportado
 const SEMAFORO: Record<string, string> = {
   verde: "Sin reportes",

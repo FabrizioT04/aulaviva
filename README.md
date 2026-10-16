@@ -8,6 +8,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 ### Sprint 1 · Panel de TI
 
 - **Registro rápido** (`/`): aula, por dónde llegó (WhatsApp, en persona u otro canal), tipo de falla, si bloquea la clase, docente, detalle y la fecha y hora real del reporte. Si TI ya lo atendió, se registra resuelto de una vez con la hora de llegada, la hora de solución, la causa y qué se hizo. Al elegir el aula y la falla avisa si ya hay un reporte abierto igual y muestra cómo se resolvió antes, con un botón para reusar esa solución.
+- **Atención técnica** (en Registrar): el caso se registra como Pendiente, En atención, Resuelto o Escalado. Al escalar se anota el ticket de GLPI, el diagnóstico y lo que queda pendiente; desde el dashboard también se puede "Escalar" un reporte abierto. Cada cambio de estado queda guardado con quién y cuándo, y se ve en "Historial de cambios" dentro del detalle del aula.
 - **Tipos de falla**: Internet, Proyector, PC y Otro a la vista; Audio, Impresora y Periféricos al tocar "Ver más" (en el panel y en la página del QR).
 - **Dashboard en vivo** (`/dashboard`): semáforo por aula (verde, amarillo, rojo) y lista de reportes abiertos ordenada por urgencia. Se actualiza sola por WebSocket. Toca un aula para ver su detalle.
 - **Detalle de aula** (`/aula/:id`): historial completo, tiempos promedio y cómo se resolvió cada caso.
@@ -39,6 +40,7 @@ migrations/0007_entrada.sql       por dónde llegó cada reporte del docente (QR
 migrations/0008_push.sql          navegadores de TI suscritos a las notificaciones push
 migrations/0009_aula_207.sql      el aula 207 es un MediaLab (ML)
 migrations/0010_tipos_falla.sql   tipos de falla audio, impresora y periféricos; estado "escalado" (reconstruye reporte y ficha)
+migrations/0011_atencion_tecnica.sql  ticket GLPI, observaciones, quién registró y el historial de cambios (reporte_evento)
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
@@ -92,10 +94,10 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/aulas` | Aulas con su semáforo calculado |
 | GET | `/api/reportes?estado=abiertos` | Reportes no resueltos, urgentes primero |
 | GET | `/api/reportes` | Últimos 100 reportes |
-| GET | `/api/aulas/:id` | Detalle de un aula con su historial y promedios |
+| GET | `/api/aulas/:id` | Detalle de un aula con su historial, los cambios de estado de cada reporte y promedios |
 | GET | `/api/metricas?dias=30` | Indicadores del Observatorio |
-| POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, entrada, bloquea_clase, reportado_por_nombre, descripcion, reportado_en?}` (`entrada`: `whatsapp`, `presencial` u `otro`); para registrarlo ya resuelto agrega `resuelto: true, atendido_en, resuelto_en, causa, notas_resolucion` |
-| PATCH | `/api/reportes/:id` | `{estado: "en_atencion"}` o `{estado: "resuelto", causa, notas_resolucion}` |
+| POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, entrada, bloquea_clase, reportado_por_nombre, descripcion, reportado_en?}` (`entrada`: `whatsapp`, `presencial` u `otro`). `estado`: `abierto`, `en_atencion` (con `atendido_en`), `resuelto` (con `atendido_en`, `resuelto_en`, `causa`, `notas_resolucion`) o `escalado` (con `ticket_glpi`, `causa`); `observaciones` en todos menos resuelto; para registrarlo ya resuelto agrega `resuelto: true, atendido_en, resuelto_en, causa, notas_resolucion` |
+| PATCH | `/api/reportes/:id` | `{estado: "en_atencion"}`, `{estado: "escalado", ticket_glpi, observaciones}` o `{estado: "resuelto", causa, notas_resolucion}`. Cada cambio queda en el historial |
 | GET | `/api/fichas` | Fichas de solución |
 | POST | `/api/fichas` | Crear `{tipo_falla, titulo, sintomas, pasos_docente, cuando_llamar_ti}` (un paso por línea) |
 | PUT / DELETE | `/api/fichas/:id` | Editar o borrar una ficha |

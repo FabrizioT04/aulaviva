@@ -6,6 +6,15 @@ import Icono from "../Icono";
 import FotosReporte from "../FotosReporte";
 import { descripcionAula, duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, fechaCorta, minutosEntre } from "../formato";
 
+// Cómo se lee cada paso en el historial de cambios
+const PASO: Record<string, string> = {
+  abierto: "Reportado",
+  en_atencion: "En atención",
+  escalado: "Escalado",
+  resuelto: "Resuelto",
+};
+const quien = (email: string | null) => (email ? ` · ${email.split("@")[0]}` : "");
+
 const SEMAFORO: Record<string, string> = {
   verde: "Operativa",
   amarillo: "Falla sin bloqueo",
@@ -33,7 +42,7 @@ export default function DetalleAula({ id, onNoAutorizado, ir }: Props) {
   if (error) return <p className="vacio">No se encontró el aula.</p>;
   if (!detalle) return <p className="vacio">Cargando…</p>;
 
-  const { aula, reportes, resumen } = detalle;
+  const { aula, reportes, resumen, eventos = [] } = detalle;
 
   return (
     <div className="detalle">
@@ -88,6 +97,31 @@ export default function DetalleAula({ id, onNoAutorizado, ir }: Props) {
                   {r.causa && <>Causa: {r.causa}<br /></>}
                   {r.notas_resolucion && <>Qué se hizo: {r.notas_resolucion}</>}
                 </p>
+              )}
+              {(r.ticket_glpi || r.observaciones) && (
+                <p className="solucion">
+                  {r.ticket_glpi && <>Ticket GLPI: #{r.ticket_glpi}<br /></>}
+                  {r.observaciones && <>Observaciones: {r.observaciones}</>}
+                </p>
+              )}
+              {eventos.some((e) => e.reporte_id === r.id) && (
+                <details className="cambios">
+                  <summary>Historial de cambios</summary>
+                  <ol>
+                    {eventos
+                      .filter((e) => e.reporte_id === r.id)
+                      .map((e, i) => (
+                        <li key={i}>
+                          <span className={`estado ${e.estado}`}>{PASO[e.estado] ?? e.estado}</span>
+                          <small>
+                            {fechaCorta(e.en)}
+                            {quien(e.email)}
+                            {e.nota ? ` · ${e.nota}` : ""}
+                          </small>
+                        </li>
+                      ))}
+                  </ol>
+                </details>
               )}
             </li>
           ))}
