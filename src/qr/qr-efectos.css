@@ -84,11 +84,14 @@
   .enviar:not(:disabled):active { box-shadow: 0 1px 0 var(--canto); }
   .boton-urgente:not(:disabled) { box-shadow: inset 0 0 0 2px var(--rojo), 0 5px 0 var(--canto-rojo-claro); }
   .boton-urgente:not(:disabled):active { box-shadow: inset 0 0 0 2px var(--rojo), 0 1px 0 var(--canto-rojo-claro); }
+  .boton-listo:not(:disabled) { box-shadow: 0 5px 0 color-mix(in srgb, var(--verde-punto) 65%, #000); }
+  .boton-listo:not(:disabled):active { box-shadow: 0 1px 0 color-mix(in srgb, var(--verde-punto) 65%, #000); }
 }
 @media (prefers-color-scheme: dark) {
   .enviar:not(:disabled) { box-shadow: 0 0 30px -6px var(--brillo); }
   .enviar:not(:disabled):active { transform: scale(0.97); }
   .boton-urgente:not(:disabled) { box-shadow: inset 0 0 0 1px var(--rojo), 0 0 24px -6px var(--brillo-rojo); }
+  .boton-listo:not(:disabled) { box-shadow: 0 0 24px -6px var(--brillo-verde); }
 }
 
 /* Confirmación: el check cae como un sello */
