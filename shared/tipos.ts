@@ -61,13 +61,21 @@ export interface EventoReporte {
   en: string;
 }
 
+// Casos parecidos a un reporte (GET /api/reportes/:id/similares)
+export interface Similares {
+  casos: Reporte[];
+  fichas: Ficha[];
+}
+
 // Ficha de solución escrita por TI para una falla común
 export interface Ficha {
   id: number;
   tipo_falla: TipoFalla;
   titulo: string;
   sintomas: string | null;
+  causas_posibles: string | null;
   pasos_docente: string | null; // un paso por línea
+  pasos_ti: string | null; // procedimiento que solo hace TI, un paso por línea
   cuando_llamar_ti: string | null;
   creado_en: string;
   actualizado_en: string;

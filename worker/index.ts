@@ -249,6 +249,26 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     return json(creado, 201);
   }
 
+  // Al atender un reporte: cómo se resolvieron antes fallas parecidas (primero en la misma aula)
+  // y las fichas de ese tipo de falla. Así se aprovecha el historial incluso antes del asistente.
+  const similares = pathname.match(/^\/api\/reportes\/(\d+)\/similares$/);
+  if (similares && metodo === "GET") {
+    const reporte = await env.DB.prepare("SELECT id, aula_id, tipo_falla FROM reporte WHERE id = ?")
+      .bind(Number(similares[1]))
+      .first<{ id: number; aula_id: number; tipo_falla: TipoFalla }>();
+    if (!reporte) return json({ error: "Reporte no encontrado" }, 404);
+    const [casos, fichas] = await env.DB.batch([
+      env.DB.prepare(
+        `${SQL_REPORTES}
+         WHERE r.tipo_falla = ? AND r.estado = 'resuelto' AND r.id <> ?
+           AND (r.notas_resolucion IS NOT NULL OR r.causa IS NOT NULL)
+         ORDER BY r.aula_id = ? DESC, r.resuelto_en DESC LIMIT 4`,
+      ).bind(reporte.tipo_falla, reporte.id, reporte.aula_id),
+      env.DB.prepare("SELECT * FROM ficha WHERE tipo_falla = ? ORDER BY titulo COLLATE NOCASE LIMIT 4").bind(reporte.tipo_falla),
+    ]);
+    return json({ casos: casos.results, fichas: fichas.results });
+  }
+
   // Foto número n (0, 1 o 2) del reporte, en el orden en que se subieron
   const foto = pathname.match(/^\/api\/reportes\/(\d+)\/fotos\/(\d)$/);
   if (foto && metodo === "GET") {
@@ -280,11 +300,19 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     const tipo = datos?.tipo_falla as TipoFalla;
     const titulo = texto(datos?.titulo);
     if (!TIPOS_FALLA.includes(tipo) || !titulo) return json({ error: "Faltan el tipo de falla o el título" }, 400);
-    const valores = [tipo, titulo, texto(datos?.sintomas), texto(datos?.pasos_docente), texto(datos?.cuando_llamar_ti)];
+    const valores = [
+      tipo,
+      titulo,
+      texto(datos?.sintomas),
+      texto(datos?.causas_posibles),
+      texto(datos?.pasos_docente),
+      texto(datos?.pasos_ti),
+      texto(datos?.cuando_llamar_ti),
+    ];
     if (metodo === "POST" && !ficha[1]) {
       const creada = await env.DB.prepare(
-        `INSERT INTO ficha (tipo_falla, titulo, sintomas, pasos_docente, cuando_llamar_ti)
-         VALUES (?, ?, ?, ?, ?) RETURNING id`,
+        `INSERT INTO ficha (tipo_falla, titulo, sintomas, causas_posibles, pasos_docente, pasos_ti, cuando_llamar_ti)
+         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       )
         .bind(...valores)
         .first<{ id: number }>();
@@ -292,7 +320,8 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     }
     if (metodo === "PUT" && ficha[1]) {
       const cambiada = await env.DB.prepare(
-        `UPDATE ficha SET tipo_falla = ?, titulo = ?, sintomas = ?, pasos_docente = ?, cuando_llamar_ti = ?,
+        `UPDATE ficha SET tipo_falla = ?, titulo = ?, sintomas = ?, causas_posibles = ?, pasos_docente = ?, pasos_ti = ?,
+           cuando_llamar_ti = ?,
            actualizado_en = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          WHERE id = ? RETURNING id`,
       )

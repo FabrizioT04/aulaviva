@@ -202,6 +202,15 @@ fieldset .segmentado { display: flex; }
 
 .form-resolver { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--borde); }
 .form-resolver .acciones { justify-content: flex-end; }
+/* Casos parecidos y fichas del mismo tipo, arriba del formulario para resolver */
+.similares { margin: 0 0 14px; padding: 12px 14px; border-radius: 14px; background: var(--superficie-2); }
+.similares h3 { margin: 0 0 8px; font-size: 0.85rem; }
+.similares ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.similares li { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+.similares li + li { padding-top: 10px; border-top: 1px solid var(--borde); }
+.similares li > div { display: grid; gap: 2px; }
+.similares small { color: var(--suave); }
+.similares p { margin: 0; color: var(--suave); }
 .cambios { margin-top: 4px; font-size: 0.85rem; }
 .cambios summary { cursor: pointer; color: var(--primario); font-weight: 700; }
 .cambios ol { list-style: none; margin: 8px 0 0; padding: 0 0 0 4px; display: grid; gap: 6px; border-left: 2px solid var(--borde); }
