@@ -3,6 +3,7 @@
 import { iconoSvg } from "../../shared/iconos";
 import { ETIQUETA_FALLA as ETIQUETA, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import { sugerirTipo } from "../../shared/sugerencia";
+import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import type { EstadoAulaQr, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
@@ -28,6 +29,14 @@ const EJEMPLO: Record<TipoFalla, string> = {
 
 const app = document.getElementById("app")!;
 const codigo = decodeURIComponent(location.pathname.split("/")[2] ?? "");
+const CLAVE_BORRADOR = `aulaviva:borrador-qr:${codigo}`;
+// Un reporte a medio llenar sirve durante la clase; al día siguiente la falla puede ser otra
+const VIGENCIA_BORRADOR_MIN = 120;
+interface BorradorQr {
+  tipo: TipoFalla | null;
+  detalle: string;
+  fotos: number;
+}
 // Por dónde llegó el docente: /docente agrega ?via=lista o ?via=escaner; sin eso, escaneó el QR impreso
 const via = new URLSearchParams(location.search).get("via");
 const entrada = via === "lista" || via === "escaner" ? via : "qr";
@@ -82,6 +91,7 @@ async function cargar() {
 }
 
 function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
+  const avisoPrevio = aviso;
   const { aula, abiertos, email } = estado;
   let tipo: TipoFalla | null = null;
   const fotos: Blob[] = [];
@@ -121,6 +131,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     ${aviso}
     ${reportados}
     <form id="form"${enviado ? " hidden" : ""}>
+      <div class="borrador-recuperado" id="borrador" role="status" hidden></div>
       <h2>¿Qué está fallando?</h2>
       <div class="opciones" id="tipos">${TIPOS_FALLA.map((v) => `<button type="button" data-tipo="${v}" aria-pressed="false"${TIPOS_PRINCIPALES.includes(v) ? "" : " hidden"}><span class="ic">${iconoSvg(v)}</span>${ETIQUETA[v]}</button>`).join("")}</div>
       <button type="button" class="mas-tipos" id="mas-tipos">Ver más: ${TIPOS_FALLA.filter((v) => !TIPOS_PRINCIPALES.includes(v)).map((v) => ETIQUETA[v]).join(", ")}${iconoSvg("abajo")}</button>
@@ -168,6 +179,15 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       .join("");
     elegir.hidden = fotos.length >= MAX_FOTOS;
     textoFoto.textContent = fotos.length ? `Agregar otra foto (${fotos.length}/${MAX_FOTOS})` : "Tomar o elegir foto";
+    guardarQr();
+  }
+
+  // Lo elegido y escrito se guarda en el celular hasta enviarlo: si el docente sale sin querer, al volver sigue ahí.
+  // Las fotos no se guardan (pesan demasiado), solo cuántas había para avisar que hay que elegirlas de nuevo
+  function guardarQr() {
+    const detalle = detalleCampo.value;
+    if (!tipo && !detalle.trim()) borrarBorrador(CLAVE_BORRADOR);
+    else guardarBorrador<BorradorQr>(CLAVE_BORRADOR, { tipo, detalle, fotos: fotos.length });
   }
 
   archivo.addEventListener("change", async () => {
@@ -218,6 +238,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     if (titulo) extra.open = true;
     avisarDuplicado();
     sugerir();
+    guardarQr();
   });
 
   // Si el detalle habla de otra falla ("No agarra el internet" con PC elegido), se sugiere cambiarla
@@ -228,7 +249,10 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     if (!otro) return;
     sugerencia.innerHTML = `Lo que escribiste parece una falla de <strong>${ETIQUETA[otro]}</strong>. <button type="button" data-cambiar="${otro}">Cambiar a ${ETIQUETA[otro]}</button>`;
   }
-  detalleCampo.addEventListener("input", sugerir);
+  detalleCampo.addEventListener("input", () => {
+    sugerir();
+    guardarQr();
+  });
   sugerencia.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cambiar]");
     if (!b) return;
@@ -271,6 +295,31 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   for (const boton of botones) boton.addEventListener("click", () => enviarReporte(boton));
+
+  const previo = enviado ? null : leerBorrador<BorradorQr>(CLAVE_BORRADOR, VIGENCIA_BORRADOR_MIN);
+  if (previo) {
+    const { tipo: t, detalle, fotos: n } = previo.datos;
+    const opcion = t ? document.querySelector<HTMLButtonElement>(`#tipos [data-tipo="${t}"]`) : null;
+    if (opcion) {
+      if (opcion.hidden) masTipos.click();
+      opcion.click();
+    }
+    if (detalle) {
+      detalleCampo.value = detalle;
+      extra.open = true;
+      sugerir();
+      guardarQr();
+    }
+    const aviso = document.getElementById("borrador")!;
+    aviso.innerHTML = `${iconoSvg("info")}<span>Recuperamos tu reporte sin enviar. Revísalo y toca <strong>Avisar a TI</strong>.${
+      n ? ` ${n === 1 ? "La foto hay" : "Las fotos hay"} que volver a elegirla${n === 1 ? "" : "s"}.` : ""
+    } <button type="button" id="descartar-borrador">Descartar</button></span>`;
+    aviso.hidden = false;
+    document.getElementById("descartar-borrador")!.addEventListener("click", () => {
+      borrarBorrador(CLAVE_BORRADOR);
+      pintar(estado, avisoPrevio);
+    });
+  }
 
   async function enviarReporte(boton: HTMLButtonElement) {
     if (!tipo) return;
@@ -333,6 +382,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
         <a class="enviar boton-listo" href="/docente">Entendido</a>
         <button type="button" class="enlace-otra" id="otra-falla">Reportar otra falla en esta aula</button>
       </section>`;
+    borrarBorrador(CLAVE_BORRADOR);
     const nuevo = await fetch(`/api/qr/${encodeURIComponent(codigo)}`).then((r) => (r.ok ? r.json() : null));
     pintar((nuevo as EstadoAulaQr) ?? estado, confirmacion, true);
     scrollTo(0, 0);

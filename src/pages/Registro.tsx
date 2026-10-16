@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
+import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import { sugerirTipo } from "../../shared/sugerencia";
 import type { AulaConEstado, DetalleAula, EntradaTi, EstadoReporte, Reporte, TipoFalla } from "../../shared/tipos";
 import type { Ruta } from "../App";
@@ -30,24 +31,46 @@ function ahoraLocal(): string {
 
 const aIso = (local: string) => new Date(local).toISOString();
 
+const CLAVE_BORRADOR = "aulaviva:borrador-registro";
+const VIGENCIA_BORRADOR_MIN = 12 * 60;
+interface Borrador {
+  aulaTexto: string;
+  origen: EntradaTi;
+  tipo: TipoFalla | null;
+  bloquea: boolean;
+  docente: string;
+  descripcion: string;
+  llegoEn: string;
+  estado: EstadoReporte;
+  ticket: string;
+  observaciones: string;
+  atendidoEn: string;
+  resueltoEn: string;
+  causa: string;
+  notas: string;
+}
+
 // Registro rápido: lo que TI llena al leer el mensaje de WhatsApp o cuando le cuentan en persona
 export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () => void; ir: (r: Ruta) => void }) {
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
-  const [aulaTexto, setAulaTexto] = useState("");
-  const [origen, setOrigen] = useState<EntradaTi>("whatsapp");
-  const [tipo, setTipo] = useState<TipoFalla | null>(null);
-  const [masTipos, setMasTipos] = useState(false);
-  const [bloquea, setBloquea] = useState(false);
-  const [docente, setDocente] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [llegoEn, setLlegoEn] = useState(ahoraLocal);
-  const [estado, setEstado] = useState<EstadoReporte>("abierto");
-  const [ticket, setTicket] = useState("");
-  const [observaciones, setObservaciones] = useState("");
-  const [atendidoEn, setAtendidoEn] = useState(ahoraLocal);
-  const [resueltoEn, setResueltoEn] = useState(ahoraLocal);
-  const [causa, setCausa] = useState("");
-  const [notas, setNotas] = useState("");
+  // Si se salió a medio registrar, se retoma donde quedó
+  const [recuperado, setRecuperado] = useState(() => leerBorrador<Borrador>(CLAVE_BORRADOR, VIGENCIA_BORRADOR_MIN));
+  const b = recuperado?.datos;
+  const [aulaTexto, setAulaTexto] = useState(b?.aulaTexto ?? "");
+  const [origen, setOrigen] = useState<EntradaTi>(b?.origen ?? "whatsapp");
+  const [tipo, setTipo] = useState<TipoFalla | null>(b?.tipo ?? null);
+  const [masTipos, setMasTipos] = useState(Boolean(b?.tipo && !TIPOS_PRINCIPALES.includes(b.tipo)));
+  const [bloquea, setBloquea] = useState(b?.bloquea ?? false);
+  const [docente, setDocente] = useState(b?.docente ?? "");
+  const [descripcion, setDescripcion] = useState(b?.descripcion ?? "");
+  const [llegoEn, setLlegoEn] = useState(b?.llegoEn ?? ahoraLocal());
+  const [estado, setEstado] = useState<EstadoReporte>(b?.estado ?? "abierto");
+  const [ticket, setTicket] = useState(b?.ticket ?? "");
+  const [observaciones, setObservaciones] = useState(b?.observaciones ?? "");
+  const [atendidoEn, setAtendidoEn] = useState(b?.atendidoEn ?? ahoraLocal());
+  const [resueltoEn, setResueltoEn] = useState(b?.resueltoEn ?? ahoraLocal());
+  const [causa, setCausa] = useState(b?.causa ?? "");
+  const [notas, setNotas] = useState(b?.notas ?? "");
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [historial, setHistorial] = useState<Reporte[]>([]);
@@ -78,6 +101,36 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
       vivo = false;
     };
   }, [aulaId]);
+
+  // Cada cambio queda guardado en este navegador hasta que se registre o se descarte
+  useEffect(() => {
+    const datos: Borrador = {
+      aulaTexto, origen, tipo, bloquea, docente, descripcion, llegoEn, estado,
+      ticket, observaciones, atendidoEn, resueltoEn, causa, notas,
+    };
+    const escrito = [aulaTexto, docente, descripcion, ticket, observaciones, causa, notas].some((t) => t.trim()) || tipo;
+    if (escrito) guardarBorrador(CLAVE_BORRADOR, datos);
+    else borrarBorrador(CLAVE_BORRADOR);
+  }, [aulaTexto, origen, tipo, bloquea, docente, descripcion, llegoEn, estado, ticket, observaciones, atendidoEn, resueltoEn, causa, notas]);
+
+  function limpiar() {
+    setAulaTexto("");
+    setOrigen("whatsapp");
+    setTipo(null);
+    setBloquea(false);
+    setDocente("");
+    setDescripcion("");
+    setLlegoEn(ahoraLocal());
+    setEstado("abierto");
+    setTicket("");
+    setObservaciones("");
+    setAtendidoEn(ahoraLocal());
+    setResueltoEn(ahoraLocal());
+    setCausa("");
+    setNotas("");
+    setRecuperado(null);
+    borrarBorrador(CLAVE_BORRADOR);
+  }
 
   // Si el detalle habla de otra falla que la elegida, se sugiere cambiarla
   const sugerido = sugerirTipo(descripcion, tipo);
@@ -127,20 +180,7 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
         }),
       });
       setMensaje({ ok: true, texto: `${opcion.listo}: ${aula.nombre}` });
-      setAulaTexto("");
-      setOrigen("whatsapp");
-      setTipo(null);
-      setBloquea(false);
-      setDocente("");
-      setDescripcion("");
-      setLlegoEn(ahoraLocal());
-      setEstado("abierto");
-      setTicket("");
-      setObservaciones("");
-      setAtendidoEn(ahoraLocal());
-      setResueltoEn(ahoraLocal());
-      setCausa("");
-      setNotas("");
+      limpiar();
     } catch (err) {
       if (err instanceof NoAutorizado) return onNoAutorizado();
       setMensaje({ ok: false, texto: err instanceof Error && !(err instanceof TypeError) ? err.message : "No se pudo registrar. Intenta de nuevo." });
@@ -158,6 +198,18 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
         </div>
       </header>
       <form className="tarjeta" onSubmit={enviar}>
+        {recuperado && (
+          <p className="borrador-recuperado" role="status">
+            <Icono nombre="info" />
+            <span>
+              Recuperamos lo que estabas registrando (guardado a las{" "}
+              {recuperado.guardado.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}).{" "}
+              <button type="button" className="enlace" onClick={limpiar}>
+                Empezar de nuevo
+              </button>
+            </span>
+          </p>
+        )}
         <h2 className="seccion-form">1. Información de la incidencia</h2>
         <div className="fila-doble">
         <label>
