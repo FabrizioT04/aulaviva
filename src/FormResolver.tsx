@@ -10,6 +10,13 @@ interface Props {
   onCancelar: () => void;
 }
 
+// Qué tan parecido es: síntomas 45 %, tipo 25 %, causa 20 %, aula 10 % (se calcula en el servidor)
+function Nivel({ relevancia }: { relevancia: number | null }) {
+  if (relevancia == null) return null;
+  const alto = relevancia >= 0.65;
+  return <span className={alto ? "nivel-similitud alto" : "nivel-similitud"}>{alto ? "Muy parecido" : "Parecido"}</span>;
+}
+
 // Cierre de un reporte en dos partes: lo que se encontró y lo que se hizo.
 // Así cada caso queda ordenado para el asistente del Sprint 3.
 export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar }: Props) {
@@ -45,7 +52,9 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
   return (
     <form className="form-resolver" onSubmit={guardar}>
       {similares && similares.criterio === "texto" && similares.casos.length === 0 && similares.fichas.length === 0 && (
-        <p className="similares-vacio">Ningún caso anterior se parece a este. Lo que escribas aquí servirá para el próximo.</p>
+        <p className="similares-vacio">
+          No se encontraron casos anteriores con síntomas similares. Lo que escribas aquí servirá para el próximo.
+        </p>
       )}
       {similares && (similares.casos.length > 0 || similares.fichas.length > 0) && (
         <div className="similares">
@@ -61,7 +70,11 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
                     {c.aula_id === aulaId ? "En esta aula" : c.aula_nombre} · {fechaCorta(c.resuelto_en ?? c.reportado_en)}
                   </strong>
                   {c.descripcion && <small>“{c.descripcion}”</small>}
-                  {c.coincide.length > 0 && <small className="coincide">Coincide en: {c.coincide.join(", ")}</small>}
+                  {c.coincide.length > 0 && (
+                    <small className="coincide">
+                      <Nivel relevancia={c.relevancia} /> Coincide en: {c.coincide.join(", ")}
+                    </small>
+                  )}
                   {c.causa && <p>Causa: {c.causa}</p>}
                   {c.notas_resolucion && <p>Se hizo: {c.notas_resolucion}</p>}
                 </div>
@@ -81,7 +94,11 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
               <li key={`f${f.id}`} className="ficha-similar">
                 <div>
                   <strong>Ficha: {f.titulo}</strong>
-                  {f.coincide.length > 0 && <small className="coincide">Coincide en: {f.coincide.join(", ")}</small>}
+                  {f.coincide.length > 0 && (
+                    <small className="coincide">
+                      <Nivel relevancia={f.relevancia} /> Coincide en: {f.coincide.join(", ")}
+                    </small>
+                  )}
                   {f.causas_posibles && <p>Causas posibles: {f.causas_posibles}</p>}
                   {f.pasos_ti ? (
                     <p>Procedimiento de TI: {f.pasos_ti.split("\n").filter(Boolean).join(" · ")}</p>

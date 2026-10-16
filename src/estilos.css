@@ -215,6 +215,8 @@ fieldset .segmentado { display: flex; }
 .similares small { color: var(--suave); }
 .similares p { margin: 0; color: var(--suave); }
 .similares .coincide { color: var(--primario); font-weight: 600; }
+.nivel-similitud { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 999px; background: var(--superficie); color: var(--texto); font-size: 0.75rem; font-weight: 700; }
+.nivel-similitud.alto { background: var(--verde-suave); color: var(--verde); }
 .similares .nota-similares { margin: -2px 0 10px; font-size: 0.8rem; }
 .similares-vacio { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: var(--superficie-2); color: var(--suave); font-size: 0.85rem; }
 .cambios { margin-top: 4px; font-size: 0.85rem; }

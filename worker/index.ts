@@ -279,10 +279,17 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
   const similares = pathname.match(/^\/api\/reportes\/(\d+)\/similares$/);
   if (similares && metodo === "GET") {
     const reporte = await env.DB.prepare(
-      "SELECT id, aula_id, tipo_falla, descripcion, observaciones FROM reporte WHERE id = ?",
+      "SELECT id, aula_id, tipo_falla, descripcion, observaciones, causa FROM reporte WHERE id = ?",
     )
       .bind(Number(similares[1]))
-      .first<{ id: number; aula_id: number; tipo_falla: TipoFalla; descripcion: string | null; observaciones: string | null }>();
+      .first<{
+        id: number;
+        aula_id: number;
+        tipo_falla: TipoFalla;
+        descripcion: string | null;
+        observaciones: string | null;
+        causa: string | null;
+      }>();
     if (!reporte) return json({ error: "Reporte no encontrado" }, 404);
     const [candidatos, fichas] = await env.DB.batch([
       env.DB.prepare(
@@ -300,26 +307,39 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     if (buscado.size === 0) {
       const respuesta: Similares = {
         criterio: "tipo",
-        casos: casos.slice(0, 3).map((c) => ({ ...c, coincide: [] })),
-        fichas: (fichas.results as unknown as Ficha[]).slice(0, 3).map((f) => ({ ...f, coincide: [] })),
+        casos: casos.slice(0, 3).map((c) => ({ ...c, coincide: [], relevancia: null })),
+        fichas: (fichas.results as unknown as Ficha[]).slice(0, 3).map((f) => ({ ...f, coincide: [], relevancia: null })),
       };
       return json(respuesta);
     }
-    // Con detalle, solo los que comparten palabras con lo que se reportó: más coincidencias primero
-    const puntuar = <T,>(lista: T[], texto: (x: T) => string) =>
-      lista
-        .map((x, orden) => ({ x, coincide: coincidencias(buscado, texto(x)), orden }))
-        .filter((c) => c.coincide.length > 0)
-        .sort((a, b) => b.coincide.length - a.coincide.length || a.orden - b.orden);
-    const respuesta: Similares = {
-      criterio: "texto",
-      casos: puntuar(casos, (c) => `${c.descripcion ?? ""} ${c.observaciones ?? ""} ${c.causa ?? ""} ${c.notas_resolucion ?? ""}`)
-        .slice(0, 4)
-        .map(({ x, coincide }) => ({ ...x, coincide })),
-      fichas: puntuar(fichas.results as unknown as Ficha[], (f) => `${f.titulo} ${f.sintomas ?? ""} ${f.causas_posibles ?? ""}`)
-        .slice(0, 3)
-        .map(({ x, coincide }) => ({ ...x, coincide })),
-    };
+    // Con detalle, solo los que comparten síntomas con lo que se reportó (si no, no se muestran).
+    // Entre esos, la relevancia pesa: síntomas 45 %, mismo tipo 25 % (siempre, ya vienen filtrados),
+    // misma causa 20 % (si el reporte ya tiene diagnóstico) y misma aula 10 %
+    const causaBuscada = raices(reporte.causa);
+    const fraccion = (palabras: string[], de: Map<string, string>) => (de.size ? Math.min(palabras.length / de.size, 1) : 0);
+    const casosRelevantes = casos
+      .map((c, orden) => {
+        const coincide = coincidencias(buscado, `${c.descripcion ?? ""} ${c.observaciones ?? ""} ${c.causa ?? ""} ${c.notas_resolucion ?? ""}`);
+        const relevancia =
+          0.45 * fraccion(coincide, buscado) +
+          0.25 +
+          0.2 * fraccion(coincidencias(causaBuscada, c.causa), causaBuscada) +
+          0.1 * Number(c.aula_id === reporte.aula_id);
+        return { ...c, coincide, relevancia: Math.round(relevancia * 100) / 100, orden };
+      })
+      .filter((c) => c.coincide.length > 0)
+      .sort((a, b) => b.relevancia - a.relevancia || a.orden - b.orden)
+      .slice(0, 4)
+      .map(({ orden: _, ...c }) => c);
+    const fichasRelevantes = (fichas.results as unknown as Ficha[])
+      .map((f) => {
+        const coincide = coincidencias(buscado, `${f.titulo} ${f.sintomas ?? ""} ${f.causas_posibles ?? ""}`);
+        return { ...f, coincide, relevancia: Math.round((0.45 * fraccion(coincide, buscado) + 0.25) * 100) / 100 };
+      })
+      .filter((f) => f.coincide.length > 0)
+      .sort((a, b) => b.relevancia - a.relevancia)
+      .slice(0, 3);
+    const respuesta: Similares = { criterio: "texto", casos: casosRelevantes, fichas: fichasRelevantes };
     return json(respuesta);
   }
 
