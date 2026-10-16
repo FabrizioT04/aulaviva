@@ -14,6 +14,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 40px; }
 .barra button:hover { background: var(--superficie-2); color: var(--texto); border: 0; }
 .barra button.activo { background: var(--primario-suave); color: var(--primario); }
 .barra .icono { width: 20px; height: 20px; }
+.barra .etiqueta-corta { display: none; }
 .usuario { display: none; }
 
 @media (min-width: 900px) {
@@ -34,6 +35,8 @@ main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 40px; }
   .barra button { flex: 1; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 0.72rem; text-align: center; }
   .barra button.activo { background: transparent; }
   .barra .icono { width: 23px; height: 23px; }
+  .barra .etiqueta-larga { display: none; }
+  .barra .etiqueta-corta { display: inline; }
   .barra .solo-pc { display: none; }
   .logo-marca { width: 34px; height: 34px; border-radius: 10px; }
   main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
@@ -347,6 +350,22 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .ficha .sintomas { color: var(--suave); margin: 0 0 10px; }
 .ficha ol { margin: 0 0 12px; padding-left: 22px; }
 .ficha ol li { margin-bottom: 4px; }
+.ficha .causas { margin: 0 0 12px; font-size: 0.92rem; }
+.ficha .nivel { display: inline-flex; margin: 4px 0 8px; padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 800; }
+.nivel.docente { background: var(--verde-suave); color: var(--verde); }
+.nivel.ti { background: var(--primario-suave); color: var(--primario); }
+.ficha .nivel + ol { margin-top: 0; }
+.vacio-guia h2 { margin: 0 0 6px; font-size: 1rem; }
+.vacio-guia p { margin: 0; color: var(--suave); }
+.filtros-fichas { display: grid; gap: 12px; margin-bottom: 22px; }
+.buscador { flex-direction: row; align-items: center; gap: 10px; margin: 0; padding: 0 14px; border-radius: 14px; border: 1px solid var(--borde); background: var(--superficie); font-weight: 500; }
+.buscador .icono { color: var(--suave); width: 18px; height: 18px; }
+.buscador input { flex: 1; border: 0; background: transparent; padding: 12px 0; outline: none; box-shadow: none; }
+.buscador:focus-within { border-color: var(--primario); outline: 3px solid var(--primario-suave); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 34px; padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; }
+.chip.activo { background: var(--primario); border-color: var(--primario); color: var(--primario-texto); }
+.conteo-fichas { margin: 0; font-size: 0.85rem; color: var(--suave); }
 .llamar-ti { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: var(--amarillo-suave); }
 .form-ficha .acciones { justify-content: flex-end; }
 .form-ficha .acciones .primario { width: auto; }
