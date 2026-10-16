@@ -79,6 +79,8 @@ function pintar(datos: AulasDocente | null, error = "") {
     <section class="tarjeta elegir">
       <h2>¿No puedes escanear? Elige tu aula</h2>
       <label class="buscar">${iconoSvg("buscar")}<input id="buscar" type="search" inputmode="search" autocomplete="off" placeholder="Ej. 204, 4A o primaria" aria-label="Buscar aula por número, sección, nivel o pabellón" /></label>
+      <p class="leyenda" aria-hidden="true"><span><i class="verde"></i>Sin reportes</span><span><i class="amarillo"></i>Falla reportada</span><span><i class="rojo"></i>Clase bloqueada</span></p>
+      <p class="conteo" id="conteo" aria-live="polite"></p>
       <div id="lista">${lista || `<p class="suave">${esc(error || "No hay aulas para mostrar.")}</p>`}</div>
       <p class="suave" id="sin-resultados" hidden>No hay un aula con ese número, sección o nivel.</p>
     </section>
@@ -102,6 +104,8 @@ function pintar(datos: AulasDocente | null, error = "") {
       visibles += enGrupo;
     }
     document.getElementById("sin-resultados")!.hidden = visibles > 0 || !datos?.aulas.length;
+    // Con varias coincidencias, el conteo ayuda a notar que hay que elegir por piso y sección
+    document.getElementById("conteo")!.textContent = q && visibles ? (visibles === 1 ? "1 aula coincide" : `${visibles} aulas coinciden`) : "";
   });
 
   const boton = document.getElementById("escanear") as HTMLButtonElement;
