@@ -2,6 +2,7 @@
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
 import { ETIQUETA_FALLA as ETIQUETA, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
+import { sugerirTipo } from "../../shared/sugerencia";
 import type { EstadoAulaQr, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
@@ -127,6 +128,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       <details class="extra" id="extra">
         <summary>${iconoSvg("registrar")}<span id="titulo-extra">Agregar detalle o foto (opcional)</span></summary>
         <label><span id="etiqueta-detalle">Detalle (opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. desde cuándo pasa o qué ya probaste"></textarea></label>
+        <p class="sugerencia" id="sugerencia" role="status" hidden></p>
         <div class="foto">
           <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
           <div class="vista-foto" id="vista"></div>
@@ -215,6 +217,25 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     detalleCampo.placeholder = EJEMPLO[tipo];
     if (titulo) extra.open = true;
     avisarDuplicado();
+    sugerir();
+  });
+
+  // Si el detalle habla de otra falla ("No agarra el internet" con PC elegido), se sugiere cambiarla
+  const sugerencia = document.getElementById("sugerencia")!;
+  function sugerir() {
+    const otro = sugerirTipo(detalleCampo.value, tipo);
+    sugerencia.hidden = !otro;
+    if (!otro) return;
+    sugerencia.innerHTML = `Lo que escribiste parece una falla de <strong>${ETIQUETA[otro]}</strong>. <button type="button" data-cambiar="${otro}">Cambiar a ${ETIQUETA[otro]}</button>`;
+  }
+  detalleCampo.addEventListener("input", sugerir);
+  sugerencia.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-cambiar]");
+    if (!b) return;
+    const opcion = document.querySelector<HTMLButtonElement>(`#tipos [data-tipo="${b.dataset.cambiar}"]`);
+    if (!opcion) return;
+    if (opcion.hidden) masTipos.click();
+    opcion.click();
   });
 
   // Si ya hay un reporte abierto del mismo tipo, se avisa sin bloquear: puede ser otra falla del mismo equipo
