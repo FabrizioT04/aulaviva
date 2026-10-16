@@ -13,7 +13,7 @@ INSERT INTO aula (codigo, nombre, piso, pabellon, nivel, seccion) VALUES
   ('204', 'Aula 204', 2, 'A', 'Primaria', '3B'),
   ('205', 'Aula 205', 2, 'A', 'Primaria', '4A'),
   ('206', 'Aula 206', 2, 'B', 'Varios', 'ML'),
-  ('207', 'Aula 207', 2, 'B', 'Varios', 'LBR'),
+  ('207', 'Aula 207', 2, 'B', 'Varios', 'ML'),
   ('208', 'Aula 208', 2, 'B', 'Primaria', '4B'),
   ('209', 'Aula 209', 2, 'B', 'Primaria', '5A'),
   ('210', 'Aula 210', 2, 'C', 'Primaria', '5B'),

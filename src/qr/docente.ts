@@ -44,9 +44,21 @@ function normalizar(t: string): string {
   return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
 }
 
+// Los ambientes especiales tienen siglas en vez de grado: el buscador también entiende su nombre
+const AMBIENTES: Record<string, string> = {
+  ML: "MediaLab, media lab",
+  LC: "Laboratorio de Ciencias, laboratorio ciencias",
+};
+const nombreAmbiente = (seccion: string | null) =>
+  (seccion ?? "")
+    .split("/")
+    .map((s) => AMBIENTES[s.trim().toUpperCase()] ?? "")
+    .join(" ");
+
 function botonAula(a: AulaConEstado): string {
-  const nombre = `Aula ${a.codigo}${a.seccion ? `, ${a.seccion}` : ""}, ${SEMAFORO[a.semaforo]}`;
-  return `<a class="aula-item ${a.semaforo}" href="/r/${encodeURIComponent(a.codigo)}?via=lista" aria-label="${esc(nombre)}" data-buscar="${esc(normalizar(`${a.codigo} ${a.seccion ?? ""} ${a.nombre} ${a.nivel ?? ""} ${a.pabellon ? `pabellón ${a.pabellon}` : ""}`))}">
+  const ambiente = AMBIENTES[(a.seccion ?? "").toUpperCase()]?.split(",")[0];
+  const nombre = `Aula ${a.codigo}${a.seccion ? `, ${ambiente ?? a.seccion}` : ""}, ${SEMAFORO[a.semaforo]}`;
+  return `<a class="aula-item ${a.semaforo}" href="/r/${encodeURIComponent(a.codigo)}?via=lista" aria-label="${esc(nombre)}" data-buscar="${esc(normalizar(`${a.codigo} ${a.seccion ?? ""} ${a.nombre} ${a.nivel ?? ""} ${a.pabellon ? `pabellón ${a.pabellon}` : ""} ${nombreAmbiente(a.seccion)}`))}">
     <strong>${esc(a.codigo)}</strong>${a.seccion ? `<span>${esc(a.seccion)}</span>` : ""}<i aria-hidden="true"></i></a>`;
 }
 
