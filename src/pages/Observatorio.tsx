@@ -170,6 +170,48 @@ function Estados({ datos, escaladas }: { datos: Metricas["por_estado"]; escalada
   );
 }
 
+// Asistencia guiada: de las veces que el docente vio los pasos de una ficha en el QR,
+// cuántas lo resolvió solo y cuántas igual tuvo que avisar a TI
+function Autosolucion({ datos }: { datos: Metricas["autosolucion"] }) {
+  const total = datos.resueltas + datos.avisaron;
+  const porcentaje = total ? Math.round((datos.resueltas / total) * 100) : 0;
+  return (
+    <section className="tarjeta">
+      <h2>Autosolución docente</h2>
+      <p className="nota-seccion">
+        Veces que el docente vio en el QR los pasos de una ficha. Si con eso funcionó, TI no recibió reporte.
+      </p>
+      {total === 0 ? (
+        <p className="vacio">
+          Aquí verás cuántas fallas resolvieron los docentes con los pasos de las fichas. Para que aparezcan, llena “Qué
+          puede probar el docente” en la Base de conocimiento.
+        </p>
+      ) : (
+        <>
+          <div className="apilada" role="img" aria-label={`Resueltas por el docente: ${datos.resueltas}; avisaron a TI: ${datos.avisaron}`}>
+            {datos.resueltas > 0 && <span className="tramo resuelto" style={{ flexGrow: datos.resueltas }} />}
+            {datos.avisaron > 0 && <span className="tramo avisaron" style={{ flexGrow: datos.avisaron }} />}
+          </div>
+          <ul className="leyenda-estados">
+            <li>
+              <i className="muestra-estado resuelto" />
+              Lo resolvió el docente
+              <strong>{datos.resueltas}</strong>
+              <small>{porcentaje}%</small>
+            </li>
+            <li>
+              <i className="muestra-estado avisaron" />
+              Igual avisó a TI
+              <strong>{datos.avisaron}</strong>
+              <small>{100 - porcentaje}%</small>
+            </li>
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
 // Todas las veces con la misma causa: el desperfecto vuelve
 function causaRepetida(r: Recurrente): boolean {
   return r.causas.length === 1 && r.con_causa === r.n;
@@ -236,6 +278,7 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
 
           <Tendencia dias={dias} datos={m.por_dia} />
           <Estados datos={m.por_estado} escaladas={m.resumen.escalados ?? 0} />
+          <Autosolucion datos={m.autosolucion} />
 
           <section className="tarjeta">
             <h2>Fallas que se repiten</h2>

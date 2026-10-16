@@ -247,6 +247,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                       {r.reportado_por_nombre ? ` · ${r.reportado_por_nombre}` : ""}
                     </small>
                     {r.descripcion && <p className="descripcion">“{r.descripcion}”</p>}
+                    {r.ficha_vista && <p className="ficha-vista">El docente ya vio los pasos de “{r.ficha_vista}”</p>}
                     {r.observaciones && <p className="observacion">Obs.: {r.observaciones}</p>}
                     {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} />}
                   </div>

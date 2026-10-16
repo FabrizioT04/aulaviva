@@ -19,6 +19,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 
 ### Sprint 2 · Autorreporte por QR
 - **Página del QR** (`/r/<aula>`): el docente escanea, elige la falla y toca "Avisar a TI" o, si la clase no puede seguir, "No puedo continuar mi clase" (urgente). El detalle y las fotos son opcionales y van plegados; en "Otro" el detalle es obligatorio. TI lo ve al instante en el dashboard. Es una página aparte sin React (unos 3 KB) para que cargue rápido en el celular. Muestra lo ya reportado para evitar duplicados y, si es urgente, el tiempo promedio de atención.
+- **Asistencia guiada**: al elegir la falla, el docente ve "Antes de avisar, prueba esto" con los pasos que TI escribió en la ficha de esa falla ("Qué puede probar el docente"). Si toca "Ya funciona", queda registrado como autosolución y TI no recibe reporte. Si igual avisa, el reporte llega con la ficha que vio, para que TI no repita esos pasos. "No puedo continuar mi clase" sigue avisando directo, y si ya hay un reporte de esa falla en el aula no se muestran los pasos. El Observatorio cuenta cuántas veces lo resolvió el docente y cuántas igual tuvo que avisar.
 - **Fotos de evidencia** (opcional, hasta 3 por reporte): el celular reduce cada una a 1280 px en JPEG antes de subirla (una foto de 5 MB queda en unos 400 KB), se guardan en R2 y TI las ve en el dashboard y en el detalle del aula.
 - **Inicio del docente** (`/docente`): para quien no sabe escanear con la cámara del celular. Un botón grande abre la cámara dentro de la página y lee el QR del aula; también puede elegir su aula de una lista (busca por número o sección). Se puede agregar a la pantalla del celular como app.
 - **QR imprimibles** (`/qr-aulas`): un QR por aula, listo para imprimir. Se puede buscar un aula, imprimir solo su QR en grande y abrir "Probar" para ver la página que verá el docente.
@@ -43,6 +44,7 @@ migrations/0009_aula_207.sql      el aula 207 es un MediaLab (ML)
 migrations/0010_tipos_falla.sql   tipos de falla audio, impresora y periféricos; estado "escalado" (reconstruye reporte y ficha)
 migrations/0011_atencion_tecnica.sql  ticket GLPI, observaciones, quién registró y el historial de cambios (reporte_evento)
 migrations/0012_fichas_ti.sql      causas posibles y procedimiento de TI en las fichas
+migrations/0013_asistencia_guiada.sql  autosoluciones del docente y la ficha que vio antes de avisar
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo

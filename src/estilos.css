@@ -282,6 +282,8 @@ fieldset .segmentado { display: flex; }
 .observatorio .tarjeta { margin-bottom: 20px; }
 .nota-seccion { margin: -6px 0 12px; color: var(--suave); font-size: 0.88rem; }
 .nota-seccion.pie { margin: 12px 0 0; }
+.nota-campo { color: var(--suave); font-size: 0.8rem; font-weight: 400; }
+.ficha-vista { margin: 4px 0 0; color: var(--suave); font-size: 0.85rem; }
 
 /* Tendencia: una columna por día o semana, una sola serie (sin leyenda) */
 .tendencia { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 180px; padding: 18px 0 0; border-bottom: 1px solid var(--borde); }
@@ -303,6 +305,7 @@ fieldset .segmentado { display: flex; }
 .tramo.resuelto, .muestra-estado.resuelto { background: var(--verde-punto); }
 .tramo.pendiente, .muestra-estado.pendiente { background: var(--amarillo-fuerte); }
 .tramo.escalado, .muestra-estado.escalado { background: #7c3aed; }
+.tramo.avisaron, .muestra-estado.avisaron { background: color-mix(in srgb, var(--suave) 55%, transparent); }
 @media (prefers-color-scheme: dark) { .tramo.escalado, .muestra-estado.escalado { background: #b392f5; } }
 .leyenda-estados { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 0.9rem; }
 .leyenda-estados li { display: flex; align-items: center; gap: 8px; }
