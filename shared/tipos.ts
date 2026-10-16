@@ -115,7 +115,19 @@ export interface Metricas {
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
   por_dia: { dia: string; n: number }[]; // AAAA-MM-DD en hora de Lima; los días sin reportes no vienen
   por_estado: { estado: "pendiente" | "escalado" | "resuelto"; n: number }[];
-  recurrentes: { id: number; codigo: string; nombre: string; tipo_falla: TipoFalla; n: number; ultima: string }[];
+  recurrentes: Recurrente[];
+}
+
+// La misma falla repetida en un aula, con las causas que TI registró al resolverla
+export interface Recurrente {
+  id: number;
+  codigo: string;
+  nombre: string;
+  tipo_falla: TipoFalla;
+  n: number;
+  ultima: string;
+  con_causa: number; // cuántas de las n tienen causa registrada
+  causas: string[]; // causas distintas, tal como se escribieron
 }
 
 export interface Sesion {
