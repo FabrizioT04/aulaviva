@@ -67,9 +67,6 @@
 .instalar p { color: var(--suave); font-size: 0.9rem; line-height: 1.45; }
 .boton-secundario { margin-top: 12px; min-height: 44px; padding: 0 16px; font: inherit; font-weight: 800; border-radius: 14px; border: 1.5px solid var(--primario); background: transparent; color: var(--primario); cursor: pointer; }
 
-/* Enlace de vuelta al inicio desde la confirmación del QR */
-.enlace-inicio { color: var(--verde); font-weight: 800; }
-
 /* Lector de QR a pantalla completa */
 body.con-escaner { overflow: hidden; }
 .escaner { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: grid; place-items: center; }

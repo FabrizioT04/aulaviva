@@ -14,10 +14,18 @@ const TIPOS: [TipoFalla, string][] = [
 ];
 const ETIQUETA: Record<string, string> = Object.fromEntries(TIPOS);
 const ESTADO: Record<string, string> = { abierto: "En cola", en_atencion: "En atención" };
+// Lo que el docente ve del aula: "Operativa" confundía si algo fallaba y aún nadie lo había reportado
 const SEMAFORO: Record<string, string> = {
-  verde: "Operativa",
-  amarillo: "Con falla",
+  verde: "Sin reportes",
+  amarillo: "Falla reportada",
   rojo: "Clase bloqueada",
+};
+// Ejemplo del detalle según la falla elegida
+const EJEMPLO: Record<TipoFalla, string> = {
+  internet: "Ej. no carga ninguna página en la laptop",
+  proyector: "Ej. el proyector no detecta la laptop",
+  pc: "Ej. la PC no enciende",
+  otro: "Ej. el parlante no suena",
 };
 
 const app = document.getElementById("app")!;
@@ -116,7 +124,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
       <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false"><span class="ic">${iconoSvg(v)}</span>${e}</button>`).join("")}</div>
       <details class="extra" id="extra">
         <summary>${iconoSvg("registrar")}<span id="titulo-extra">Agregar detalle o foto (opcional)</span></summary>
-        <label><span id="etiqueta-detalle">Detalle (opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. el proyector no detecta la laptop"></textarea></label>
+        <label><span id="etiqueta-detalle">Detalle (opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. desde cuándo pasa o qué ya probaste"></textarea></label>
         <div class="foto">
           <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
           <div class="vista-foto" id="vista"></div>
@@ -194,6 +202,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     const otro = tipo === "otro";
     document.getElementById("etiqueta-detalle")!.textContent = otro ? "Describe la falla" : "Detalle (opcional)";
     document.getElementById("titulo-extra")!.textContent = otro ? "Describe la falla" : "Agregar detalle o foto (opcional)";
+    detalleCampo.placeholder = EJEMPLO[tipo];
     if (otro) extra.open = true;
   });
 
@@ -227,10 +236,11 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
       return;
     }
 
+    const { id } = (await res.json().catch(() => ({}))) as { id?: number };
+
     // Las fotos se suben una por una después de crear el reporte: si alguna falla, el reporte ya llegó
-    let fotosFallidas = 0;
-    if (fotos.length) {
-      const { id } = (await res.json()) as { id: number };
+    let fotosFallidas = id ? 0 : fotos.length;
+    if (fotos.length && id) {
       for (const [i, foto] of fotos.entries()) {
         boton.textContent = fotos.length > 1 ? `Subiendo foto ${i + 1} de ${fotos.length}…` : "Subiendo foto…";
         const subida = await fetch(`/api/qr/${encodeURIComponent(codigo)}/reportes/${id}/foto`, {
@@ -245,7 +255,8 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     const espera = bloquea ? minutos(estado.prom_atencion_urgente_min) : null;
     const confirmacion = `<section class="tarjeta exito">
         <h2><span class="check">${iconoSvg("check")}</span>Listo, TI fue avisado</h2>
-        <p>${
+        ${id ? `<p class="numero-reporte">Reporte N.º <strong>${id}</strong></p>` : ""}
+        <p>No hace falta avisar también por WhatsApp. ${
           espera
             ? `En casos urgentes, TI suele llegar en unos <strong>${espera}</strong>.`
             : "Te atenderán lo antes posible."

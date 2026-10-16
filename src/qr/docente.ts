@@ -11,7 +11,7 @@ import "./docente.css";
 const app = document.getElementById("app")!;
 activarBotonTema(app);
 
-const SEMAFORO: Record<string, string> = { verde: "operativa", amarillo: "con falla", rojo: "clase bloqueada" };
+const SEMAFORO: Record<string, string> = { verde: "sin reportes", amarillo: "falla reportada", rojo: "clase bloqueada" };
 
 // Chrome en Android avisa cuando la página se puede instalar como app
 let instalar: (Event & { prompt(): Promise<void> }) | null = null;
