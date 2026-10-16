@@ -132,3 +132,21 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .boton-funciono { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 44px; font: inherit; font-size: 0.95rem; font-weight: 700; color: var(--verde); background: none; border: 1.5px solid var(--verde); border-radius: 999px; cursor: pointer; }
 .boton-funciono .icono { width: 18px; height: 18px; }
 .boton-funciono:disabled { opacity: 0.6; cursor: default; }
+
+/* Daños: equipos (también le llegan a TI) o mobiliario, para COA / Mantenimiento */
+.enlace-dano { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 18px; padding: 14px 16px; font: inherit; font-size: 0.95rem; font-weight: 700; text-align: left; color: var(--texto); background: var(--superficie); border: 1px dashed var(--borde); border-radius: 16px; cursor: pointer; }
+.enlace-dano .icono { flex: none; width: 20px; height: 20px; color: var(--suave); }
+.volver-ti { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 14px; padding: 6px 0; border: 0; background: none; color: var(--primario); font: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+.volver-ti .icono { width: 18px; height: 18px; }
+.opciones-dano button { min-height: 96px; }
+.chips-dano { display: flex; flex-wrap: wrap; gap: 8px; margin: -10px 0 18px; }
+.chips-dano[hidden], .campos-chromebook[hidden] { display: none; }
+.chips-dano button { min-height: 40px; padding: 8px 14px; font: inherit; font-size: 0.92rem; font-weight: 600; border-radius: 999px; border: 1.5px solid var(--borde); background: var(--superficie); color: var(--texto); cursor: pointer; }
+.chips-dano button.activo { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); }
+.campos-chromebook { display: grid; gap: 12px; margin-bottom: 14px; }
+.campos-chromebook label, .campo-dano { display: grid; gap: 6px; font-weight: 700; font-size: 0.95rem; }
+.campos-chromebook input { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
+.campos-chromebook input:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
+.campos-chromebook .suave { font-weight: 500; font-size: 0.82rem; }
+#form-dano .enviar { margin-top: 20px; }
+#form-dano #destino-dano { text-align: center; margin: 8px 0 0; font-size: 0.88rem; }

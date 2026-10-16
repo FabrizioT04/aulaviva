@@ -4,6 +4,9 @@ import { iconoSvg } from "../../shared/iconos";
 import { etiquetaFalla, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import { sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
+import { comprimir } from "../comprimir";
+import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, GRUPO_DANO, TIPOS_DANO, tiposDe } from "../../shared/danos";
+import type { GrupoDano, TipoDano } from "../../shared/danos";
 import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
@@ -47,30 +50,6 @@ function minutos(m: number | null): string | null {
   return r < 60 ? `${r} min` : `${Math.floor(r / 60)} h ${r % 60} min`;
 }
 
-// Reduce la foto en el celular antes de subirla: de ~4 MB a ~200 KB
-async function comprimir(archivo: File): Promise<Blob> {
-  const LADO_MAX = 1280;
-  let imagen: CanvasImageSource & { width: number; height: number };
-  try {
-    imagen = await createImageBitmap(archivo, { imageOrientation: "from-image" });
-  } catch {
-    imagen = await new Promise<HTMLImageElement>((ok, falla) => {
-      const img = new Image();
-      img.onload = () => ok(img);
-      img.onerror = falla;
-      img.src = URL.createObjectURL(archivo);
-    });
-  }
-  const escala = Math.min(1, LADO_MAX / Math.max(imagen.width, imagen.height));
-  const lienzo = document.createElement("canvas");
-  lienzo.width = Math.round(imagen.width * escala);
-  lienzo.height = Math.round(imagen.height * escala);
-  lienzo.getContext("2d")!.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
-  return new Promise((ok, falla) =>
-    lienzo.toBlob((b) => (b ? ok(b) : falla(new Error("sin imagen"))), "image/jpeg", 0.72),
-  );
-}
-
 activarBotonTema(app);
 
 function mensaje(titulo: string, detalle = "") {
@@ -88,6 +67,28 @@ async function cargar() {
     return mensaje("No se pudo abrir el aula", error ?? "Intenta escanear el QR de nuevo.");
   }
   pintar((await res.json()) as EstadoAulaQr);
+}
+
+// Cabecera con el aula y su semáforo; la comparten el reporte a TI y el de daños
+function cabecera(aula: EstadoAulaQr["aula"]): string {
+  return `
+    <header class="cabecera">
+      <div class="cabecera-fila">
+        ${MARCA}
+        <span class="cabecera-acciones">
+          <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
+          ${botonTema()}
+        </span>
+      </div>
+      <div class="cabecera-aula">
+        <div class="cabecera-texto">
+          <p class="ubicacion">${[aula.piso != null && `Piso ${aula.piso}`, aula.pabellon && `Pabellón ${esc(aula.pabellon)}`, "Sede SMP1"].filter(Boolean).join(" · ")}</p>
+          <h1>${esc(aula.nombre)}</h1>
+          ${aula.seccion ? `<p class="seccion">${esc(aula.seccion)}${aula.nivel ? ` · ${esc(aula.nivel)}` : ""}</p>` : ""}
+        </div>
+        <div class="cubo-escena" aria-hidden="true"><div class="cubo ${aula.semaforo}">${esc(aula.codigo)}</div></div>
+      </div>
+    </header>`;
 }
 
 function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
@@ -113,23 +114,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     : "";
 
   app.innerHTML = `
-    <header class="cabecera">
-      <div class="cabecera-fila">
-        ${MARCA}
-        <span class="cabecera-acciones">
-          <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
-          ${botonTema()}
-        </span>
-      </div>
-      <div class="cabecera-aula">
-        <div class="cabecera-texto">
-          <p class="ubicacion">${[aula.piso != null && `Piso ${aula.piso}`, aula.pabellon && `Pabellón ${esc(aula.pabellon)}`, "Sede SMP1"].filter(Boolean).join(" · ")}</p>
-          <h1>${esc(aula.nombre)}</h1>
-          ${aula.seccion ? `<p class="seccion">${esc(aula.seccion)}${aula.nivel ? ` · ${esc(aula.nivel)}` : ""}</p>` : ""}
-        </div>
-        <div class="cubo-escena" aria-hidden="true"><div class="cubo ${aula.semaforo}">${esc(aula.codigo)}</div></div>
-      </div>
-    </header>
+    ${cabecera(aula)}
     ${aviso}
     ${reportados}
     <form id="form"${enviado ? " hidden" : ""}>
@@ -156,6 +141,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       <p class="aviso-elegir suave" id="aviso-elegir">Primero elige qué está fallando.</p>
       <p class="error" id="error" role="alert"></p>
     </form>
+    <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo dañado? Chromebook, carpetas, ventilador, pared…</span></button>
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
   // Dos botones en vez de la pregunta "¿Te impide dar la clase?": el docente avisa en dos toques
@@ -367,6 +353,10 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   for (const boton of botones) boton.addEventListener("click", () => enviarReporte(boton));
+  document.getElementById("reportar-dano")!.addEventListener("click", () => {
+    pintarDano(estado);
+    scrollTo(0, 0);
+  });
 
   const previo = enviado ? null : leerBorrador<BorradorQr>(CLAVE_BORRADOR, VIGENCIA_BORRADOR_MIN);
   if (previo) {
@@ -465,6 +455,167 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     pintar((nuevo as EstadoAulaQr) ?? estado, confirmacion, true);
     scrollTo(0, 0);
   }
+}
+
+// Daños: los de equipos tecnológicos le llegan a TI y a COA / Mantenimiento; los del local, solo a COA / Mantenimiento
+function pintarDano(estado: EstadoAulaQr) {
+  const { aula, email } = estado;
+  let grupo: GrupoDano = "tecnologia";
+  let tipo: TipoDano | null = null;
+  const fotos: Blob[] = [];
+  const MAX_FOTOS = 3;
+  const ICONO = { tecnologia: "chromebook", local: "edificio" } as const;
+
+  app.innerHTML = `
+    ${cabecera(aula)}
+    <form id="form-dano">
+      <button type="button" class="volver-ti" id="volver">${iconoSvg("volver")}Volver a fallas para TI</button>
+      <h2>¿Qué está dañado?</h2>
+      <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
+        .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${GRUPO_DANO[g]}</button>`)
+        .join("")}</div>
+      <div class="chips-dano" id="tipos-dano" role="group" aria-label="Tipo de daño" hidden></div>
+      <div class="campos-chromebook" id="campos-chromebook" hidden>
+        <label>Código del equipo<input id="equipo" maxlength="40" placeholder="Ej. CB-ML-12" /></label>
+        <label>Sección del estudiante<input id="seccion" maxlength="20" value="${esc(aula.seccion ?? "")}" /></label>
+        <label>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI y ${EQUIPO_DANOS}.</span></label>
+      </div>
+      <label class="campo-dano"><span id="etiqueta-detalle-dano">Detalle (opcional)</span><textarea id="detalle-dano" rows="2" maxlength="500"></textarea></label>
+      <div class="foto">
+        <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
+        <div class="vista-foto" id="vista-dano"></div>
+        <label class="boton-foto" id="elegir-foto-dano">${iconoSvg("camara")}<span id="texto-foto-dano">Tomar o elegir foto</span><input type="file" id="archivo-dano" accept="image/*" multiple hidden /></label>
+      </div>
+      <button type="button" class="enviar" id="enviar-dano" disabled>Enviar</button>
+      <p class="suave" id="destino-dano"></p>
+      <p class="error" id="error-dano" role="alert"></p>
+    </form>
+    <p class="pie">Reportando como ${esc(email)}</p>`;
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const enviar = $<HTMLButtonElement>("enviar-dano");
+  const error = $("error-dano");
+  const detalle = $<HTMLTextAreaElement>("detalle-dano");
+  const tipos = $("tipos-dano");
+
+  $("volver").addEventListener("click", () => pintar(estado));
+
+  function pintarTipos() {
+    tipos.hidden = false;
+    tipos.innerHTML = tiposDe(grupo)
+      .map((t) => `<button type="button" data-tipo-dano="${t}" aria-pressed="${t === tipo}"${t === tipo ? ' class="activo"' : ""}>${TIPOS_DANO[t].etiqueta}</button>`)
+      .join("");
+    $("campos-chromebook").hidden = grupo !== "tecnologia";
+    const otro = Boolean(tipo?.endsWith("_otro"));
+    $("etiqueta-detalle-dano").textContent = otro ? "Describe el daño" : "Detalle (opcional)";
+    detalle.placeholder = grupo === "tecnologia" ? "Ej. La pantalla tiene una rajadura en la esquina" : "Ej. El ventilador hace ruido y no gira";
+    enviar.disabled = !tipo;
+    enviar.textContent = "Enviar";
+    $("destino-dano").textContent = `Le llega a ${DESTINO_DANO[grupo]}.`;
+  }
+
+  $("grupos").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-grupo]");
+    if (!b) return;
+    grupo = b.dataset.grupo as GrupoDano;
+    tipo = null;
+    for (const x of b.parentElement!.children) {
+      x.classList.toggle("activo", x === b);
+      x.setAttribute("aria-pressed", String(x === b));
+    }
+    pintarTipos();
+  });
+  tipos.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-tipo-dano]");
+    if (!b) return;
+    tipo = b.dataset.tipoDano as TipoDano;
+    pintarTipos();
+  });
+
+  const archivo = $<HTMLInputElement>("archivo-dano");
+  const vista = $("vista-dano");
+  let previas: string[] = [];
+  function pintarFotos() {
+    for (const u of previas) URL.revokeObjectURL(u);
+    previas = fotos.map((f) => URL.createObjectURL(f));
+    vista.innerHTML = previas
+      .map((u, i) => `<div class="miniatura"><img src="${u}" alt="Foto ${i + 1}" /><button type="button" data-quitar="${i}" aria-label="Quitar foto ${i + 1}">✕</button></div>`)
+      .join("");
+    $("elegir-foto-dano").hidden = fotos.length >= MAX_FOTOS;
+    $("texto-foto-dano").textContent = fotos.length ? `Agregar otra foto (${fotos.length}/${MAX_FOTOS})` : "Tomar o elegir foto";
+  }
+  archivo.addEventListener("change", async () => {
+    const elegidos = [...(archivo.files ?? [])].slice(0, MAX_FOTOS - fotos.length);
+    archivo.value = "";
+    for (const f of elegidos) {
+      try {
+        fotos.push(await comprimir(f));
+      } catch {
+        error.textContent = "No se pudo leer una de las fotos. Prueba con otra.";
+      }
+    }
+    pintarFotos();
+  });
+  vista.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-quitar]");
+    if (!b) return;
+    fotos.splice(Number(b.dataset.quitar), 1);
+    pintarFotos();
+  });
+
+  enviar.addEventListener("click", async () => {
+    if (!tipo) return;
+    if (tipo.endsWith("_otro") && !detalle.value.trim()) {
+      error.textContent = "Cuenta en pocas palabras qué está dañado.";
+      detalle.focus();
+      return;
+    }
+    enviar.disabled = true;
+    enviar.textContent = "Enviando…";
+    error.textContent = "";
+    const res = await fetch(`/api/qr/${encodeURIComponent(codigo)}/danos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo,
+        equipo: $<HTMLInputElement>("equipo").value,
+        seccion: $<HTMLInputElement>("seccion").value,
+        estudiante: $<HTMLInputElement>("estudiante").value,
+        descripcion: detalle.value,
+      }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      const { error: msg } = ((await res?.json().catch(() => ({}))) ?? {}) as { error?: string };
+      error.textContent = msg ?? "No se pudo enviar. Revisa tu conexión e intenta de nuevo.";
+      enviar.disabled = false;
+      enviar.textContent = "Enviar";
+      return;
+    }
+    const { id } = (await res.json()) as { id: number };
+    let fallidas = 0;
+    for (const [i, foto] of fotos.entries()) {
+      enviar.textContent = fotos.length > 1 ? `Subiendo foto ${i + 1} de ${fotos.length}…` : "Subiendo foto…";
+      const subida = await fetch(`/api/qr/${encodeURIComponent(codigo)}/danos/${id}/foto`, {
+        method: "PUT",
+        headers: { "Content-Type": "image/jpeg" },
+        body: foto,
+      }).catch(() => null);
+      if (!subida?.ok) fallidas++;
+    }
+    pintar(
+      estado,
+      `<section class="tarjeta exito">
+        <h2><span class="check">${iconoSvg("check")}</span>Listo, avisamos a ${DESTINO_DANO[grupo]}</h2>
+        <p>${TIPOS_DANO[tipo].etiqueta}. ${ETIQUETA_ATIENDE[ATIENDE_DANO[grupo]]} se encarga del seguimiento.</p>${
+          fallidas ? `<p class="suave">El aviso llegó, pero ${fallidas === 1 ? "una foto no se pudo subir" : `${fallidas} fotos no se pudieron subir`}.</p>` : ""
+        }
+        <a class="enviar boton-listo" href="/docente">Entendido</a>
+        <button type="button" class="enlace-otra" id="otra-falla">Reportar una falla a TI</button>
+      </section>`,
+      true,
+    );
+    scrollTo(0, 0);
+  });
 }
 
 cargar().catch(() => mensaje("Sin conexión", "Revisa tu internet e intenta de nuevo."));

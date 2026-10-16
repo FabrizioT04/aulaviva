@@ -1,6 +1,8 @@
+import { EQUIPO_DANOS, TIPOS_DANO } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, type AlCrearDano } from "./danos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -16,6 +18,7 @@ export interface Env {
   ACCESS_TEAM_DOMAIN?: string; // ej. https://innova-ti.cloudflareaccess.com
   ACCESS_AUD?: string; // "Application Audience (AUD) Tag" de la aplicación de Access
   TI_EMAILS?: string; // correos de TI separados por coma
+  COA_EMAILS?: string; // correos de COA / Mantenimiento: solo ven Daños y mantenimiento
   ACCESS_SERVICE_TOKEN_ID?: string; // Client ID del service token que usa el reporte semanal
   DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
   // Notificaciones push a TI (secretos; se generan con `npm run push:claves`)
@@ -23,6 +26,7 @@ export interface Env {
   VAPID_PRIVADA?: string;
   // Desarrollo local sin Access
   TOKEN_TI?: string;
+  TOKEN_COA?: string;
   DEV_EMAIL_DOCENTE?: string;
 }
 
@@ -78,12 +82,23 @@ export default {
       if (!sesion) return json({ error: "No autorizado" }, 401);
 
       // El reporte semanal (Apps Script) entra con un service token y solo puede leer esto
-      if (url.pathname === "/api/resumen-semanal" && request.method === "GET" && sesion.rol !== "docente") {
+      if (url.pathname === "/api/resumen-semanal" && request.method === "GET" && (sesion.rol === "ti" || sesion.rol === "servicio")) {
         return await resumenSemanal(url, env);
       }
       if (sesion.rol === "servicio") return json({ error: "Este acceso solo sirve para el resumen semanal" }, 403);
 
       if (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion, ctx);
+
+      // Daños y mantenimiento: TI atiende los equipos tecnológicos; COA / Mantenimiento, el local (ver shared/danos.ts)
+      if (url.pathname === "/api/danos" || url.pathname.startsWith("/api/danos/")) {
+        if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA / Mantenimiento pueden ver los daños" }, 403);
+        return await enrutarDanos(request, url, env, sesion);
+      }
+      // COA / Mantenimiento también elige el aula al registrar un daño del local
+      if (url.pathname === "/api/aulas" && request.method === "GET" && puedeVerDanos(sesion)) {
+        const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.codigo`).all();
+        return json(results);
+      }
 
       // El resto de la API es solo para el área de TI
       if (sesion.rol !== "ti") return json({ error: "Solo el área de TI puede usar esta sección" }, 403);
@@ -472,7 +487,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     const respuesta: AulasDocente = { aulas: results, email: sesion.email };
     return json(respuesta);
   }
-  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion)?$/);
+  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion|\/danos(?:\/(\d+)\/foto)?)?$/);
   if (!coincide) return json({ error: "Ruta no encontrada" }, 404);
   const codigo = coincide[1];
 
@@ -510,6 +525,26 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
       })),
     };
     return json(estado);
+  }
+
+  // Daños: los de equipos tecnológicos le llegan a TI como push; los del local, solo a COA / Mantenimiento
+  if (coincide[2]?.startsWith("/danos")) {
+    if (!coincide[4] && request.method === "POST") {
+      const datos = await request.json<Record<string, unknown>>().catch(() => null);
+      return crearDano(env, aula.id, datos, sesion.email, avisarDanoTi(env, url.origin, ctx));
+    }
+    if (coincide[4] && request.method === "PUT") {
+      // Solo quien lo reportó, en los 15 minutos siguientes
+      const propio = await env.DB.prepare(
+        `SELECT id FROM dano WHERE id = ? AND aula_id = ? AND reportado_por = ?
+           AND reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-15 minutes')`,
+      )
+        .bind(Number(coincide[4]), aula.id, sesion.email)
+        .first();
+      if (!propio) return json({ error: "No se puede agregar una foto a este daño" }, 403);
+      return guardarFotoDano(request, env, Number(coincide[4]));
+    }
+    return json({ error: "Ruta no encontrada" }, 404);
   }
 
   // "Ya funciona" después de probar los pasos de una ficha: queda registrado y TI no recibe reporte
@@ -704,6 +739,25 @@ interface AvisoPush {
   url: string;
   tag: string;
   urgente?: boolean;
+}
+
+// Daño de un equipo tecnológico reportado desde el QR: le llega a TI como push
+function avisarDanoTi(env: Env, origen: string, ctx: ExecutionContext): AlCrearDano {
+  return ({ id, aulaId, tipo, email }) => {
+    ctx.waitUntil(
+      (async () => {
+        const aula = await env.DB.prepare("SELECT nombre, seccion FROM aula WHERE id = ?")
+          .bind(aulaId)
+          .first<{ nombre: string; seccion: string | null }>();
+        await notificarTi(env, origen, {
+          titulo: `Daño · ${aula?.nombre ?? "Aula"}${aula?.seccion ? ` (${aula.seccion})` : ""}: ${TIPOS_DANO[tipo].etiqueta}`,
+          cuerpo: `Reporta ${email.split("@")[0]}. ${EQUIPO_DANOS} también lo ve.`,
+          url: "/danos",
+          tag: `dano-${id}`,
+        });
+      })().catch((e) => console.error("push daño", e)),
+    );
+  };
 }
 
 // Avisa a todos los navegadores de TI suscritos. Un fallo en uno no detiene a los demás.

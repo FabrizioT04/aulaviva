@@ -56,8 +56,8 @@ main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 40px; }
 .tarjeta-cabecera h2 { margin: 0; }
 label, fieldset { display: flex; flex-direction: column; gap: 8px; margin: 0 0 18px; border: 0; padding: 0; font-weight: 700; font-size: 0.92rem; }
 legend { margin-bottom: 8px; padding: 0; }
-input, textarea { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie-2); color: var(--texto); }
-input:focus, textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); background: var(--superficie); }
+input, textarea, select { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border: 1px solid var(--borde); border-radius: 14px; background: var(--superficie-2); color: var(--texto); }
+input:focus, textarea:focus, select:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); background: var(--superficie); }
 input::placeholder, textarea::placeholder { color: var(--tenue); }
 textarea { resize: vertical; }
 button { font: inherit; cursor: pointer; border-radius: var(--radio-sm); border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); padding: 10px 16px; font-weight: 700; font-size: 0.9rem; min-height: 44px; }
@@ -442,3 +442,40 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .borrador-recuperado { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 18px; padding: 12px 14px; border-radius: 14px; background: var(--primario-suave); font-size: 0.92rem; }
 .borrador-recuperado svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--primario); }
 .borrador-recuperado .enlace { min-height: 0; padding: 0; font-weight: 700; }
+
+/* Daños y mantenimiento */
+.filtros-danos { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 14px; }
+.lista-danos { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.dano { padding: 16px 18px; }
+.dano-cabecera { display: flex; gap: 14px; align-items: flex-start; }
+.dano-titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 4px; }
+.dano-titulo > span:not(.insignia) { color: var(--suave); }
+.dano small { color: var(--suave); }
+.dano-datos { margin: 6px 0 0; font-weight: 600; font-size: 0.92rem; }
+.dano .descripcion { margin: 6px 0 0; }
+.dano-cierre { margin: 8px 0 0; color: var(--verde); font-size: 0.9rem; }
+.dano .acciones, .cerrar-dano .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.dano .acciones .primario { width: auto; }
+.cerrar-dano { margin-top: 12px; display: grid; gap: 8px; }
+.tipo-icono.grupo-tecnologia { background: #eef2ff; color: #2f5bea; }
+.tipo-icono.grupo-local { background: #fff4e5; color: #b45309; }
+@media (prefers-color-scheme: dark) {
+  .tipo-icono.grupo-tecnologia { background: #1a2340; color: #8fa8ff; }
+  .tipo-icono.grupo-local { background: #3a2a12; color: #f5b45c; }
+}
+.insignia.estado-dano.pendiente { background: var(--amarillo-suave); color: var(--amarillo); }
+.insignia.estado-dano.en_proceso { background: var(--primario-suave); color: var(--primario); }
+.insignia.estado-dano.resuelto { background: var(--verde-suave); color: var(--verde); }
+.form-dano { display: grid; gap: 14px; margin-top: 16px; }
+.form-dano fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+.form-dano legend { font-weight: 700; margin-bottom: 8px; }
+.opciones-falla.dos { grid-template-columns: repeat(2, 1fr); }
+.opciones-falla.dos .opcion small { font-weight: 500; color: var(--suave); font-size: 0.8rem; }
+.fila-campos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 700px) { .fila-campos { grid-template-columns: 1fr; } }
+.boton-archivo { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 10px 14px; border: 1px dashed var(--borde); border-radius: 12px; cursor: pointer; font-weight: 600; color: var(--primario); }
+.boton-archivo .icono { width: 18px; height: 18px; }
+.form-dano .acciones { display: flex; justify-content: flex-end; gap: 8px; }
+.form-dano .acciones .primario { width: auto; }
+.opciones-falla.dos .opcion.activo small { color: inherit; opacity: 0.85; }
+.form-dano .boton-archivo { flex-direction: row; }

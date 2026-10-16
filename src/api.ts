@@ -55,7 +55,7 @@ export async function consultarSesion(): Promise<EstadoSesion> {
   });
   if (res.ok) {
     const sesion = (await res.json()) as Sesion;
-    if (sesion.rol === "ti") return { tipo: "ok", sesion };
+    if (sesion.rol === "ti" || sesion.rol === "coa") return { tipo: "ok", sesion };
     return { tipo: "sin-acceso", detalle: `${sesion.email} no está en la lista de TI. Para reportar, escanea el QR del aula.` };
   }
   const { access } = (await res.json().catch(() => ({}))) as { access?: boolean };
