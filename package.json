@@ -11,7 +11,8 @@
     "db:migrar:remoto": "wrangler d1 migrations apply incidencias --remote",
     "db:semilla:local": "wrangler d1 execute incidencias --local --file=seed/aulas.sql",
     "db:semilla:remoto": "wrangler d1 execute incidencias --remote --file=seed/aulas.sql",
-    "tipos": "wrangler types"
+    "tipos": "wrangler types",
+    "push:claves": "node scripts/claves-push.mjs"
   },
   "dependencies": {
     "jose": "^6.2.12",

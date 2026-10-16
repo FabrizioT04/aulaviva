@@ -1,7 +1,8 @@
 import { ENTRADAS } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
-import { accessConfigurado, obtenerSesion } from "./sesion";
+import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
+import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
 
 export { SedeEnVivo };
 
@@ -16,6 +17,9 @@ export interface Env {
   TI_EMAILS?: string; // correos de TI separados por coma
   ACCESS_SERVICE_TOKEN_ID?: string; // Client ID del service token que usa el reporte semanal
   DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
+  // Notificaciones push a TI (secretos; se generan con `npm run push:claves`)
+  VAPID_PUBLICA?: string;
+  VAPID_PRIVADA?: string;
   // Desarrollo local sin Access
   TOKEN_TI?: string;
   DEV_EMAIL_DOCENTE?: string;
@@ -49,7 +53,7 @@ const SQL_REPORTES = `
   FROM reporte r JOIN aula a ON a.id = r.aula_id`;
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
 
     // Página del QR: un HTML aparte y muy liviano (sin React) para el celular del docente
@@ -77,11 +81,11 @@ export default {
       }
       if (sesion.rol === "servicio") return json({ error: "Este acceso solo sirve para el resumen semanal" }, 403);
 
-      if (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion);
+      if (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion, ctx);
 
       // El resto de la API es solo para el área de TI
       if (sesion.rol !== "ti") return json({ error: "Solo el área de TI puede usar esta sección" }, 403);
-      return await enrutar(request, url, env);
+      return await enrutar(request, url, env, sesion);
     } catch (err) {
       console.error(err);
       return json({ error: "Error interno" }, 500);
@@ -89,9 +93,11 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-async function enrutar(request: Request, url: URL, env: Env): Promise<Response> {
+async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
   const { pathname } = url;
   const metodo = request.method;
+
+  if (pathname === "/api/push" || pathname === "/api/push/prueba") return await enrutarPush(request, url, env, sesion);
 
   if (pathname === "/api/en-vivo") {
     // El dashboard se conecta aquí por WebSocket
@@ -296,7 +302,7 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
 }
 
 // Rutas del QR: las usa el docente desde su celular (y TI para probar)
-async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
+async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, ctx: ExecutionContext): Promise<Response> {
   // Lista de aulas para el inicio del docente, por si no puede escanear el QR
   if (url.pathname === "/api/qr" && request.method === "GET") {
     const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.piso, a.codigo`).all<AulaConEstado>();
@@ -372,6 +378,21 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): 
       .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion), entrada)
       .first<{ id: number }>();
     await avisarCambio(env, aula.id);
+    // El push sale después de responder, para que el docente no espere a los servicios push
+    if (creado) {
+      const bloquea = Boolean(datos?.bloquea_clase);
+      ctx.waitUntil(
+        notificarTi(env, url.origin, {
+          titulo: `${bloquea ? "Urgente · " : ""}${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}: ${ETIQUETA_FALLA[tipo]}`,
+          cuerpo: [bloquea ? "No puede continuar la clase." : null, texto(datos?.descripcion), `Reporta ${sesion.email.split("@")[0]}`]
+            .filter(Boolean)
+            .join("\n"),
+          url: `/aula/${aula.id}`,
+          tag: `reporte-${creado.id}`,
+          urgente: bloquea,
+        }),
+      );
+    }
     return json(creado, 201);
   }
 
@@ -422,6 +443,96 @@ async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: num
   }
   await avisarCambio(env, aulaId);
   return json({ ok: true }, 201);
+}
+
+const ETIQUETA_FALLA: Record<TipoFalla, string> = { internet: "Internet", proyector: "Proyector", pc: "PC", otro: "Otro" };
+
+function clavesVapid(env: Env, origen: string): ClavesVapid | null {
+  if (!env.VAPID_PUBLICA || !env.VAPID_PRIVADA) return null;
+  return { publica: env.VAPID_PUBLICA.trim(), privada: env.VAPID_PRIVADA.trim(), contacto: origen };
+}
+
+// Suscripciones del navegador de TI: GET da la clave pública, POST guarda, DELETE borra
+async function enrutarPush(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
+  const claves = clavesVapid(env, url.origin);
+  if (url.pathname === "/api/push" && request.method === "GET") {
+    return json({ clave: claves?.publica ?? null });
+  }
+  if (!claves) return json({ error: "Faltan las claves de notificaciones en el servidor" }, 503);
+
+  if (url.pathname === "/api/push/prueba" && request.method === "POST") {
+    const { results } = await env.DB.prepare(`SELECT endpoint, p256dh, auth FROM suscripcion_push WHERE email = ?`)
+      .bind(sesion.email)
+      .all<SuscripcionPush>();
+    const enviados = await enviarATodos(env, results, claves, {
+      titulo: "Notificaciones activadas",
+      cuerpo: "Así te avisaremos cada vez que un docente reporte una falla.",
+      url: "/dashboard",
+      tag: "prueba",
+    });
+    return json({ enviados });
+  }
+
+  const datos = await request.json<Record<string, unknown>>().catch(() => null);
+  const endpoint = typeof datos?.endpoint === "string" ? datos.endpoint : "";
+  if (!/^https:\/\/[^\s]{1,1000}$/.test(endpoint)) return json({ error: "Suscripción inválida" }, 400);
+
+  if (url.pathname === "/api/push" && request.method === "POST") {
+    const llaves = datos?.keys as Record<string, unknown> | undefined;
+    const p256dh = typeof llaves?.p256dh === "string" ? llaves.p256dh : "";
+    const auth = typeof llaves?.auth === "string" ? llaves.auth : "";
+    if (!/^[\w-]{80,100}$/.test(p256dh) || !/^[\w-]{16,30}$/.test(auth)) return json({ error: "Suscripción inválida" }, 400);
+    await env.DB.prepare(
+      `INSERT INTO suscripcion_push (email, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
+       ON CONFLICT(endpoint) DO UPDATE SET email = excluded.email, p256dh = excluded.p256dh, auth = excluded.auth`,
+    )
+      .bind(sesion.email, endpoint, p256dh, auth)
+      .run();
+    return json({ ok: true }, 201);
+  }
+  if (url.pathname === "/api/push" && request.method === "DELETE") {
+    await env.DB.prepare(`DELETE FROM suscripcion_push WHERE endpoint = ?`).bind(endpoint).run();
+    return json({ ok: true });
+  }
+  return json({ error: "Ruta no encontrada" }, 404);
+}
+
+interface AvisoPush {
+  titulo: string;
+  cuerpo: string;
+  url: string;
+  tag: string;
+  urgente?: boolean;
+}
+
+// Avisa a todos los navegadores de TI suscritos. Un fallo en uno no detiene a los demás.
+async function notificarTi(env: Env, origen: string, aviso: AvisoPush) {
+  const claves = clavesVapid(env, origen);
+  if (!claves) return;
+  const { results } = await env.DB.prepare(`SELECT email, endpoint, p256dh, auth FROM suscripcion_push`).all<
+    SuscripcionPush & { email: string }
+  >();
+  await enviarATodos(env, results.filter((s) => sigueEnTi(s.email, env)), claves, aviso);
+}
+
+async function enviarATodos(env: Env, subs: SuscripcionPush[], claves: ClavesVapid, aviso: AvisoPush): Promise<number> {
+  const estados = await Promise.all(
+    subs.map((s) =>
+      enviarPush(s, aviso, claves).catch((e) => {
+        console.error("push", e);
+        return 0;
+      }),
+    ),
+  );
+  // 404 y 410: el navegador anuló el permiso o la suscripción venció
+  const vencidas = subs.filter((_, i) => estados[i] === 404 || estados[i] === 410);
+  if (vencidas.length) {
+    await env.DB.batch(vencidas.map((s) => env.DB.prepare(`DELETE FROM suscripcion_push WHERE endpoint = ?`).bind(s.endpoint)));
+  }
+  for (const [i, estado] of estados.entries()) {
+    if (estado && (estado < 200 || estado >= 300) && estado !== 404 && estado !== 410) console.error("push", estado, new URL(subs[i].endpoint).host);
+  }
+  return estados.filter((e) => e >= 200 && e < 300).length;
 }
 
 // Recalcula el semáforo del aula y lo envía a todos los dashboards abiertos

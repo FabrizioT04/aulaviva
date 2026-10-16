@@ -64,6 +64,11 @@ async function sesionLocal(request: Request, url: URL, env: Env): Promise<Sesion
   return null;
 }
 
+// Para no seguir avisando a quien ya no está en TI_EMAILS. En local no hay lista: TI es "ti@local".
+export function sigueEnTi(email: string, env: Env): boolean {
+  return accessConfigurado(env) ? rolDe(email, env) === "ti" : email === "ti@local";
+}
+
 // TI: correos listados en TI_EMAILS. Docente: cualquier correo del dominio del colegio.
 function rolDe(email: string, env: Env): Sesion["rol"] | null {
   const ti = (env.TI_EMAILS ?? "")
