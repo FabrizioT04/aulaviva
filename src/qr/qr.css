@@ -68,7 +68,9 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .tipo-icono .icono { width: 20px; height: 20px; }
 
 .exito { border-color: var(--verde); background: var(--verde-suave); }
-.enlace-inicio { color: var(--verde); font-weight: 800; }
+.boton-listo { margin-top: 6px; min-height: 52px; background: var(--verde-punto); color: #fff; text-decoration: none; }
+@media (prefers-color-scheme: dark) { .boton-listo { color: var(--fondo); } }
+.enlace-otra { display: block; width: 100%; margin-top: 4px; padding: 10px; font: inherit; font-size: 0.92rem; font-weight: 700; color: var(--verde); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .numero-reporte { font-size: 0.9rem; color: var(--verde); }
 .numero-reporte strong { font-size: 1.05rem; }
 .exito h2 { display: flex; align-items: center; gap: 10px; color: var(--verde); font-size: 1.1rem; margin: 0; }

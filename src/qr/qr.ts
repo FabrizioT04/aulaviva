@@ -83,7 +83,7 @@ async function cargar() {
   pintar((await res.json()) as EstadoAulaQr);
 }
 
-function pintar(estado: EstadoAulaQr, aviso = "") {
+function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
   const { aula, abiertos, email } = estado;
   let tipo: TipoFalla | null = null;
   const fotos: Blob[] = [];
@@ -91,14 +91,14 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
 
   const reportados = abiertos.length
     ? `<section class="tarjeta">
-        <h2>Ya reportado en esta aula</h2>
+        <h2>${enviado ? "Reportes de esta aula" : "Ya reportado en esta aula"}</h2>
         <ul class="abiertos">${abiertos
           .map(
             (r) =>
               `<li><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="insignia">Urgente</em>' : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
           )
           .join("")}</ul>
-        <p class="suave">TI ya fue avisado. Solo reporta si es otra falla.</p>
+        ${enviado ? "" : '<p class="suave">TI ya fue avisado. Solo reporta si es otra falla.</p>'}
       </section>`
     : "";
 
@@ -122,7 +122,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     </header>
     ${aviso}
     ${reportados}
-    <form id="form">
+    <form id="form"${enviado ? " hidden" : ""}>
       <h2>¿Qué está fallando?</h2>
       <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false"><span class="ic">${iconoSvg(v)}</span>${e}</button>`).join("")}</div>
       <details class="extra" id="extra">
@@ -209,7 +209,14 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     if (otro) extra.open = true;
   });
 
-  document.getElementById("form")!.addEventListener("submit", (e) => e.preventDefault());
+  const form = document.getElementById("form") as HTMLFormElement;
+  form.addEventListener("submit", (e) => e.preventDefault());
+  // Tras enviar, el formulario queda oculto para que la confirmación sea lo único pendiente de leer
+  document.getElementById("otra-falla")?.addEventListener("click", (e) => {
+    (e.currentTarget as HTMLElement).hidden = true;
+    form.hidden = false;
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   for (const boton of botones) boton.addEventListener("click", () => enviarReporte(boton));
 
   async function enviarReporte(boton: HTMLButtonElement) {
@@ -257,7 +264,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
 
     const espera = bloquea ? minutos(estado.prom_atencion_urgente_min) : null;
     const confirmacion = `<section class="tarjeta exito">
-        <h2><span class="check">${iconoSvg("check")}</span>Listo, TI fue avisado</h2>
+        <h2><span class="check">${iconoSvg("check")}</span>Listo, ya avisamos a TI</h2>
         ${id ? `<p class="numero-reporte">Reporte N.º <strong>${id}</strong></p>` : ""}
         <p>No hace falta avisar también por WhatsApp. ${
           espera
@@ -268,10 +275,11 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
             ? `<p class="suave">El reporte llegó, pero ${fotosFallidas === 1 ? "una foto no se pudo subir" : `${fotosFallidas} fotos no se pudieron subir`}.</p>`
             : ""
         }
-        <p><a class="enlace-inicio" href="/docente">Reportar en otra aula</a></p>
+        <a class="enviar boton-listo" href="/docente">Entendido</a>
+        <button type="button" class="enlace-otra" id="otra-falla">Reportar otra falla en esta aula</button>
       </section>`;
     const nuevo = await fetch(`/api/qr/${encodeURIComponent(codigo)}`).then((r) => (r.ok ? r.json() : null));
-    pintar((nuevo as EstadoAulaQr) ?? estado, confirmacion);
+    pintar((nuevo as EstadoAulaQr) ?? estado, confirmacion, true);
     scrollTo(0, 0);
   }
 }
