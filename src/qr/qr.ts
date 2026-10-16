@@ -30,8 +30,8 @@ const EJEMPLO: Record<TipoFalla, string> = {
 const app = document.getElementById("app")!;
 const codigo = decodeURIComponent(location.pathname.split("/")[2] ?? "");
 const CLAVE_BORRADOR = `aulaviva:borrador-qr:${codigo}`;
-// Un reporte a medio llenar sirve durante la clase; al día siguiente la falla puede ser otra
-const VIGENCIA_BORRADOR_MIN = 120;
+// Un reporte a medio llenar sirve durante la clase; pasada una hora la falla puede ser otra
+const VIGENCIA_BORRADOR_MIN = 60;
 interface BorradorQr {
   tipo: TipoFalla | null;
   detalle: string;

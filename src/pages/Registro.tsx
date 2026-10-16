@@ -32,7 +32,8 @@ function ahoraLocal(): string {
 const aIso = (local: string) => new Date(local).toISOString();
 
 const CLAVE_BORRADOR = "aulaviva:borrador-registro";
-const VIGENCIA_BORRADOR_MIN = 12 * 60;
+// Si no se envía en una hora, se descarta: el reporte ya no sería reciente
+const VIGENCIA_BORRADOR_MIN = 60;
 interface Borrador {
   aulaTexto: string;
   origen: EntradaTi;
