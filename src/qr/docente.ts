@@ -22,6 +22,24 @@ addEventListener("beforeinstallprompt", (e) => {
 });
 const instalada = () => matchMedia("(display-mode: standalone)").matches || "standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true;
 
+// Pisos que el docente dejó abiertos: suele reportar siempre desde el mismo, así que se recuerdan
+const pisosAbiertos = new Set<string>(leerPisos());
+function leerPisos(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem("pisos-abiertos") ?? "[]");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+function guardarPisos() {
+  try {
+    localStorage.setItem("pisos-abiertos", JSON.stringify([...pisosAbiertos]));
+  } catch {
+    /* sin almacenamiento: solo dura esta visita */
+  }
+}
+
 function normalizar(t: string): string {
   return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
 }
@@ -61,7 +79,13 @@ function pintar(datos: AulasDocente | null, error = "") {
   }
   const lista = [...pisos]
     .sort(([x], [y]) => y.localeCompare(x))
-    .map(([piso, aulas]) => `<div class="grupo-piso" data-piso><h3>${piso}</h3><div class="aulas-docente">${aulas.map(botonAula).join("")}</div></div>`)
+    .map(([piso, aulas]) => {
+      const conReporte = aulas.filter((a) => a.semaforo !== "verde").length;
+      const info = `${aulas.length} ${aulas.length === 1 ? "aula" : "aulas"}${conReporte ? ` · ${conReporte} con reporte` : ""}`;
+      return `<details class="grupo-piso" data-piso="${esc(piso)}"${pisosAbiertos.has(piso) ? " open" : ""}>
+        <summary><span class="piso-nombre">${piso}</span><span class="piso-info">${info}</span>${iconoSvg("abajo")}</summary>
+        <div class="aulas-docente">${aulas.map(botonAula).join("")}</div></details>`;
+    })
     .join("");
 
   app.innerHTML = `
@@ -93,7 +117,7 @@ function pintar(datos: AulasDocente | null, error = "") {
   buscar.addEventListener("input", () => {
     const q = normalizar(buscar.value);
     let visibles = 0;
-    for (const grupo of app.querySelectorAll<HTMLElement>("[data-piso]")) {
+    for (const grupo of app.querySelectorAll<HTMLDetailsElement>("[data-piso]")) {
       let enGrupo = 0;
       for (const a of grupo.querySelectorAll<HTMLElement>(".aula-item")) {
         const ve = !q || a.dataset.buscar!.includes(q);
@@ -101,12 +125,25 @@ function pintar(datos: AulasDocente | null, error = "") {
         if (ve) enGrupo++;
       }
       grupo.hidden = enGrupo === 0;
+      // Al buscar se abren los pisos con resultados; al borrar vuelven como el docente los dejó
+      grupo.open = q ? enGrupo > 0 : pisosAbiertos.has(grupo.dataset.piso!);
       visibles += enGrupo;
     }
     document.getElementById("sin-resultados")!.hidden = visibles > 0 || !datos?.aulas.length;
     // Con varias coincidencias, el conteo ayuda a notar que hay que elegir por piso y sección
     document.getElementById("conteo")!.textContent = q && visibles ? (visibles === 1 ? "1 aula coincide" : `${visibles} aulas coinciden`) : "";
   });
+
+  for (const s of app.querySelectorAll<HTMLElement>(".grupo-piso summary")) {
+    s.addEventListener("click", () => {
+      if (normalizar(buscar.value)) return;
+      const piso = (s.parentElement as HTMLDetailsElement).dataset.piso!;
+      // El click llega antes de que cambie "open": si estaba abierto, se está cerrando
+      if ((s.parentElement as HTMLDetailsElement).open) pisosAbiertos.delete(piso);
+      else pisosAbiertos.add(piso);
+      guardarPisos();
+    });
+  }
 
   const boton = document.getElementById("escanear") as HTMLButtonElement;
   const errorCamara = document.getElementById("error-camara")!;
