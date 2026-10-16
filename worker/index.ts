@@ -1,4 +1,4 @@
-import { coincidencias, raices } from "../shared/parecido";
+import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, ETIQUETA_FALLA, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
@@ -313,19 +313,19 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       return json(respuesta);
     }
     // Con detalle, solo los que comparten síntomas con lo que se reportó (si no, no se muestran).
-    // Entre esos, la relevancia pesa: síntomas 45 %, mismo tipo 25 % (siempre, ya vienen filtrados),
-    // misma causa 20 % (si el reporte ya tiene diagnóstico) y misma aula 10 %
+    // Entre esos, la relevancia pesa síntomas 45, misma causa 20 y misma aula 10. El tipo de falla no suma:
+    // todos los candidatos ya son del mismo tipo. La causa solo cuenta si este reporte ya tiene diagnóstico;
+    // si no, se reparte entre lo demás para no castigar a los reportes nuevos
     const causaBuscada = raices(reporte.causa);
-    const fraccion = (palabras: string[], de: Map<string, string>) => (de.size ? Math.min(palabras.length / de.size, 1) : 0);
+    const conCausa = causaBuscada.size > 0;
+    const pesoTotal = 45 + 10 + (conCausa ? 20 : 0);
+    const redondear = (n: number) => Math.round(n * 100) / 100;
     const casosRelevantes = casos
       .map((c, orden) => {
-        const coincide = coincidencias(buscado, `${c.descripcion ?? ""} ${c.observaciones ?? ""} ${c.causa ?? ""} ${c.notas_resolucion ?? ""}`);
-        const relevancia =
-          0.45 * fraccion(coincide, buscado) +
-          0.25 +
-          0.2 * fraccion(coincidencias(causaBuscada, c.causa), causaBuscada) +
-          0.1 * Number(c.aula_id === reporte.aula_id);
-        return { ...c, coincide, relevancia: Math.round(relevancia * 100) / 100, orden };
+        const sintomas = comparar(buscado, `${c.descripcion ?? ""} ${c.observaciones ?? ""} ${c.causa ?? ""} ${c.notas_resolucion ?? ""}`);
+        const causa = conCausa ? comparar(causaBuscada, c.causa).fraccion : 0;
+        const puntos = 45 * sintomas.fraccion + 20 * causa + 10 * Number(c.aula_id === reporte.aula_id);
+        return { ...c, coincide: sintomas.palabras, relevancia: redondear(puntos / pesoTotal), orden };
       })
       .filter((c) => c.coincide.length > 0)
       .sort((a, b) => b.relevancia - a.relevancia || a.orden - b.orden)
@@ -333,8 +333,8 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       .map(({ orden: _, ...c }) => c);
     const fichasRelevantes = (fichas.results as unknown as Ficha[])
       .map((f) => {
-        const coincide = coincidencias(buscado, `${f.titulo} ${f.sintomas ?? ""} ${f.causas_posibles ?? ""}`);
-        return { ...f, coincide, relevancia: Math.round((0.45 * fraccion(coincide, buscado) + 0.25) * 100) / 100 };
+        const sintomas = comparar(buscado, `${f.titulo} ${f.sintomas ?? ""} ${f.causas_posibles ?? ""}`);
+        return { ...f, coincide: sintomas.palabras, relevancia: redondear(sintomas.fraccion) };
       })
       .filter((f) => f.coincide.length > 0)
       .sort((a, b) => b.relevancia - a.relevancia)
