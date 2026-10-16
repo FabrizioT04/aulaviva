@@ -8,7 +8,7 @@ import type { TipoFalla } from "./tipos";
 const CLARAS: Partial<Record<TipoFalla, string[]>> = {
   internet: ["internet", "wifi", "wi fi", "wi-fi", "red", "conexion", "router", "navega"],
   proyector: ["proyect", "hdmi", "vga", "sin senal", "imagen"],
-  pc: ["pc", "computadora", "cpu", "windows", "monitor", "all in one", "aio"],
+  pc: ["pc", "computadora", "cpu", "windows", "ubuntu", "linux", "monitor", "all in one", "aio"],
   audio: ["audio", "parlante", "sonido", "volumen", "microfono", "bocina", "no se escucha"],
   impresora: ["imprim", "impresora", "toner", "tinta", "atasc"],
   perifericos: ["mouse", "raton", "teclado", "webcam", "camara web"],
