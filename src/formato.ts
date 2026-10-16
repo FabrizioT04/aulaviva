@@ -3,6 +3,7 @@ export { ETIQUETA_FALLA } from "../shared/tipos";
 export const ETIQUETA_ESTADO: Record<string, string> = {
   abierto: "Abierto",
   en_atencion: "En atención",
+  escalado: "Escalado",
   resuelto: "Resuelto",
 };
 

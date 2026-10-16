@@ -104,7 +104,10 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
             <div className="dato">
               <span>Incidencias</span>
               <strong>{m.resumen.total}</strong>
-              <small>{m.resumen.abiertos ?? 0} abiertas</small>
+              <small>
+                {m.resumen.abiertos ?? 0} abiertas
+                {m.resumen.escalados ? ` · ${m.resumen.escalados} escaladas a GLPI` : ""}
+              </small>
             </div>
             <div className="dato">
               <span>Bloquearon la clase</span>

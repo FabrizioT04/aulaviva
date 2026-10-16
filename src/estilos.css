@@ -92,6 +92,10 @@ fieldset .segmentado { display: flex; }
 .segmentado button.activo { background: var(--superficie); color: var(--texto); box-shadow: 0 1px 3px rgb(20 22 26 / 0.12), 0 0 0 1px var(--borde); }
 .segmentado button.activo.peligro { background: var(--rojo); color: #fff; box-shadow: none; }
 .segmentado button.activo.exito { background: var(--verde-punto); color: #fff; box-shadow: none; }
+.segmentado button.activo.escalado { background: #7c3aed; color: #fff; box-shadow: none; }
+@media (prefers-color-scheme: dark) { .segmentado button.activo.escalado { background: #b392f5; color: var(--fondo); } }
+.segmentado.cuatro { display: grid; grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 520px) { .segmentado.cuatro { grid-template-columns: 1fr 1fr; } }
 .segmentado.compacto button { min-height: 38px; padding: 7px 14px; }
 @media (prefers-color-scheme: dark) {
   .segmentado button.activo.peligro { background: var(--rojo-suave); color: var(--rojo-texto); box-shadow: inset 0 0 0 1px var(--rojo); }
@@ -198,6 +202,12 @@ fieldset .segmentado { display: flex; }
 
 .form-resolver { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--borde); }
 .form-resolver .acciones { justify-content: flex-end; }
+.cambios { margin-top: 4px; font-size: 0.85rem; }
+.cambios summary { cursor: pointer; color: var(--primario); font-weight: 700; }
+.cambios ol { list-style: none; margin: 8px 0 0; padding: 0 0 0 4px; display: grid; gap: 6px; border-left: 2px solid var(--borde); }
+.historial .cambios li { display: flex; align-items: center; gap: 8px; padding: 0 0 0 10px; border: 0; background: none; }
+.cambios small { color: var(--suave); }
+.observacion { margin: 6px 0 0; font-size: 0.85rem; color: var(--suave); }
 
 .fotos-reporte { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .foto-miniatura { display: block; padding: 0; border: 0; background: none; min-height: 0; }
@@ -210,6 +220,10 @@ fieldset .segmentado { display: flex; }
 /* En escritorio, aula y origen van en una fila, y docente y fecha en otra; en el celular, una columna */
 .fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; align-items: start; }
 @media (max-width: 720px) { .fila-doble { grid-template-columns: 1fr; } }
+.seccion-form { margin: 0 0 16px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
+.seccion-form:not(:first-child) { margin-top: 8px; padding-top: 22px; border-top: 1px solid var(--borde); }
+.datos-automaticos { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 18px; padding: 12px 14px; border-radius: 14px; background: var(--superficie-2); color: var(--suave); font-size: 0.85rem; }
+.datos-automaticos .icono { width: 18px; height: 18px; margin-top: 1px; }
 .ver-mas-tipos { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: 0.88rem; }
 .ver-mas-tipos .icono { width: 16px; height: 16px; }
 
@@ -243,6 +257,8 @@ fieldset .segmentado { display: flex; }
 .estado.abierto { background: var(--amarillo-suave); color: var(--amarillo); }
 .estado.en_atencion { background: var(--primario-suave); color: var(--primario); }
 .estado.resuelto { background: var(--verde-suave); color: var(--verde); }
+.estado.escalado, .insignia.escalado { background: #f3ecff; color: #6d28d9; }
+@media (prefers-color-scheme: dark) { .estado.escalado, .insignia.escalado { background: #221a3d; color: #b392f5; } }
 .solucion { margin: 10px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--superficie-2); border: 1px solid var(--borde); font-size: 0.9rem; }
 
 /* Observatorio */

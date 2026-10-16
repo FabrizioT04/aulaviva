@@ -1,5 +1,5 @@
 import { ENTRADAS, ENTRADAS_TI, ETIQUETA_FALLA, TIPOS_FALLA } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -26,6 +26,7 @@ export interface Env {
 }
 
 const SEDE = "smp1";
+const ESTADOS: EstadoReporte[] = ["abierto", "en_atencion", "escalado", "resuelto"];
 
 // El semáforo se calcula a partir de los reportes no resueltos:
 // rojo = alguno bloquea la clase, amarillo = falla sin bloqueo, verde = operativa.
@@ -113,11 +114,15 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     const id = Number(aulaDetalle[1]);
     const aula = await env.DB.prepare(`${SQL_AULAS} AND a.id = ? GROUP BY a.id`).bind(id).first();
     if (!aula) return json({ error: "Aula no encontrada" }, 404);
-    const [reportes, resumen] = await env.DB.batch([
+    const [reportes, resumen, eventos] = await env.DB.batch([
       env.DB.prepare(`${SQL_REPORTES} WHERE r.aula_id = ? ORDER BY r.reportado_en DESC LIMIT 200`).bind(id),
       env.DB.prepare(`SELECT COUNT(*) AS total, ${SQL_PROMEDIOS} FROM reporte WHERE aula_id = ?`).bind(id),
+      env.DB.prepare(
+        `SELECT e.reporte_id, e.estado, e.email, e.nota, e.en FROM reporte_evento e JOIN reporte r ON r.id = e.reporte_id
+         WHERE r.aula_id = ? ORDER BY e.en, e.id`,
+      ).bind(id),
     ]);
-    return json({ aula, reportes: reportes.results, resumen: resumen.results[0] });
+    return json({ aula, reportes: reportes.results, eventos: eventos.results, resumen: resumen.results[0] });
   }
 
   if (pathname === "/api/metricas" && metodo === "GET") {
@@ -129,6 +134,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
         `SELECT COUNT(*) AS total,
                 SUM(estado <> 'resuelto') AS abiertos,
                 SUM(bloquea_clase) AS bloqueantes,
+                SUM(escalado_en IS NOT NULL) AS escalados, -- escaladas a GLPI alguna vez, aunque ya estén resueltas
                 ${SQL_PROMEDIOS}
          FROM reporte WHERE ${filtro}`,
       ).bind(desde),
@@ -176,22 +182,33 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     if (!Number.isInteger(aulaId) || !TIPOS_FALLA.includes(tipo)) {
       return json({ error: "Faltan el aula o el tipo de falla" }, 400);
     }
+    // Estado con el que TI lo registra. `resuelto: true` es la forma anterior de pedir "resuelto".
+    const estado: EstadoReporte = ESTADOS.includes(datos?.estado as EstadoReporte)
+      ? (datos!.estado as EstadoReporte)
+      : datos?.resuelto === true
+        ? "resuelto"
+        : "abierto";
     const ahora = new Date().toISOString();
     const reportadoEn = datos?.reportado_en == null ? ahora : fecha(datos.reportado_en);
-    const resuelto = datos?.resuelto === true;
-    const atendidoEn = resuelto ? fecha(datos?.atendido_en ?? ahora) : null;
-    const resueltoEn = resuelto ? fecha(datos?.resuelto_en ?? ahora) : null;
-    if (!reportadoEn || (resuelto && (!atendidoEn || !resueltoEn))) {
+    // En atención y resuelto necesitan la hora de llegada al aula; en escalado es opcional
+    const conLlegada = estado === "en_atencion" || estado === "resuelto" || (estado === "escalado" && datos?.atendido_en != null);
+    const atendidoEn = conLlegada ? fecha(datos?.atendido_en ?? ahora) : null;
+    const resueltoEn = estado === "resuelto" ? fecha(datos?.resuelto_en ?? ahora) : null;
+    const escaladoEn = estado === "escalado" ? ahora : null;
+    if (!reportadoEn || (conLlegada && !atendidoEn) || (estado === "resuelto" && !resueltoEn)) {
       return json({ error: "Alguna fecha no es válida o está en el futuro" }, 400);
     }
-    if (resuelto && !(reportadoEn <= atendidoEn! && atendidoEn! <= resueltoEn!)) {
+    const horas = [reportadoEn, atendidoEn, resueltoEn ?? escaladoEn].filter((h): h is string => h != null);
+    if (horas.some((h, i) => i > 0 && h < horas[i - 1])) {
       return json({ error: "Las horas deben ir en orden: reporte, llegada al aula, resuelto" }, 400);
     }
+    const ticket = estado === "escalado" ? texto(datos?.ticket_glpi)?.slice(0, 40) ?? null : null;
     const entradaTi = ENTRADAS_TI.includes(datos?.entrada as EntradaTi) ? (datos!.entrada as EntradaTi) : "whatsapp";
+    const conCausa = estado === "resuelto" || estado === "escalado";
     const creado = await env.DB.prepare(
       `INSERT INTO reporte (aula_id, tipo_falla, bloquea_clase, descripcion, reportado_por_nombre, origen, entrada,
-         reportado_en, estado, atendido_en, resuelto_en, causa, notas_resolucion)
-       VALUES (?, ?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+         reportado_en, estado, atendido_en, resuelto_en, escalado_en, ticket_glpi, causa, notas_resolucion, observaciones, registrado_por)
+       VALUES (?, ?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
       .bind(
         aulaId,
@@ -201,13 +218,33 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
         texto(datos?.reportado_por_nombre),
         entradaTi,
         reportadoEn,
-        resuelto ? "resuelto" : "abierto",
+        estado,
         atendidoEn,
         resueltoEn,
-        resuelto ? texto(datos?.causa) : null,
-        resuelto ? texto(datos?.notas_resolucion) : null,
+        escaladoEn,
+        ticket,
+        conCausa ? texto(datos?.causa) : null,
+        estado === "resuelto" ? texto(datos?.notas_resolucion) : null,
+        estado === "resuelto" ? null : texto(datos?.observaciones),
+        sesion.email,
       )
       .first<{ id: number }>();
+    // Historial: cada paso con su hora real
+    const pasos: [EstadoReporte, string, string | null][] = [["abierto", reportadoEn, null]];
+    if (atendidoEn) pasos.push(["en_atencion", atendidoEn, null]);
+    if (escaladoEn) pasos.push(["escalado", escaladoEn, ticket && `GLPI #${ticket}`]);
+    if (resueltoEn) pasos.push(["resuelto", resueltoEn, null]);
+    await env.DB.batch(
+      pasos.map(([e, en, nota]) =>
+        env.DB.prepare("INSERT INTO reporte_evento (reporte_id, estado, email, nota, en) VALUES (?, ?, ?, ?, ?)").bind(
+          creado!.id,
+          e,
+          sesion.email,
+          nota,
+          en,
+        ),
+      ),
+    );
     await avisarCambio(env, aulaId);
     return json(creado, 201);
   }
@@ -275,12 +312,25 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     const datos = await request.json<Record<string, unknown>>().catch(() => null);
     const estado = datos?.estado;
     let sentencia: D1PreparedStatement;
+    let nota: string | null = null;
     if (estado === "en_atencion") {
       sentencia = env.DB.prepare(
         `UPDATE reporte SET estado = 'en_atencion',
            atendido_en = COALESCE(atendido_en, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
          WHERE id = ? AND estado = 'abierto' RETURNING aula_id`,
       ).bind(id);
+    } else if (estado === "escalado") {
+      // Se deriva a GLPI: sigue abierto para el aula, pero ya no depende solo de TI de la sede
+      const ticket = texto(datos?.ticket_glpi)?.slice(0, 40) ?? null;
+      nota = ticket && `GLPI #${ticket}`;
+      sentencia = env.DB.prepare(
+        `UPDATE reporte SET estado = 'escalado',
+           atendido_en = COALESCE(atendido_en, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+           escalado_en = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+           ticket_glpi = ?,
+           observaciones = COALESCE(?, observaciones)
+         WHERE id = ? AND estado IN ('abierto', 'en_atencion') RETURNING aula_id`,
+      ).bind(ticket, texto(datos?.observaciones), id);
     } else if (estado === "resuelto") {
       sentencia = env.DB.prepare(
         `UPDATE reporte SET estado = 'resuelto',
@@ -295,6 +345,9 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     }
     const fila = await sentencia.first<{ aula_id: number }>();
     if (!fila) return json({ error: "Reporte no encontrado o ya actualizado" }, 404);
+    await env.DB.prepare("INSERT INTO reporte_evento (reporte_id, estado, email, nota) VALUES (?, ?, ?, ?)")
+      .bind(id, estado, sesion.email, nota)
+      .run();
     await avisarCambio(env, fila.aula_id);
     return json({ ok: true });
   }
@@ -373,11 +426,16 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
 
     const entrada = ENTRADAS.includes(datos?.entrada as EntradaReporte) ? (datos!.entrada as EntradaReporte) : "qr";
     const creado = await env.DB.prepare(
-      `INSERT INTO reporte (aula_id, profesor_id, reportado_por_nombre, tipo_falla, bloquea_clase, descripcion, origen, entrada)
-       VALUES (?, ?, ?, ?, ?, ?, 'qr', ?) RETURNING id`,
+      `INSERT INTO reporte (aula_id, profesor_id, reportado_por_nombre, tipo_falla, bloquea_clase, descripcion, origen, entrada, registrado_por)
+       VALUES (?, ?, ?, ?, ?, ?, 'qr', ?, ?) RETURNING id, reportado_en`,
     )
-      .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion), entrada)
-      .first<{ id: number }>();
+      .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion), entrada, sesion.email)
+      .first<{ id: number; reportado_en: string }>();
+    if (creado) {
+      await env.DB.prepare("INSERT INTO reporte_evento (reporte_id, estado, email, en) VALUES (?, 'abierto', ?, ?)")
+        .bind(creado.id, sesion.email, creado.reportado_en)
+        .run();
+    }
     await avisarCambio(env, aula.id);
     // El push sale después de responder, para que el docente no espere a los servicios push
     if (creado) {

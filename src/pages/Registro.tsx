@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
-import type { AulaConEstado, DetalleAula, EntradaTi, Reporte, TipoFalla } from "../../shared/tipos";
+import type { AulaConEstado, DetalleAula, EntradaTi, EstadoReporte, Reporte, TipoFalla } from "../../shared/tipos";
 import type { Ruta } from "../App";
 import { api, NoAutorizado } from "../api";
 import { canal, descripcionAula, duracion, ETIQUETA_FALLA, fechaCorta, minutosDesde } from "../formato";
@@ -10,6 +10,14 @@ const ORIGENES: { valor: EntradaTi; etiqueta: string }[] = [
   { valor: "whatsapp", etiqueta: "WhatsApp" },
   { valor: "presencial", etiqueta: "En persona" },
   { valor: "otro", etiqueta: "Otro" },
+];
+
+// Estado con el que TI deja registrado el caso
+const ESTADOS: { valor: EstadoReporte; etiqueta: string; clase?: string; boton: string; listo: string }[] = [
+  { valor: "abierto", etiqueta: "Pendiente", boton: "Registrar incidencia", listo: "Registrado" },
+  { valor: "en_atencion", etiqueta: "En atención", boton: "Registrar en atención", listo: "Registrado en atención" },
+  { valor: "resuelto", etiqueta: "Resuelto", clase: "exito", boton: "Registrar como resuelto", listo: "Registrado como resuelto" },
+  { valor: "escalado", etiqueta: "Escalado", clase: "escalado", boton: "Registrar como escalado", listo: "Registrado como escalado" },
 ];
 
 // Fecha y hora local en el formato que usa <input type="datetime-local">
@@ -32,7 +40,9 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
   const [docente, setDocente] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [llegoEn, setLlegoEn] = useState(ahoraLocal);
-  const [resuelto, setResuelto] = useState(false);
+  const [estado, setEstado] = useState<EstadoReporte>("abierto");
+  const [ticket, setTicket] = useState("");
+  const [observaciones, setObservaciones] = useState("");
   const [atendidoEn, setAtendidoEn] = useState(ahoraLocal);
   const [resueltoEn, setResueltoEn] = useState(ahoraLocal);
   const [causa, setCausa] = useState("");
@@ -73,11 +83,21 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
   const anteriores = delTipo.filter((r) => r.estado === "resuelto" && (r.causa || r.notas_resolucion)).slice(0, 3);
 
   function usarSolucion(r: Reporte) {
-    setResuelto(true);
+    setEstado("resuelto");
     setCausa(r.causa ?? "");
     setNotas(r.notas_resolucion ?? "");
     requestAnimationFrame(() => campoNotas.current?.focus());
   }
+
+  const opcion = ESTADOS.find((o) => o.valor === estado)!;
+  // Llegué al aula: en atención y resuelto siempre; en escalado también, porque TI ya revisó antes de derivarlo
+  const conLlegada = estado !== "abierto";
+  const faltaAlgo =
+    !aula ||
+    !tipo ||
+    !llegoEn ||
+    (conLlegada && !atendidoEn) ||
+    (estado === "resuelto" && (!resueltoEn || !notas.trim()));
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -95,16 +115,15 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
           reportado_por_nombre: docente,
           descripcion,
           reportado_en: aIso(llegoEn),
-          ...(resuelto && {
-            resuelto: true,
-            atendido_en: aIso(atendidoEn),
-            resuelto_en: aIso(resueltoEn),
-            causa,
-            notas_resolucion: notas,
-          }),
+          estado,
+          ...(conLlegada && { atendido_en: aIso(atendidoEn) }),
+          ...(estado === "resuelto" && { resuelto_en: aIso(resueltoEn), notas_resolucion: notas }),
+          ...((estado === "resuelto" || estado === "escalado") && { causa }),
+          ...(estado === "escalado" && { ticket_glpi: ticket }),
+          ...(estado !== "resuelto" && { observaciones }),
         }),
       });
-      setMensaje({ ok: true, texto: `${resuelto ? "Registrado como resuelto" : "Registrado"}: ${aula.nombre}` });
+      setMensaje({ ok: true, texto: `${opcion.listo}: ${aula.nombre}` });
       setAulaTexto("");
       setOrigen("whatsapp");
       setTipo(null);
@@ -112,7 +131,9 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
       setDocente("");
       setDescripcion("");
       setLlegoEn(ahoraLocal());
-      setResuelto(false);
+      setEstado("abierto");
+      setTicket("");
+      setObservaciones("");
       setAtendidoEn(ahoraLocal());
       setResueltoEn(ahoraLocal());
       setCausa("");
@@ -134,6 +155,7 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
         </div>
       </header>
       <form className="tarjeta" onSubmit={enviar}>
+        <h2 className="seccion-form">1. Información de la incidencia</h2>
         <div className="fila-doble">
         <label>
           Aula
@@ -285,58 +307,105 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
           />
         </label>
 
+        <h2 className="seccion-form">2. Atención técnica</h2>
         <fieldset>
-          <legend>¿Ya lo resolviste?</legend>
-          <div className="segmentado">
-            <button type="button" className={!resuelto ? "activo" : ""} onClick={() => setResuelto(false)}>
-              Queda pendiente
-            </button>
-            <button type="button" className={resuelto ? "activo exito" : ""} onClick={() => setResuelto(true)}>
-              Ya está resuelto
-            </button>
+          <legend>Estado de la incidencia</legend>
+          <div className="segmentado cuatro">
+            {ESTADOS.map((o) => (
+              <button
+                type="button"
+                key={o.valor}
+                className={estado === o.valor ? `activo ${o.clase ?? ""}` : ""}
+                aria-pressed={estado === o.valor}
+                onClick={() => setEstado(o.valor)}
+              >
+                {o.etiqueta}
+              </button>
+            ))}
           </div>
         </fieldset>
 
-        {resuelto && (
-          <>
-            <div className="horas">
-              <label>
-                Llegué al aula
-                <input type="datetime-local" value={atendidoEn} onChange={(e) => setAtendidoEn(e.target.value)} />
-              </label>
+        {conLlegada && (
+          <div className="horas">
+            <label>
+              Llegué al aula
+              <input type="datetime-local" value={atendidoEn} onChange={(e) => setAtendidoEn(e.target.value)} />
+            </label>
+            {estado === "resuelto" && (
               <label>
                 Quedó resuelto
                 <input type="datetime-local" value={resueltoEn} onChange={(e) => setResueltoEn(e.target.value)} />
               </label>
-            </div>
-            <label>
-              ¿Qué encontraste? (causa, si la sabes)
-              <textarea
-                rows={2}
-                value={causa}
-                onChange={(e) => setCausa(e.target.value)}
-                placeholder="Ej. el cable HDMI estaba suelto detrás del proyector"
-              />
-            </label>
-            <label>
-              ¿Qué hiciste para resolverlo?
-              <textarea
-                ref={campoNotas}
-                rows={3}
-                value={notas}
-                onChange={(e) => setNotas(e.target.value)}
-                placeholder="Ej. reinicié el switch del piso 3 y volvió el internet"
-              />
-            </label>
-          </>
+            )}
+            {estado === "escalado" && (
+              <label>
+                N.° de ticket GLPI
+                <input
+                  value={ticket}
+                  onChange={(e) => setTicket(e.target.value)}
+                  placeholder="Ej. 4521"
+                  inputMode="numeric"
+                  maxLength={40}
+                />
+              </label>
+            )}
+          </div>
         )}
 
-        <button
-          className="primario"
-          type="submit"
-          disabled={!aula || !tipo || !llegoEn || (resuelto && (!atendidoEn || !resueltoEn || !notas.trim())) || enviando}
-        >
-          {enviando ? "Registrando…" : resuelto ? "Registrar como resuelto" : "Registrar incidencia"}
+        {(estado === "resuelto" || estado === "escalado") && (
+          <label>
+            {estado === "escalado" ? "Diagnóstico: ¿qué encontraste?" : "¿Qué encontraste? (causa, si la sabes)"}
+            <textarea
+              rows={2}
+              value={causa}
+              onChange={(e) => setCausa(e.target.value)}
+              placeholder={
+                estado === "escalado"
+                  ? "Ej. el proyector no enciende ni con otro cable de poder; parece la fuente"
+                  : "Ej. el cable HDMI estaba suelto detrás del proyector"
+              }
+            />
+          </label>
+        )}
+
+        {estado === "resuelto" && (
+          <label>
+            ¿Qué hiciste para resolverlo?
+            <textarea
+              ref={campoNotas}
+              rows={3}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Ej. reinicié el switch del piso 3 y volvió el internet"
+            />
+          </label>
+        )}
+
+        {estado !== "resuelto" && (
+          <label>
+            Observaciones técnicas (opcional)
+            <textarea
+              rows={2}
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              placeholder={
+                estado === "escalado"
+                  ? "Ej. GLPI enviará un técnico; el docente usa el proyector del 205 mientras tanto"
+                  : "Verificaciones, avances o lo que queda pendiente"
+              }
+            />
+          </label>
+        )}
+
+        <p className="datos-automaticos">
+          <Icono nombre="reloj" />
+          <span>
+            Se guardan solos quién registra, la fecha de registro y cada cambio de estado. Los ves en el historial del aula.
+          </span>
+        </p>
+
+        <button className="primario" type="submit" disabled={faltaAlgo || enviando}>
+          {enviando ? "Registrando…" : opcion.boton}
         </button>
         {mensaje && <p className={mensaje.ok ? "aviso ok" : "aviso error"}>{mensaje.texto}</p>}
       </form>

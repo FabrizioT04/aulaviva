@@ -3,6 +3,7 @@ import type { AulaConEstado, EventoEnVivo, Metricas, Reporte } from "../../share
 import type { Ruta } from "../App";
 import { api, NoAutorizado, urlEnVivo } from "../api";
 import Contador from "../Contador";
+import FormEscalar from "../FormEscalar";
 import FormResolver from "../FormResolver";
 import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
@@ -17,7 +18,8 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
   const [abiertos, setAbiertos] = useState<Reporte[]>([]);
   const [conectado, setConectado] = useState(false);
-  const [resolviendo, setResolviendo] = useState<number | null>(null);
+  // Reporte con un formulario abierto: resolver o escalar
+  const [abierto, setAbierto] = useState<{ id: number; accion: "resolver" | "escalar" } | null>(null);
   const [atencionProm, setAtencionProm] = useState<number | null>(null);
 
   const cargarReportes = useCallback(() => {
@@ -78,7 +80,20 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
         method: "PATCH",
         body: JSON.stringify({ estado: "resuelto", causa, notas_resolucion: hice }),
       });
-      setResolviendo(null);
+      setAbierto(null);
+    } catch (e) {
+      if (e instanceof NoAutorizado) return onNoAutorizado();
+      throw e;
+    }
+  }
+
+  async function escalar(reporte: Reporte, ticket: string, observaciones: string) {
+    try {
+      await api(`/api/reportes/${reporte.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ estado: "escalado", ticket_glpi: ticket, observaciones }),
+      });
+      setAbierto(null);
     } catch (e) {
       if (e instanceof NoAutorizado) return onNoAutorizado();
       throw e;
@@ -87,6 +102,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
 
   const bloqueantes = abiertos.filter((r) => r.bloquea_clase);
   const enAtencion = abiertos.filter((r) => r.estado === "en_atencion").length;
+  const escalados = abiertos.filter((r) => r.estado === "escalado").length;
   const operativas = aulas.filter((a) => a.semaforo === "verde").length;
   const pisos = [...new Set(aulas.map((a) => a.piso))].sort((a, b) => (a ?? 99) - (b ?? 99));
   const hoy = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Lima" });
@@ -112,7 +128,10 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
         <div className="dato">
           <span>Reportes abiertos</span>
           <strong className="num"><Contador valor={abiertos.length} /></strong>
-          <small>{enAtencion === 1 ? "1 en atención" : `${enAtencion} en atención`}</small>
+          <small>
+            {enAtencion === 1 ? "1 en atención" : `${enAtencion} en atención`}
+            {escalados > 0 ? ` · ${escalados === 1 ? "1 escalado" : `${escalados} escalados`}` : ""}
+          </small>
         </div>
         <div className={bloqueantes.length ? "dato alerta" : "dato"}>
           <span>Bloquean la clase</span>
@@ -207,6 +226,9 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                       <span>{ETIQUETA_FALLA[r.tipo_falla]}</span>
                       {r.bloquea_clase ? <span className="insignia roja">Bloquea la clase</span> : null}
                       {r.estado === "en_atencion" && <span className="insignia azul">En atención</span>}
+                      {r.estado === "escalado" && (
+                        <span className="insignia escalado">Escalado{r.ticket_glpi ? ` · GLPI #${r.ticket_glpi}` : ""}</span>
+                      )}
                     </div>
                     <small>
                       Hace {duracion(minutosDesde(r.reportado_en))} · {canal(r)}
@@ -214,18 +236,19 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                       {r.reportado_por_nombre ? ` · ${r.reportado_por_nombre}` : ""}
                     </small>
                     {r.descripcion && <p className="descripcion">“{r.descripcion}”</p>}
+                    {r.observaciones && <p className="observacion">Obs.: {r.observaciones}</p>}
                     {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} />}
                   </div>
                 </div>
-                {resolviendo === r.id ? (
-                  <FormResolver
-                    onGuardar={(causa, hice) => resolver(r, causa, hice)}
-                    onCancelar={() => setResolviendo(null)}
-                  />
+                {abierto?.id === r.id && abierto.accion === "resolver" ? (
+                  <FormResolver onGuardar={(causa, hice) => resolver(r, causa, hice)} onCancelar={() => setAbierto(null)} />
+                ) : abierto?.id === r.id && abierto.accion === "escalar" ? (
+                  <FormEscalar onGuardar={(ticket, obs) => escalar(r, ticket, obs)} onCancelar={() => setAbierto(null)} />
                 ) : (
                   <div className="acciones">
                     {r.estado === "abierto" && <button onClick={() => atender(r)}>Atender</button>}
-                    <button className="primario" onClick={() => setResolviendo(r.id)}>
+                    {r.estado !== "escalado" && <button onClick={() => setAbierto({ id: r.id, accion: "escalar" })}>Escalar</button>}
+                    <button className="primario" onClick={() => setAbierto({ id: r.id, accion: "resolver" })}>
                       Resolver
                     </button>
                   </div>

@@ -13,7 +13,7 @@ export const ETIQUETA_FALLA: Record<TipoFalla, string> = {
   impresora: "Impresora",
   perifericos: "Periféricos",
 };
-export type EstadoReporte = "abierto" | "en_atencion" | "resuelto";
+export type EstadoReporte = "abierto" | "en_atencion" | "escalado" | "resuelto";
 export type Semaforo = "verde" | "amarillo" | "rojo";
 
 export interface AulaConEstado {
@@ -45,7 +45,20 @@ export interface Reporte {
   resuelto_en: string | null;
   causa: string | null; // qué se encontró al revisar
   notas_resolucion: string | null; // qué se hizo para resolverlo
+  observaciones: string | null; // verificaciones, avances o lo que queda pendiente
+  ticket_glpi: string | null; // número del ticket cuando se escala
+  escalado_en: string | null;
+  registrado_por: string | null; // correo de quien lo registró
   fotos: number; // cuántas fotos de evidencia tiene (0 a 3)
+}
+
+// Un cambio de estado de un reporte (ver migrations/0011_atencion_tecnica.sql)
+export interface EventoReporte {
+  reporte_id: number;
+  estado: EstadoReporte;
+  email: string | null;
+  nota: string | null;
+  en: string;
 }
 
 // Ficha de solución escrita por TI para una falla común
@@ -74,6 +87,7 @@ export interface Promedios {
 export interface DetalleAula {
   aula: AulaConEstado;
   reportes: Reporte[];
+  eventos: EventoReporte[]; // historial de cambios de esos reportes, del más antiguo al más nuevo
   resumen: Promedios & { total: number };
 }
 
@@ -87,7 +101,7 @@ export type EntradaTi = (typeof ENTRADAS_TI)[number];
 
 export interface Metricas {
   dias: number;
-  resumen: Promedios & { total: number; abiertos: number | null; bloqueantes: number | null };
+  resumen: Promedios & { total: number; abiertos: number | null; bloqueantes: number | null; escalados: number | null };
   por_tipo: { tipo_falla: TipoFalla; n: number }[];
   por_entrada: { entrada: EntradaReporte | EntradaTi; n: number }[];
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
