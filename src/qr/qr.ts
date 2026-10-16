@@ -2,6 +2,7 @@
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
 import type { EstadoAulaQr, TipoFalla } from "../../shared/tipos";
+import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
 import "./qr-efectos.css";
 
@@ -21,10 +22,6 @@ const SEMAFORO: Record<string, string> = {
 
 const app = document.getElementById("app")!;
 const codigo = decodeURIComponent(location.pathname.split("/")[2] ?? "");
-
-function esc(texto: string): string {
-  return texto.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-}
 
 function minutos(m: number | null): string | null {
   if (m == null) return null;
@@ -56,38 +53,7 @@ async function comprimir(archivo: File): Promise<Blob> {
   );
 }
 
-const MARCA = `<span class="marca"><span class="logo-marca">${iconoSvg("pulso")}</span><strong>AulaViva</strong></span>`;
-
-// Botón de tema: alterna claro y oscuro y lo recuerda en el celular.
-// qr.html aplica el tema guardado antes de pintar; los estilos leen data-tema (ver vite.config.ts).
-type Tema = "claro" | "oscuro";
-const FONDO: Record<Tema, string> = { claro: "#f4f5f8", oscuro: "#0b0f14" };
-
-function temaActual(): Tema {
-  const t = document.documentElement.dataset.tema;
-  if (t === "claro" || t === "oscuro") return t;
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
-}
-
-function botonTema(): string {
-  const oscuro = temaActual() === "oscuro";
-  return `<button type="button" class="boton-tema" id="boton-tema" aria-label="${oscuro ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}">${iconoSvg(oscuro ? "sol" : "luna")}</button>`;
-}
-
-app.addEventListener("click", (e) => {
-  const boton = (e.target as HTMLElement).closest("#boton-tema");
-  if (!boton) return;
-  const nuevo: Tema = temaActual() === "oscuro" ? "claro" : "oscuro";
-  document.documentElement.dataset.tema = nuevo;
-  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) meta.content = FONDO[nuevo];
-  try {
-    localStorage.setItem("tema", nuevo);
-  } catch {
-    // Sin almacenamiento (modo privado): el tema dura hasta recargar
-  }
-  boton.outerHTML = botonTema();
-  document.getElementById("boton-tema")?.focus();
-});
+activarBotonTema(app);
 
 function mensaje(titulo: string, detalle = "") {
   app.innerHTML = `<header class="cabecera"><div class="cabecera-fila">${MARCA}${botonTema()}</div></header>
@@ -280,6 +246,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
             ? `<p class="suave">El reporte llegó, pero ${fotosFallidas === 1 ? "una foto no se pudo subir" : `${fotosFallidas} fotos no se pudieron subir`}.</p>`
             : ""
         }
+        <p><a class="enlace-inicio" href="/docente">Reportar en otra aula</a></p>
       </section>`;
     const nuevo = await fetch(`/api/qr/${encodeURIComponent(codigo)}`).then((r) => (r.ok ? r.json() : null));
     pintar((nuevo as EstadoAulaQr) ?? estado, confirmacion);

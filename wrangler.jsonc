@@ -6,7 +6,7 @@
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/r/*"]
+    "run_worker_first": ["/api/*", "/r/*", "/docente", "/docente/"]
   },
   // Cloudflare Access de la sede (ver docs/cloudflare-access.md). En local, .dev.vars deja
   // ACCESS_AUD vacío para que TI entre con la clave TOKEN_TI.

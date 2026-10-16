@@ -1,0 +1,93 @@
+/* Inicio del docente: botón grande para escanear, lista de aulas y lector de QR a pantalla completa */
+
+.titulo-inicio { font-size: 2rem; margin-top: 4px; }
+.bajada { margin: 6px 0 0; color: var(--suave); font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .titulo-inicio { font-family: inherit; font-weight: 800; }
+}
+
+/* Botón principal: lo primero que ve y toca el docente */
+.escanear {
+  width: 100%; display: flex; align-items: center; gap: 16px; padding: 20px; min-height: 104px;
+  font: inherit; text-align: left; border: 0; border-radius: 24px; cursor: pointer;
+  background: var(--primario); color: var(--primario-texto);
+  transition: transform 0.12s, box-shadow 0.12s;
+  animation: aparecer 0.6s var(--salida) backwards;
+}
+.escanear:disabled { cursor: progress; opacity: 0.8; }
+.escanear-ic { flex: none; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: rgb(255 255 255 / 0.18); }
+.escanear-ic .icono { width: 34px; height: 34px; }
+.escanear-texto { display: flex; flex-direction: column; gap: 4px; }
+.escanear-texto strong { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+.escanear-texto small { font-size: 0.9rem; font-weight: 600; opacity: 0.85; }
+.escanear:active { transform: translateY(5px); }
+@media (prefers-color-scheme: light) {
+  .escanear { box-shadow: 0 7px 0 var(--canto), 0 18px 26px -12px rgb(47 91 234 / 0.7); }
+  .escanear:active { box-shadow: 0 2px 0 var(--canto); }
+}
+@media (prefers-color-scheme: dark) {
+  .escanear { box-shadow: 0 0 34px -6px var(--brillo); }
+  .escanear-ic { background: rgb(11 15 20 / 0.16); }
+}
+#error-camara { margin: 12px 0 0; min-height: 0; }
+#error-camara:empty { display: none; }
+
+/* Lista de aulas */
+.elegir { margin-top: 26px; }
+.buscar { flex-direction: row; align-items: center; gap: 10px; padding: 0 14px; min-height: 52px; margin-bottom: 6px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--suave); font-weight: 500; }
+.buscar:focus-within { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
+.buscar .icono { width: 20px; height: 20px; flex: none; }
+.buscar input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--texto); font: inherit; font-size: 16px; padding: 12px 0; }
+.buscar input::placeholder { color: var(--tenue); }
+.grupo-piso h3 { margin: 18px 0 10px; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
+.grupo-piso[hidden], .aula-item[hidden] { display: none; }
+.aulas-docente { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.aula-item {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 64px; padding: 8px 6px; border-radius: 16px; border: 1px solid var(--borde);
+  background: var(--superficie); color: var(--texto); text-decoration: none;
+  transition: transform 0.3s var(--resorte), border-color 0.2s;
+}
+.aula-item strong { font-size: 1.05rem; font-weight: 800; }
+.aula-item span { font-size: 0.78rem; font-weight: 700; color: var(--suave); }
+.aula-item i { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--verde-punto); }
+.aula-item.amarillo i { background: var(--amarillo); }
+.aula-item.rojo i { background: var(--rojo); }
+.aula-item:active { transform: scale(0.96); }
+.aula-item:focus-visible, .aula-item:hover { border-color: var(--primario); }
+@media (prefers-color-scheme: light) {
+  .aula-item { box-shadow: 0 3px 0 var(--canto-gris); }
+}
+
+/* Instalar como app */
+.instalar { display: flex; gap: 14px; align-items: flex-start; }
+.instalar .ic { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--primario-suave); color: var(--primario); }
+.instalar .ic .icono { width: 22px; height: 22px; }
+.instalar h2 { margin: 0; }
+.instalar p { color: var(--suave); font-size: 0.9rem; line-height: 1.45; }
+.boton-secundario { margin-top: 12px; min-height: 44px; padding: 0 16px; font: inherit; font-weight: 800; border-radius: 14px; border: 1.5px solid var(--primario); background: transparent; color: var(--primario); cursor: pointer; }
+
+/* Enlace de vuelta al inicio desde la confirmación del QR */
+.enlace-inicio { color: var(--verde); font-weight: 800; }
+
+/* Lector de QR a pantalla completa */
+body.con-escaner { overflow: hidden; }
+.escaner { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: grid; place-items: center; }
+.escaner-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.escaner-arriba, .escaner-abajo { position: absolute; z-index: 1; left: 0; right: 0; padding: 24px 20px; text-align: center; }
+.escaner-arriba { top: 0; padding-top: max(24px, env(safe-area-inset-top)); background: linear-gradient(rgb(0 0 0 / 0.7), transparent); }
+.escaner-arriba p { margin: 0; font-size: 1.2rem; font-weight: 800; line-height: 1.3; }
+.escaner-abajo { bottom: 0; padding-bottom: max(28px, env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgb(0 0 0 / 0.75)); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.escaner-aviso { margin: 0; font-weight: 600; min-height: 1.4em; max-width: 320px; }
+.escaner-cancelar { display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 26px; font: inherit; font-size: 1rem; font-weight: 800; border: 0; border-radius: 999px; background: #fff; color: #14161a; cursor: pointer; }
+.escaner-cancelar .icono { width: 20px; height: 20px; }
+.escaner-marco { position: relative; width: min(68vw, 300px); aspect-ratio: 1; border-radius: 24px; box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.38); }
+.escaner-marco i { position: absolute; width: 44px; height: 44px; border: 5px solid #fff; transition: border-color 0.2s; }
+.escaner-marco i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 24px 0 0 0; }
+.escaner-marco i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 24px 0 0; }
+.escaner-marco i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 24px; }
+.escaner-marco i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 24px 0; }
+.escaner-linea { position: absolute; left: 10%; right: 10%; top: 10%; height: 3px; border-radius: 3px; background: #2bd49a; box-shadow: 0 0 14px #2bd49a; animation: barrer 2s ease-in-out infinite alternate; }
+@keyframes barrer { to { top: 88%; } }
+.escaner.leido .escaner-marco i { border-color: #2bd49a; }
+.escaner.leido .escaner-linea { display: none; }
