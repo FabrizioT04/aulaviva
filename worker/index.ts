@@ -1,5 +1,5 @@
 import { ENTRADAS, ENTRADAS_TI, ETIQUETA_FALLA, TIPOS_FALLA } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Recurrente, Sesion, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -161,9 +161,12 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
         `SELECT CASE WHEN estado IN ('resuelto', 'escalado') THEN estado ELSE 'pendiente' END AS estado, COUNT(*) AS n
          FROM reporte WHERE ${filtro} GROUP BY 1`,
       ).bind(desde),
-      // La misma falla 3 veces o más en un aula: candidata a mantenimiento o cambio de equipo
+      // La misma falla 3 veces o más en un aula: candidata a mantenimiento o cambio de equipo.
+      // Las causas registradas dicen si es el mismo desperfecto que vuelve o problemas distintos
       env.DB.prepare(
-        `SELECT a.id, a.codigo, a.nombre, r.tipo_falla, COUNT(*) AS n, MAX(r.reportado_en) AS ultima
+        `SELECT a.id, a.codigo, a.nombre, r.tipo_falla, COUNT(*) AS n, MAX(r.reportado_en) AS ultima,
+                SUM(TRIM(COALESCE(r.causa, '')) <> '') AS con_causa,
+                json_group_array(DISTINCT TRIM(r.causa)) FILTER (WHERE TRIM(COALESCE(r.causa, '')) <> '') AS causas
          FROM reporte r JOIN aula a ON a.id = r.aula_id
          WHERE r.${filtro}
          GROUP BY a.id, r.tipo_falla HAVING COUNT(*) >= 3 ORDER BY n DESC, ultima DESC LIMIT 8`,
@@ -177,7 +180,10 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       ranking_aulas: ranking.results,
       por_dia: porDia.results,
       por_estado: porEstado.results,
-      recurrentes: recurrentes.results,
+      recurrentes: (recurrentes.results as (Omit<Recurrente, "causas"> & { causas: string | null })[]).map((r) => ({
+        ...r,
+        causas: JSON.parse(r.causas ?? "[]") as string[],
+      })),
     });
   }
 

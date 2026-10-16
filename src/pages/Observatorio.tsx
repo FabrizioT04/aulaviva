@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Ruta } from "../App";
-import type { Metricas } from "../../shared/tipos";
+import type { Metricas, Recurrente } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import Icono from "../Icono";
 import { duracion, ETIQUETA_FALLA, fechaCorta } from "../formato";
@@ -170,6 +170,20 @@ function Estados({ datos, escaladas }: { datos: Metricas["por_estado"]; escalada
   );
 }
 
+// Todas las veces con la misma causa: el desperfecto vuelve
+function causaRepetida(r: Recurrente): boolean {
+  return r.causas.length === 1 && r.con_causa === r.n;
+}
+
+function leerCausas(r: Recurrente): string {
+  if (r.con_causa === 0) return "Sin causa registrada todavía";
+  if (causaRepetida(r)) return `Misma causa las ${r.n} veces: ${r.causas[0]}`;
+  const sin = r.n - r.con_causa;
+  const resto = sin > 0 ? ` · ${sin} sin causa` : "";
+  if (r.causas.length === 1) return `Causa: ${r.causas[0]}${resto}`;
+  return `${r.causas.length} causas distintas: ${r.causas.join(" · ")}${resto}`;
+}
+
 export default function Observatorio({ onNoAutorizado, ir }: Props) {
   const [dias, setDias] = useState(30);
   const [m, setM] = useState<Metricas | null>(null);
@@ -225,7 +239,10 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
 
           <section className="tarjeta">
             <h2>Fallas que se repiten</h2>
-            <p className="nota-seccion">La misma falla 3 veces o más en un aula durante el periodo: conviene revisar el equipo.</p>
+            <p className="nota-seccion">
+              La misma falla 3 veces o más en un aula durante el periodo. Si la causa se repite, el desperfecto está volviendo
+              y conviene revisar el equipo; si las causas son distintas, pueden ser problemas diferentes.
+            </p>
             {m.recurrentes.length === 0 ? (
               <p className="vacio">Ninguna falla se repitió 3 veces en la misma aula en este periodo.</p>
             ) : (
@@ -240,6 +257,7 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
                         <strong>
                           {r.nombre} · {ETIQUETA_FALLA[r.tipo_falla]}
                         </strong>
+                        <small className={causaRepetida(r) ? "causas-rec misma" : "causas-rec"}>{leerCausas(r)}</small>
                         <small>Última: {fechaCorta(r.ultima)}</small>
                       </span>
                       <span className="veces">{r.n} veces</span>

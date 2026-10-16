@@ -310,6 +310,8 @@ fieldset .segmentado { display: flex; }
 .recurrentes button > span:nth-child(2) { display: grid; }
 .recurrentes small { color: var(--suave); }
 .recurrentes .veces { font-weight: 800; font-variant-numeric: tabular-nums; }
+.recurrentes .causas-rec { color: var(--texto); font-weight: 500; overflow-wrap: anywhere; }
+.recurrentes .causas-rec.misma { font-weight: 700; }
 .recurrentes .tipo-icono { width: 38px; height: 38px; border-radius: 11px; }
 .barras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .barra-fila { display: grid; grid-template-columns: 96px 1fr 40px; align-items: center; gap: 14px; width: 100%; padding: 8px; min-height: 0; border: 0; background: transparent; text-align: left; border-radius: 10px; font-weight: 500; }
