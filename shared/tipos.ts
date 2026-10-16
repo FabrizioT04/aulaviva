@@ -1,4 +1,18 @@
-export type TipoFalla = "internet" | "proyector" | "pc" | "otro";
+// Tipos de falla. Los cuatro primeros se muestran siempre; los demás, al tocar "Ver más".
+// Para agregar uno: este arreglo, su ícono en shared/iconos.ts y una migración que actualice el CHECK.
+export const TIPOS_FALLA = ["internet", "proyector", "pc", "otro", "audio", "impresora", "perifericos"] as const;
+export type TipoFalla = (typeof TIPOS_FALLA)[number];
+export const TIPOS_PRINCIPALES: readonly TipoFalla[] = TIPOS_FALLA.slice(0, 4);
+
+export const ETIQUETA_FALLA: Record<TipoFalla, string> = {
+  internet: "Internet",
+  proyector: "Proyector",
+  pc: "PC",
+  otro: "Otro",
+  audio: "Audio",
+  impresora: "Impresora",
+  perifericos: "Periféricos",
+};
 export type EstadoReporte = "abierto" | "en_atencion" | "resuelto";
 export type Semaforo = "verde" | "amarillo" | "rojo";
 
@@ -24,7 +38,8 @@ export interface Reporte {
   descripcion: string | null;
   reportado_por_nombre: string | null;
   estado: EstadoReporte;
-  origen: "whatsapp" | "qr";
+  origen: "whatsapp" | "qr"; // "whatsapp" = lo registró TI desde el panel
+  entrada: EntradaReporte | EntradaTi | null; // por dónde llegó exactamente (null en los antiguos)
   reportado_en: string;
   atendido_en: string | null;
   resuelto_en: string | null;
@@ -66,11 +81,15 @@ export interface DetalleAula {
 export const ENTRADAS = ["qr", "escaner", "lista"] as const;
 export type EntradaReporte = (typeof ENTRADAS)[number];
 
+// Por dónde le llegó a TI lo que registra desde el panel
+export const ENTRADAS_TI = ["whatsapp", "presencial", "otro"] as const;
+export type EntradaTi = (typeof ENTRADAS_TI)[number];
+
 export interface Metricas {
   dias: number;
   resumen: Promedios & { total: number; abiertos: number | null; bloqueantes: number | null };
   por_tipo: { tipo_falla: TipoFalla; n: number }[];
-  por_entrada: { entrada: EntradaReporte | "whatsapp"; n: number }[];
+  por_entrada: { entrada: EntradaReporte | EntradaTi; n: number }[];
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
 }
 

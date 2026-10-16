@@ -9,6 +9,8 @@ const ENTRADA: Record<string, string> = {
   escaner: "Escáner de /docente",
   lista: "Lista de /docente",
   whatsapp: "WhatsApp (vía TI)",
+  presencial: "En persona (vía TI)",
+  otro: "Otro canal (vía TI)",
 };
 
 const PERIODOS = [

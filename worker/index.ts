@@ -1,5 +1,5 @@
-import { ENTRADAS } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
+import { ENTRADAS, ENTRADAS_TI, ETIQUETA_FALLA, TIPOS_FALLA } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -25,7 +25,6 @@ export interface Env {
   DEV_EMAIL_DOCENTE?: string;
 }
 
-const TIPOS_FALLA: TipoFalla[] = ["internet", "proyector", "pc", "otro"];
 const SEDE = "smp1";
 
 // El semáforo se calcula a partir de los reportes no resueltos:
@@ -143,9 +142,9 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
          WHERE r.${filtro}
          GROUP BY a.id ORDER BY n DESC, a.codigo LIMIT 10`,
       ).bind(desde),
-      // Los reportes por QR anteriores a la columna entrada vinieron todos del QR impreso
+      // Los reportes anteriores a la columna entrada: los de TI llegaron por WhatsApp y los del docente por el QR impreso
       env.DB.prepare(
-        `SELECT CASE WHEN origen = 'whatsapp' THEN 'whatsapp' ELSE COALESCE(entrada, 'qr') END AS entrada, COUNT(*) AS n
+        `SELECT COALESCE(entrada, CASE WHEN origen = 'whatsapp' THEN 'whatsapp' ELSE 'qr' END) AS entrada, COUNT(*) AS n
          FROM reporte WHERE ${filtro} GROUP BY 1 ORDER BY n DESC`,
       ).bind(desde),
     ]);
@@ -168,7 +167,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     return json(results);
   }
 
-  // TI registra lo que llega por WhatsApp. Puede indicar la hora real del mensaje y, si ya
+  // TI registra lo que llega por WhatsApp, en persona o por otro canal. Puede indicar la hora real del reporte y, si ya
   // lo atendió, registrarlo resuelto de una vez para que los tiempos queden bien medidos.
   if (pathname === "/api/reportes" && metodo === "POST") {
     const datos = await request.json<Record<string, unknown>>().catch(() => null);
@@ -186,12 +185,13 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       return json({ error: "Alguna fecha no es válida o está en el futuro" }, 400);
     }
     if (resuelto && !(reportadoEn <= atendidoEn! && atendidoEn! <= resueltoEn!)) {
-      return json({ error: "Las horas deben ir en orden: mensaje, llegada al aula, resuelto" }, 400);
+      return json({ error: "Las horas deben ir en orden: reporte, llegada al aula, resuelto" }, 400);
     }
+    const entradaTi = ENTRADAS_TI.includes(datos?.entrada as EntradaTi) ? (datos!.entrada as EntradaTi) : "whatsapp";
     const creado = await env.DB.prepare(
-      `INSERT INTO reporte (aula_id, tipo_falla, bloquea_clase, descripcion, reportado_por_nombre, origen,
+      `INSERT INTO reporte (aula_id, tipo_falla, bloquea_clase, descripcion, reportado_por_nombre, origen, entrada,
          reportado_en, estado, atendido_en, resuelto_en, causa, notas_resolucion)
-       VALUES (?, ?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?, ?) RETURNING id`,
+       VALUES (?, ?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     )
       .bind(
         aulaId,
@@ -199,6 +199,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
         datos?.bloquea_clase ? 1 : 0,
         texto(datos?.descripcion),
         texto(datos?.reportado_por_nombre),
+        entradaTi,
         reportadoEn,
         resuelto ? "resuelto" : "abierto",
         atendidoEn,
@@ -445,7 +446,6 @@ async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: num
   return json({ ok: true }, 201);
 }
 
-const ETIQUETA_FALLA: Record<TipoFalla, string> = { internet: "Internet", proyector: "Proyector", pc: "PC", otro: "Otro" };
 
 function clavesVapid(env: Env, origen: string): ClavesVapid | null {
   if (!env.VAPID_PUBLICA || !env.VAPID_PRIVADA) return null;

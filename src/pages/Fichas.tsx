@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Ficha, TipoFalla } from "../../shared/tipos";
+import { TIPOS_FALLA } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import { ETIQUETA_FALLA } from "../formato";
 import Icono from "../Icono";
@@ -8,7 +9,7 @@ interface Props {
   onNoAutorizado: () => void;
 }
 
-const TIPOS: TipoFalla[] = ["internet", "proyector", "pc", "otro"];
+const TIPOS = TIPOS_FALLA;
 
 type Borrador = Pick<Ficha, "tipo_falla" | "titulo" | "sintomas" | "pasos_docente" | "cuando_llamar_ti">;
 

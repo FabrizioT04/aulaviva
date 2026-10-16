@@ -135,7 +135,7 @@ export default function App() {
         </div>
       </header>
       <main>
-        {ruta.pantalla === "registro" && <Registro onNoAutorizado={salir} />}
+        {ruta.pantalla === "registro" && <Registro onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "dashboard" && <Dashboard onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "observatorio" && <Observatorio onNoAutorizado={salir} ir={ir} />}
         {ruta.pantalla === "fichas" && <Fichas onNoAutorizado={salir} />}

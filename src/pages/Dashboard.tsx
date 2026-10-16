@@ -6,7 +6,7 @@ import Contador from "../Contador";
 import FormResolver from "../FormResolver";
 import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
-import { descripcionAula, duracion, ETIQUETA_FALLA, minutosDesde } from "../formato";
+import { canal, descripcionAula, duracion, ETIQUETA_FALLA, minutosDesde } from "../formato";
 
 interface Props {
   onNoAutorizado: () => void;
@@ -209,7 +209,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                       {r.estado === "en_atencion" && <span className="insignia azul">En atención</span>}
                     </div>
                     <small>
-                      Hace {duracion(minutosDesde(r.reportado_en))} · {r.origen === "qr" ? "por QR" : "por WhatsApp"}
+                      Hace {duracion(minutosDesde(r.reportado_en))} · {canal(r)}
                       {r.fotos > 0 ? ` · ${r.fotos === 1 ? "1 foto" : `${r.fotos} fotos`}` : ""}
                       {r.reportado_por_nombre ? ` · ${r.reportado_por_nombre}` : ""}
                     </small>
