@@ -16,7 +16,7 @@ const PASO: Record<string, string> = {
 const quien = (email: string | null) => (email ? ` · ${email.split("@")[0]}` : "");
 
 const SEMAFORO: Record<string, string> = {
-  verde: "Operativa",
+  verde: "Sin reportes",
   amarillo: "Falla sin bloqueo",
   rojo: "Bloquea la clase",
 };

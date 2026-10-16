@@ -61,13 +61,21 @@ export interface EventoReporte {
   en: string;
 }
 
+// Casos parecidos a un reporte (GET /api/reportes/:id/similares)
+export interface Similares {
+  casos: Reporte[];
+  fichas: Ficha[];
+}
+
 // Ficha de solución escrita por TI para una falla común
 export interface Ficha {
   id: number;
   tipo_falla: TipoFalla;
   titulo: string;
   sintomas: string | null;
+  causas_posibles: string | null;
   pasos_docente: string | null; // un paso por línea
+  pasos_ti: string | null; // procedimiento que solo hace TI, un paso por línea
   cuando_llamar_ti: string | null;
   creado_en: string;
   actualizado_en: string;
@@ -105,6 +113,9 @@ export interface Metricas {
   por_tipo: { tipo_falla: TipoFalla; n: number }[];
   por_entrada: { entrada: EntradaReporte | EntradaTi; n: number }[];
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
+  por_dia: { dia: string; n: number }[]; // AAAA-MM-DD en hora de Lima; los días sin reportes no vienen
+  por_estado: { estado: "pendiente" | "escalado" | "resuelto"; n: number }[];
+  recurrentes: { id: number; codigo: string; nombre: string; tipo_falla: TipoFalla; n: number; ultima: string }[];
 }
 
 export interface Sesion {

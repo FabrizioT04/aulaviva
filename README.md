@@ -10,9 +10,9 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Registro rápido** (`/`): aula, por dónde llegó (WhatsApp, en persona u otro canal), tipo de falla, si bloquea la clase, docente, detalle y la fecha y hora real del reporte. Si TI ya lo atendió, se registra resuelto de una vez con la hora de llegada, la hora de solución, la causa y qué se hizo. Al elegir el aula y la falla avisa si ya hay un reporte abierto igual y muestra cómo se resolvió antes, con un botón para reusar esa solución.
 - **Atención técnica** (en Registrar): el caso se registra como Pendiente, En atención, Resuelto o Escalado. Al escalar se anota el ticket de GLPI, el diagnóstico y lo que queda pendiente; desde el dashboard también se puede "Escalar" un reporte abierto. Cada cambio de estado queda guardado con quién y cuándo, y se ve en "Historial de cambios" dentro del detalle del aula.
 - **Tipos de falla**: Internet, Proyector, PC y Otro a la vista; Audio, Impresora y Periféricos al tocar "Ver más" (en el panel y en la página del QR).
-- **Dashboard en vivo** (`/dashboard`): semáforo por aula (verde, amarillo, rojo) y lista de reportes abiertos ordenada por urgencia. Se actualiza sola por WebSocket. Toca un aula para ver su detalle.
+- **Dashboard en vivo** (`/dashboard`): semáforo por aula (verde, amarillo, rojo) y lista de reportes abiertos ordenada por urgencia. Se actualiza sola por WebSocket. Toca un aula para ver su detalle. Si se corta la conexión, avisa desde qué hora son los datos. Al resolver un reporte muestra casos parecidos ya resueltos (primero los de la misma aula) y las fichas de esa falla, con un botón para usar esa solución.
 - **Detalle de aula** (`/aula/:id`): historial completo, tiempos promedio y cómo se resolvió cada caso.
-- **Observatorio** (`/observatorio`): incidencias, bloqueos y tiempos promedio de atención y resolución; incidencias por tipo de falla, por dónde llegan los reportes (QR impreso, escáner o lista de /docente, WhatsApp) y aulas con más incidencias (7, 30 o 90 días).
+- **Observatorio** (`/observatorio`): incidencias, bloqueos y tiempos promedio de atención y resolución; incidencias por tipo de falla, por dónde llegan los reportes (QR impreso, escáner o lista de /docente, WhatsApp) las 5 aulas con más incidencias, la tendencia por día (o por semana en 90 días), cómo quedaron (pendientes, escaladas, resueltas) y las fallas que se repiten en la misma aula (7, 30 o 90 días).
 - **Notificaciones push** (botón de la campana): TI recibe un aviso en la PC o el celular con cada reporte de un docente, aunque el panel esté cerrado. Los urgentes quedan en pantalla hasta tocarlos, y al tocar el aviso se abre el aula. En iPhone, primero hay que agregar el panel a la pantalla de inicio. Las claves se generan una vez con `npm run push:claves`.
 - **Atender y resolver**: guarda `atendido_en` y `resuelto_en` (tus métricas de tiempo) y pide las notas de resolución, que serán la base del asistente RAG del Sprint 3.
 
@@ -20,12 +20,12 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Página del QR** (`/r/<aula>`): el docente escanea, elige la falla y toca "Avisar a TI" o, si la clase no puede seguir, "No puedo continuar mi clase" (urgente). El detalle y las fotos son opcionales y van plegados; en "Otro" el detalle es obligatorio. TI lo ve al instante en el dashboard. Es una página aparte sin React (unos 3 KB) para que cargue rápido en el celular. Muestra lo ya reportado para evitar duplicados y, si es urgente, el tiempo promedio de atención.
 - **Fotos de evidencia** (opcional, hasta 3 por reporte): el celular reduce cada una a 1280 px en JPEG antes de subirla (una foto de 5 MB queda en unos 400 KB), se guardan en R2 y TI las ve en el dashboard y en el detalle del aula.
 - **Inicio del docente** (`/docente`): para quien no sabe escanear con la cámara del celular. Un botón grande abre la cámara dentro de la página y lee el QR del aula; también puede elegir su aula de una lista (busca por número o sección). Se puede agregar a la pantalla del celular como app.
-- **QR imprimibles** (`/qr-aulas`): un QR por aula, listo para imprimir.
+- **QR imprimibles** (`/qr-aulas`): un QR por aula, listo para imprimir. Se puede buscar un aula, imprimir solo su QR en grande y abrir "Probar" para ver la página que verá el docente.
 - **Acceso con Cloudflare Access**: TI (correos del secreto `TI_EMAILS`) usa todo el panel; los docentes (`@innovaschools.edu.pe`) solo la página del QR. Guía: [docs/cloudflare-access.md](docs/cloudflare-access.md).
 - **Sin Access** (desarrollo local): TI entra con la clave `TOKEN_TI`, y `DEV_EMAIL_DOCENTE` simula a un docente en la página del QR.
 
 ### Sprint 3 · Base del asistente
-- **Fichas de solución** (`/fichas`): TI escribe, por tipo de falla, cómo se ve la falla, los pasos que el docente puede probar solo y cuándo llamar a TI. Junto con los casos resueltos (causa y qué se hizo) serán la base del asistente.
+- **Base de conocimiento** (`/fichas`): TI escribe fichas por tipo de falla: cómo se ve la falla, causas posibles, los pasos que el docente puede probar solo, el procedimiento que solo hace TI y cuándo llamar a TI. Tiene buscador y filtro por tipo. Junto con los casos resueltos (causa y qué se hizo) serán la base del asistente.
 
 ## Estructura
 
@@ -41,6 +41,7 @@ migrations/0008_push.sql          navegadores de TI suscritos a las notificacion
 migrations/0009_aula_207.sql      el aula 207 es un MediaLab (ML)
 migrations/0010_tipos_falla.sql   tipos de falla audio, impresora y periféricos; estado "escalado" (reconstruye reporte y ficha)
 migrations/0011_atencion_tecnica.sql  ticket GLPI, observaciones, quién registró y el historial de cambios (reporte_evento)
+migrations/0012_fichas_ti.sql      causas posibles y procedimiento de TI en las fichas
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
@@ -98,8 +99,9 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/metricas?dias=30` | Indicadores del Observatorio |
 | POST | `/api/reportes` | Registrar `{aula_id, tipo_falla, entrada, bloquea_clase, reportado_por_nombre, descripcion, reportado_en?}` (`entrada`: `whatsapp`, `presencial` u `otro`). `estado`: `abierto`, `en_atencion` (con `atendido_en`), `resuelto` (con `atendido_en`, `resuelto_en`, `causa`, `notas_resolucion`) o `escalado` (con `ticket_glpi`, `causa`); `observaciones` en todos menos resuelto; para registrarlo ya resuelto agrega `resuelto: true, atendido_en, resuelto_en, causa, notas_resolucion` |
 | PATCH | `/api/reportes/:id` | `{estado: "en_atencion"}`, `{estado: "escalado", ticket_glpi, observaciones}` o `{estado: "resuelto", causa, notas_resolucion}`. Cada cambio queda en el historial |
+| GET | `/api/reportes/:id/similares` | Casos resueltos parecidos y fichas del mismo tipo de falla `{casos, fichas}` |
 | GET | `/api/fichas` | Fichas de solución |
-| POST | `/api/fichas` | Crear `{tipo_falla, titulo, sintomas, pasos_docente, cuando_llamar_ti}` (un paso por línea) |
+| POST | `/api/fichas` | Crear `{tipo_falla, titulo, sintomas, causas_posibles, pasos_docente, pasos_ti, cuando_llamar_ti}` (un paso por línea) |
 | PUT / DELETE | `/api/fichas/:id` | Editar o borrar una ficha |
 | GET | `/api/en-vivo` | WebSocket del dashboard |
 | GET | `/api/sesion` | Quién está conectado y su rol |

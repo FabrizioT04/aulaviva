@@ -21,10 +21,15 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
   // Reporte con un formulario abierto: resolver o escalar
   const [abierto, setAbierto] = useState<{ id: number; accion: "resolver" | "escalar" } | null>(null);
   const [atencionProm, setAtencionProm] = useState<number | null>(null);
+  // Hora de los últimos datos recibidos, para mostrarla si se corta la conexión en vivo
+  const [actualizado, setActualizado] = useState<Date | null>(null);
 
   const cargarReportes = useCallback(() => {
     api<Reporte[]>("/api/reportes?estado=abiertos")
-      .then(setAbiertos)
+      .then((r) => {
+        setAbiertos(r);
+        setActualizado(new Date());
+      })
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : null));
   }, [onNoAutorizado]);
 
@@ -115,8 +120,14 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
           <h1>Estado de las aulas</h1>
         </div>
         <div className="acciones">
-          <span className={conectado ? "en-vivo" : "en-vivo desconectado"}>
-            <i /> {conectado ? "En vivo" : "Reconectando…"}
+          <span
+            className={conectado ? "en-vivo" : "en-vivo desconectado"}
+            title={conectado ? "Se actualiza solo cuando llega o cambia un reporte" : undefined}
+          >
+            <i />{" "}
+            {conectado
+              ? "En vivo"
+              : `Reconectando…${actualizado ? ` · datos de las ${actualizado.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}` : ""}`}
           </span>
           <button className="primario" onClick={() => ir({ pantalla: "registro" })}>
             <Icono nombre="registrar" /> Registrar incidencia
@@ -148,7 +159,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
           <small>Últimos 30 días</small>
         </div>
         <div className="dato">
-          <span>Aulas operativas</span>
+          <span title="Aulas sin reportes abiertos. No quiere decir que se hayan revisado en persona.">Aulas sin reportes</span>
           <strong className="num">
             <Contador valor={operativas} />
             <small> / {aulas.length}</small>
@@ -164,7 +175,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
           <div className="tarjeta-cabecera">
             <h2>Mapa de aulas</h2>
             <div className="leyenda">
-              <span><i className="muestra verde" /> Operativa</span>
+              <span><i className="muestra verde" /> Sin reportes</span>
               <span><i className="muestra amarillo" /> Con falla</span>
               <span><i className="muestra rojo" /> Bloquea</span>
             </div>
@@ -205,7 +216,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
           </div>
           {abiertos.length === 0 && (
             <p className="todo-bien">
-              <Icono nombre="check" /> Todas las aulas operativas.
+              <Icono nombre="check" /> No hay reportes abiertos.
             </p>
           )}
           <ul className="reportes">
@@ -241,7 +252,12 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                   </div>
                 </div>
                 {abierto?.id === r.id && abierto.accion === "resolver" ? (
-                  <FormResolver onGuardar={(causa, hice) => resolver(r, causa, hice)} onCancelar={() => setAbierto(null)} />
+                  <FormResolver
+                    reporteId={r.id}
+                    aulaId={r.aula_id}
+                    onGuardar={(causa, hice) => resolver(r, causa, hice)}
+                    onCancelar={() => setAbierto(null)}
+                  />
                 ) : abierto?.id === r.id && abierto.accion === "escalar" ? (
                   <FormEscalar onGuardar={(ticket, obs) => escalar(r, ticket, obs)} onCancelar={() => setAbierto(null)} />
                 ) : (

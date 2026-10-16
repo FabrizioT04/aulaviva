@@ -24,13 +24,14 @@ export type Ruta =
 const PESTANAS: {
   pantalla: "registro" | "dashboard" | "observatorio" | "fichas" | "qr";
   etiqueta: string;
+  corta?: string; // para la barra inferior del celular, si la etiqueta no cabe
   icono: NombreIcono;
   soloPc?: boolean; // en el celular la barra inferior solo tiene espacio para cuatro
 }[] = [
   { pantalla: "registro", etiqueta: "Registrar", icono: "registrar" },
   { pantalla: "dashboard", etiqueta: "Dashboard", icono: "dashboard" },
   { pantalla: "observatorio", etiqueta: "Observatorio", icono: "observatorio" },
-  { pantalla: "fichas", etiqueta: "Fichas", icono: "fichas" },
+  { pantalla: "fichas", etiqueta: "Base de conocimiento", corta: "Soluciones", icono: "fichas" },
   { pantalla: "qr", etiqueta: "QR de aulas", icono: "qr", soloPc: true },
 ];
 
@@ -116,7 +117,14 @@ export default function App() {
               onClick={() => ir({ pantalla: p.pantalla })}
             >
               <Icono nombre={p.icono} />
-              <span>{p.etiqueta}</span>
+              {p.corta ? (
+                <>
+                  <span className="etiqueta-larga">{p.etiqueta}</span>
+                  <span className="etiqueta-corta">{p.corta}</span>
+                </>
+              ) : (
+                <span>{p.etiqueta}</span>
+              )}
             </button>
           ))}
         </nav>

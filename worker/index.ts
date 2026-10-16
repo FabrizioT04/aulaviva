@@ -129,7 +129,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     const dias = Math.min(Math.max(Number(url.searchParams.get("dias")) || 30, 1), 365);
     const desde = `-${dias} days`;
     const filtro = `reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?)`;
-    const [resumen, porTipo, ranking, porEntrada] = await env.DB.batch([
+    const [resumen, porTipo, ranking, porEntrada, porDia, porEstado, recurrentes] = await env.DB.batch([
       env.DB.prepare(
         `SELECT COUNT(*) AS total,
                 SUM(estado <> 'resuelto') AS abiertos,
@@ -146,12 +146,27 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
         `SELECT a.id, a.codigo, a.nombre, COUNT(r.id) AS n
          FROM reporte r JOIN aula a ON a.id = r.aula_id
          WHERE r.${filtro}
-         GROUP BY a.id ORDER BY n DESC, a.codigo LIMIT 10`,
+         GROUP BY a.id ORDER BY n DESC, a.codigo LIMIT 5`,
       ).bind(desde),
       // Los reportes anteriores a la columna entrada: los de TI llegaron por WhatsApp y los del docente por el QR impreso
       env.DB.prepare(
         `SELECT COALESCE(entrada, CASE WHEN origen = 'whatsapp' THEN 'whatsapp' ELSE 'qr' END) AS entrada, COUNT(*) AS n
          FROM reporte WHERE ${filtro} GROUP BY 1 ORDER BY n DESC`,
+      ).bind(desde),
+      // Por día de Lima (UTC-5, sin horario de verano)
+      env.DB.prepare(
+        `SELECT date(reportado_en, '-5 hours') AS dia, COUNT(*) AS n FROM reporte WHERE ${filtro} GROUP BY 1 ORDER BY 1`,
+      ).bind(desde),
+      env.DB.prepare(
+        `SELECT CASE WHEN estado IN ('resuelto', 'escalado') THEN estado ELSE 'pendiente' END AS estado, COUNT(*) AS n
+         FROM reporte WHERE ${filtro} GROUP BY 1`,
+      ).bind(desde),
+      // La misma falla 3 veces o más en un aula: candidata a mantenimiento o cambio de equipo
+      env.DB.prepare(
+        `SELECT a.id, a.codigo, a.nombre, r.tipo_falla, COUNT(*) AS n, MAX(r.reportado_en) AS ultima
+         FROM reporte r JOIN aula a ON a.id = r.aula_id
+         WHERE r.${filtro}
+         GROUP BY a.id, r.tipo_falla HAVING COUNT(*) >= 3 ORDER BY n DESC, ultima DESC LIMIT 8`,
       ).bind(desde),
     ]);
     return json({
@@ -160,6 +175,9 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       por_tipo: porTipo.results,
       por_entrada: porEntrada.results,
       ranking_aulas: ranking.results,
+      por_dia: porDia.results,
+      por_estado: porEstado.results,
+      recurrentes: recurrentes.results,
     });
   }
 
@@ -249,6 +267,26 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     return json(creado, 201);
   }
 
+  // Al atender un reporte: cómo se resolvieron antes fallas parecidas (primero en la misma aula)
+  // y las fichas de ese tipo de falla. Así se aprovecha el historial incluso antes del asistente.
+  const similares = pathname.match(/^\/api\/reportes\/(\d+)\/similares$/);
+  if (similares && metodo === "GET") {
+    const reporte = await env.DB.prepare("SELECT id, aula_id, tipo_falla FROM reporte WHERE id = ?")
+      .bind(Number(similares[1]))
+      .first<{ id: number; aula_id: number; tipo_falla: TipoFalla }>();
+    if (!reporte) return json({ error: "Reporte no encontrado" }, 404);
+    const [casos, fichas] = await env.DB.batch([
+      env.DB.prepare(
+        `${SQL_REPORTES}
+         WHERE r.tipo_falla = ? AND r.estado = 'resuelto' AND r.id <> ?
+           AND (r.notas_resolucion IS NOT NULL OR r.causa IS NOT NULL)
+         ORDER BY r.aula_id = ? DESC, r.resuelto_en DESC LIMIT 4`,
+      ).bind(reporte.tipo_falla, reporte.id, reporte.aula_id),
+      env.DB.prepare("SELECT * FROM ficha WHERE tipo_falla = ? ORDER BY titulo COLLATE NOCASE LIMIT 4").bind(reporte.tipo_falla),
+    ]);
+    return json({ casos: casos.results, fichas: fichas.results });
+  }
+
   // Foto número n (0, 1 o 2) del reporte, en el orden en que se subieron
   const foto = pathname.match(/^\/api\/reportes\/(\d+)\/fotos\/(\d)$/);
   if (foto && metodo === "GET") {
@@ -280,11 +318,19 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     const tipo = datos?.tipo_falla as TipoFalla;
     const titulo = texto(datos?.titulo);
     if (!TIPOS_FALLA.includes(tipo) || !titulo) return json({ error: "Faltan el tipo de falla o el título" }, 400);
-    const valores = [tipo, titulo, texto(datos?.sintomas), texto(datos?.pasos_docente), texto(datos?.cuando_llamar_ti)];
+    const valores = [
+      tipo,
+      titulo,
+      texto(datos?.sintomas),
+      texto(datos?.causas_posibles),
+      texto(datos?.pasos_docente),
+      texto(datos?.pasos_ti),
+      texto(datos?.cuando_llamar_ti),
+    ];
     if (metodo === "POST" && !ficha[1]) {
       const creada = await env.DB.prepare(
-        `INSERT INTO ficha (tipo_falla, titulo, sintomas, pasos_docente, cuando_llamar_ti)
-         VALUES (?, ?, ?, ?, ?) RETURNING id`,
+        `INSERT INTO ficha (tipo_falla, titulo, sintomas, causas_posibles, pasos_docente, pasos_ti, cuando_llamar_ti)
+         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       )
         .bind(...valores)
         .first<{ id: number }>();
@@ -292,7 +338,8 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     }
     if (metodo === "PUT" && ficha[1]) {
       const cambiada = await env.DB.prepare(
-        `UPDATE ficha SET tipo_falla = ?, titulo = ?, sintomas = ?, pasos_docente = ?, cuando_llamar_ti = ?,
+        `UPDATE ficha SET tipo_falla = ?, titulo = ?, sintomas = ?, causas_posibles = ?, pasos_docente = ?, pasos_ti = ?,
+           cuando_llamar_ti = ?,
            actualizado_en = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          WHERE id = ? RETURNING id`,
       )
