@@ -476,7 +476,7 @@ function pintarDano(estado: EstadoAulaQr) {
         .join("")}</div>
       <div class="chips-dano" id="tipos-dano" role="group" aria-label="Tipo de daño" hidden></div>
       <div class="campos-chromebook" id="campos-chromebook" hidden>
-        <label>Código del equipo<input id="equipo" maxlength="40" placeholder="Ej. CB-ML-12" /></label>
+        <label>Código del equipo (opcional)<input id="equipo" maxlength="40" placeholder="Si se ve en la etiqueta, ej. CB-ML-12" /></label>
         <label>Sección del estudiante<input id="seccion" maxlength="20" value="${esc(aula.seccion ?? "")}" /></label>
         <label>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI y ${EQUIPO_DANOS}.</span></label>
       </div>

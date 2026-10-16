@@ -314,7 +314,7 @@ function FormDano({
       {tecnologia && (
         <div className="fila-campos">
           <label>
-            Código del equipo
+            Código del equipo (opcional)
             <input value={equipo} onChange={(e) => setEquipo(e.target.value)} placeholder="Ej. CB-ML-12" maxLength={40} />
           </label>
           <label>
