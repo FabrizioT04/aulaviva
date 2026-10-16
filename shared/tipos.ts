@@ -62,9 +62,13 @@ export interface EventoReporte {
 }
 
 // Casos parecidos a un reporte (GET /api/reportes/:id/similares)
+// Casos resueltos y fichas que se parecen al reporte que se está resolviendo.
+// criterio "texto": comparten palabras con el detalle (coincide dice cuáles).
+// criterio "tipo": el reporte no tiene detalle, así que son los últimos de la misma falla.
 export interface Similares {
-  casos: Reporte[];
-  fichas: Ficha[];
+  criterio: "texto" | "tipo";
+  casos: (Reporte & { coincide: string[] })[];
+  fichas: (Ficha & { coincide: string[] })[];
 }
 
 // Ficha de solución escrita por TI para una falla común

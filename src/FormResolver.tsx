@@ -44,9 +44,15 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
 
   return (
     <form className="form-resolver" onSubmit={guardar}>
+      {similares && similares.criterio === "texto" && similares.casos.length === 0 && similares.fichas.length === 0 && (
+        <p className="similares-vacio">Ningún caso anterior se parece a este. Lo que escribas aquí servirá para el próximo.</p>
+      )}
       {similares && (similares.casos.length > 0 || similares.fichas.length > 0) && (
         <div className="similares">
-          <h3>Casos parecidos</h3>
+          <h3>{similares.criterio === "texto" ? "Casos parecidos" : "Casos anteriores de esta falla"}</h3>
+          {similares.criterio === "tipo" && (
+            <p className="nota-similares">El reporte no tiene detalle, así que no se puede comparar qué pasó. Revisa si de verdad se parecen.</p>
+          )}
           <ul>
             {similares.casos.map((c) => (
               <li key={c.id}>
@@ -55,6 +61,7 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
                     {c.aula_id === aulaId ? "En esta aula" : c.aula_nombre} · {fechaCorta(c.resuelto_en ?? c.reportado_en)}
                   </strong>
                   {c.descripcion && <small>“{c.descripcion}”</small>}
+                  {c.coincide.length > 0 && <small className="coincide">Coincide en: {c.coincide.join(", ")}</small>}
                   {c.causa && <p>Causa: {c.causa}</p>}
                   {c.notas_resolucion && <p>Se hizo: {c.notas_resolucion}</p>}
                 </div>
@@ -74,6 +81,7 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
               <li key={`f${f.id}`} className="ficha-similar">
                 <div>
                   <strong>Ficha: {f.titulo}</strong>
+                  {f.coincide.length > 0 && <small className="coincide">Coincide en: {f.coincide.join(", ")}</small>}
                   {f.causas_posibles && <p>Causas posibles: {f.causas_posibles}</p>}
                   {f.pasos_ti ? (
                     <p>Procedimiento de TI: {f.pasos_ti.split("\n").filter(Boolean).join(" · ")}</p>
@@ -87,22 +95,22 @@ export default function FormResolver({ reporteId, aulaId, onGuardar, onCancelar 
         </div>
       )}
       <label>
-        ¿Qué encontraste? (causa, si la sabes)
+        Diagnóstico: ¿qué encontraste y por qué fallaba?
         <textarea
           rows={2}
           value={causa}
           onChange={(e) => setCausa(e.target.value)}
-          placeholder="Ej. el cable HDMI estaba suelto detrás del proyector"
+          placeholder="Ej. el cable HDMI estaba suelto detrás del proyector y no llegaba la señal"
           autoFocus
         />
       </label>
       <label>
-        ¿Qué hiciste?
+        Solución: ¿qué hiciste y cómo comprobaste que quedó bien?
         <textarea
           rows={2}
           value={hice}
           onChange={(e) => setHice(e.target.value)}
-          placeholder="Ej. lo ajusté y probé con la laptop del docente"
+          placeholder="Ej. lo ajusté y comprobé que se viera la pantalla de la laptop del docente"
         />
       </label>
       <div className="acciones">

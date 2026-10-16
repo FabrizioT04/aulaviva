@@ -1,5 +1,6 @@
+import { coincidencias, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, ETIQUETA_FALLA, TIPOS_FALLA } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Recurrente, Sesion, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -277,20 +278,49 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
   // y las fichas de ese tipo de falla. Así se aprovecha el historial incluso antes del asistente.
   const similares = pathname.match(/^\/api\/reportes\/(\d+)\/similares$/);
   if (similares && metodo === "GET") {
-    const reporte = await env.DB.prepare("SELECT id, aula_id, tipo_falla FROM reporte WHERE id = ?")
+    const reporte = await env.DB.prepare(
+      "SELECT id, aula_id, tipo_falla, descripcion, observaciones FROM reporte WHERE id = ?",
+    )
       .bind(Number(similares[1]))
-      .first<{ id: number; aula_id: number; tipo_falla: TipoFalla }>();
+      .first<{ id: number; aula_id: number; tipo_falla: TipoFalla; descripcion: string | null; observaciones: string | null }>();
     if (!reporte) return json({ error: "Reporte no encontrado" }, 404);
-    const [casos, fichas] = await env.DB.batch([
+    const [candidatos, fichas] = await env.DB.batch([
       env.DB.prepare(
         `${SQL_REPORTES}
          WHERE r.tipo_falla = ? AND r.estado = 'resuelto' AND r.id <> ?
            AND (r.notas_resolucion IS NOT NULL OR r.causa IS NOT NULL)
-         ORDER BY r.aula_id = ? DESC, r.resuelto_en DESC LIMIT 4`,
+         ORDER BY r.aula_id = ? DESC, r.resuelto_en DESC LIMIT 80`,
       ).bind(reporte.tipo_falla, reporte.id, reporte.aula_id),
-      env.DB.prepare("SELECT * FROM ficha WHERE tipo_falla = ? ORDER BY titulo COLLATE NOCASE LIMIT 4").bind(reporte.tipo_falla),
+      env.DB.prepare("SELECT * FROM ficha WHERE tipo_falla = ? ORDER BY titulo COLLATE NOCASE").bind(reporte.tipo_falla),
     ]);
-    return json({ casos: casos.results, fichas: fichas.results });
+    const casos = candidatos.results as unknown as Reporte[];
+    const buscado = raices(`${reporte.descripcion ?? ""} ${reporte.observaciones ?? ""}`);
+
+    // Sin detalle no hay con qué comparar: se muestran los últimos de la misma falla, primero los de esta aula
+    if (buscado.size === 0) {
+      const respuesta: Similares = {
+        criterio: "tipo",
+        casos: casos.slice(0, 3).map((c) => ({ ...c, coincide: [] })),
+        fichas: (fichas.results as unknown as Ficha[]).slice(0, 3).map((f) => ({ ...f, coincide: [] })),
+      };
+      return json(respuesta);
+    }
+    // Con detalle, solo los que comparten palabras con lo que se reportó: más coincidencias primero
+    const puntuar = <T,>(lista: T[], texto: (x: T) => string) =>
+      lista
+        .map((x, orden) => ({ x, coincide: coincidencias(buscado, texto(x)), orden }))
+        .filter((c) => c.coincide.length > 0)
+        .sort((a, b) => b.coincide.length - a.coincide.length || a.orden - b.orden);
+    const respuesta: Similares = {
+      criterio: "texto",
+      casos: puntuar(casos, (c) => `${c.descripcion ?? ""} ${c.observaciones ?? ""} ${c.causa ?? ""} ${c.notas_resolucion ?? ""}`)
+        .slice(0, 4)
+        .map(({ x, coincide }) => ({ ...x, coincide })),
+      fichas: puntuar(fichas.results as unknown as Ficha[], (f) => `${f.titulo} ${f.sintomas ?? ""} ${f.causas_posibles ?? ""}`)
+        .slice(0, 3)
+        .map(({ x, coincide }) => ({ ...x, coincide })),
+    };
+    return json(respuesta);
   }
 
   // Foto número n (0, 1 o 2) del reporte, en el orden en que se subieron
