@@ -4,7 +4,7 @@ import { iconoSvg } from "../../shared/iconos";
 import { ETIQUETA_FALLA as ETIQUETA, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import { sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
-import type { EstadoAulaQr, TipoFalla } from "../../shared/tipos";
+import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
 import "./qr-efectos.css";
@@ -136,6 +136,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       <div class="opciones" id="tipos">${TIPOS_FALLA.map((v) => `<button type="button" data-tipo="${v}" aria-pressed="false"${TIPOS_PRINCIPALES.includes(v) ? "" : " hidden"}><span class="ic">${iconoSvg(v)}</span>${ETIQUETA[v]}</button>`).join("")}</div>
       <button type="button" class="mas-tipos" id="mas-tipos">Ver más: ${TIPOS_FALLA.filter((v) => !TIPOS_PRINCIPALES.includes(v)).map((v) => ETIQUETA[v]).join(", ")}${iconoSvg("abajo")}</button>
       <div class="aviso-duplicado" id="aviso-duplicado" role="status" hidden></div>
+      <div class="guia" id="guia" hidden></div>
       <details class="extra" id="extra">
         <summary>${iconoSvg("registrar")}<span id="titulo-extra">Agregar detalle o foto (opcional)</span></summary>
         <label><span id="etiqueta-detalle">Detalle (opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. desde cuándo pasa o qué ya probaste"></textarea></label>
@@ -237,8 +238,77 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     detalleCampo.placeholder = EJEMPLO[tipo];
     if (titulo) extra.open = true;
     avisarDuplicado();
+    mostrarGuia();
     sugerir();
     guardarQr();
+  });
+
+  // Asistencia guiada: antes de avisar, los pasos que TI dejó en la ficha de esa falla.
+  // Si ya hay un reporte del mismo tipo no se muestran: TI ya está avisado.
+  // "No puedo continuar mi clase" sigue avisando directo, sin probar nada
+  const guia = document.getElementById("guia")!;
+  let fichaVista: number | null = null;
+  function mostrarGuia() {
+    const lista = tipo && !repetido() ? estado.guias.filter((g) => g.tipo_falla === tipo) : [];
+    fichaVista = lista[0]?.id ?? null;
+    guia.hidden = !lista.length;
+    if (!lista.length) {
+      guia.innerHTML = "";
+      return;
+    }
+    const contenido = (g: GuiaDocente) => `
+      <ol>${g.pasos.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>
+      ${g.cuando_llamar_ti ? `<p class="suave">Avisa a TI: ${esc(g.cuando_llamar_ti)}</p>` : ""}
+      <button type="button" class="boton-funciono" data-funciono="${g.id}">${iconoSvg("check")}Ya funciona</button>`;
+    guia.innerHTML = `
+      <p class="guia-titulo">Antes de avisar, prueba esto</p>
+      ${
+        lista.length === 1
+          ? `<p class="guia-ficha">${esc(lista[0].titulo)}</p>${contenido(lista[0])}`
+          : lista
+              .map((g, i) => `<details data-ficha="${g.id}"${i === 0 ? " open" : ""}><summary>${esc(g.titulo)}</summary>${contenido(g)}</details>`)
+              .join("")
+      }
+      <p class="suave guia-pie">¿No se arregló? Avisa a TI abajo; ya sabrán qué probaste.</p>`;
+  }
+  // Con varias fichas, la que abrió es la que cuenta como vista
+  guia.addEventListener(
+    "toggle",
+    (e) => {
+      const d = e.target as HTMLDetailsElement;
+      if (d.open && d.dataset.ficha) fichaVista = Number(d.dataset.ficha);
+    },
+    true,
+  );
+  guia.addEventListener("click", async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-funciono]");
+    if (!b) return;
+    b.disabled = true;
+    b.textContent = "Guardando…";
+    error.textContent = "";
+    const res = await fetch(`/api/qr/${encodeURIComponent(codigo)}/autosolucion`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ficha_id: Number(b.dataset.funciono) }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      error.textContent = "No se pudo guardar. Revisa tu conexión e intenta de nuevo.";
+      b.disabled = false;
+      b.innerHTML = `${iconoSvg("check")}Ya funciona`;
+      return;
+    }
+    borrarBorrador(CLAVE_BORRADOR);
+    pintar(
+      estado,
+      `<section class="tarjeta exito">
+        <h2><span class="check">${iconoSvg("check")}</span>¡Bien, lo solucionaste!</h2>
+        <p>No se envió ningún reporte a TI. Quedó registrado que estos pasos funcionaron, para que TI sepa cuáles sirven.</p>
+        <a class="enviar boton-listo" href="/docente">Entendido</a>
+        <button type="button" class="enlace-otra" id="otra-falla">Volvió a fallar: avisar a TI</button>
+      </section>`,
+      true,
+    );
+    scrollTo(0, 0);
   });
 
   // Si el detalle habla de otra falla ("No agarra el internet" con PC elegido), se sugiere cambiarla
@@ -340,7 +410,13 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     const res = await fetch(`/api/qr/${encodeURIComponent(codigo)}/reportes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo_falla: tipo, bloquea_clase: bloquea, descripcion: detalle, entrada }),
+      body: JSON.stringify({
+        tipo_falla: tipo,
+        bloquea_clase: bloquea,
+        descripcion: detalle,
+        entrada,
+        ficha_vista_id: guia.hidden ? null : fichaVista,
+      }),
     }).catch(() => null);
 
     if (!res?.ok) {

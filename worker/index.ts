@@ -1,6 +1,6 @@
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, ETIQUETA_FALLA, TIPOS_FALLA } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -50,7 +50,8 @@ const SQL_PROMEDIOS = `
 
 const SQL_REPORTES = `
   SELECT r.*, a.nombre AS aula_nombre, a.seccion AS aula_seccion,
-    (SELECT COUNT(*) FROM foto_reporte f WHERE f.reporte_id = r.id) AS fotos
+    (SELECT COUNT(*) FROM foto_reporte f WHERE f.reporte_id = r.id) AS fotos,
+    (SELECT titulo FROM ficha fi WHERE fi.id = r.ficha_vista_id) AS ficha_vista
   FROM reporte r JOIN aula a ON a.id = r.aula_id`;
 
 export default {
@@ -130,7 +131,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     const dias = Math.min(Math.max(Number(url.searchParams.get("dias")) || 30, 1), 365);
     const desde = `-${dias} days`;
     const filtro = `reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?)`;
-    const [resumen, porTipo, ranking, porEntrada, porDia, porEstado, recurrentes] = await env.DB.batch([
+    const [resumen, porTipo, ranking, porEntrada, porDia, porEstado, recurrentes, autosolucion] = await env.DB.batch([
       env.DB.prepare(
         `SELECT COUNT(*) AS total,
                 SUM(estado <> 'resuelto') AS abiertos,
@@ -172,6 +173,10 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
          WHERE r.${filtro}
          GROUP BY a.id, r.tipo_falla HAVING COUNT(*) >= 3 ORDER BY n DESC, ultima DESC LIMIT 8`,
       ).bind(desde),
+      env.DB.prepare(
+        `SELECT (SELECT COUNT(*) FROM autosolucion WHERE en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?1)) AS resueltas,
+                (SELECT COUNT(*) FROM reporte WHERE ficha_vista_id IS NOT NULL AND ${filtro.replace("?", "?1")}) AS avisaron`,
+      ).bind(desde),
     ]);
     return json({
       dias,
@@ -185,6 +190,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
         ...r,
         causas: JSON.parse(r.causas ?? "[]") as string[],
       })),
+      autosolucion: autosolucion.results[0],
     });
   }
 
@@ -466,7 +472,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     const respuesta: AulasDocente = { aulas: results, email: sesion.email };
     return json(respuesta);
   }
-  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?)?$/);
+  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion)?$/);
   if (!coincide) return json({ error: "Ruta no encontrada" }, 404);
   const codigo = coincide[1];
 
@@ -476,7 +482,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
   if (!aula) return json({ error: "Este QR no corresponde a ninguna aula activa" }, 404);
 
   if (!coincide[2] && request.method === "GET") {
-    const [abiertos, promedio] = await env.DB.batch([
+    const [abiertos, promedio, guias] = await env.DB.batch([
       env.DB.prepare(
         `SELECT id, tipo_falla, bloquea_clase, estado, reportado_en FROM reporte
          WHERE aula_id = ? AND estado <> 'resuelto' ORDER BY reportado_en`,
@@ -487,15 +493,38 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
          WHERE bloquea_clase = 1 AND atendido_en IS NOT NULL
            AND reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-90 days')`,
       ),
+      // Solo los pasos que TI escribió para el docente; el procedimiento de TI no sale de la Base de conocimiento
+      env.DB.prepare(
+        `SELECT id, tipo_falla, titulo, pasos_docente, cuando_llamar_ti FROM ficha
+         WHERE TRIM(COALESCE(pasos_docente, '')) <> '' ORDER BY tipo_falla, titulo`,
+      ),
     ]);
     const estado: EstadoAulaQr = {
       aula,
       abiertos: abiertos.results as EstadoAulaQr["abiertos"],
       prom_atencion_urgente_min: (promedio.results[0] as { min: number | null }).min,
       email: sesion.email,
+      guias: (guias.results as (Omit<GuiaDocente, "pasos"> & { pasos_docente: string })[]).map(({ pasos_docente, ...g }) => ({
+        ...g,
+        pasos: pasos_docente.split("\n").map((p) => p.trim()).filter(Boolean),
+      })),
     };
     return json(estado);
   }
+
+  // "Ya funciona" después de probar los pasos de una ficha: queda registrado y TI no recibe reporte
+  if (coincide[2] === "/autosolucion" && request.method === "POST") {
+    const datos = await request.json<Record<string, unknown>>().catch(() => null);
+    const ficha = await env.DB.prepare("SELECT id, tipo_falla FROM ficha WHERE id = ?")
+      .bind(Number(datos?.ficha_id))
+      .first<{ id: number; tipo_falla: TipoFalla }>();
+    if (!ficha) return json({ error: "No se encontró la guía que probaste" }, 400);
+    await env.DB.prepare("INSERT INTO autosolucion (aula_id, ficha_id, tipo_falla, email) VALUES (?, ?, ?, ?)")
+      .bind(aula.id, ficha.id, ficha.tipo_falla, sesion.email)
+      .run();
+    return json({ ok: true }, 201);
+  }
+  if (coincide[2] === "/autosolucion") return json({ error: "Ruta no encontrada" }, 404);
 
   if (coincide[3] && request.method === "PUT") {
     return subirFoto(request, env, sesion, aula.id, Number(coincide[3]));
@@ -528,11 +557,17 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     if (!profesor?.activo) return json({ error: "Tu cuenta está desactivada para reportar" }, 403);
 
     const entrada = ENTRADAS.includes(datos?.entrada as EntradaReporte) ? (datos!.entrada as EntradaReporte) : "qr";
+    // Ficha cuyos pasos vio antes de avisar (solo si es del mismo tipo de falla)
+    const fichaVista = datos?.ficha_vista_id
+      ? await env.DB.prepare("SELECT id, titulo FROM ficha WHERE id = ? AND tipo_falla = ?")
+          .bind(Number(datos.ficha_vista_id), tipo)
+          .first<{ id: number; titulo: string }>()
+      : null;
     const creado = await env.DB.prepare(
-      `INSERT INTO reporte (aula_id, profesor_id, reportado_por_nombre, tipo_falla, bloquea_clase, descripcion, origen, entrada, registrado_por)
-       VALUES (?, ?, ?, ?, ?, ?, 'qr', ?, ?) RETURNING id, reportado_en`,
+      `INSERT INTO reporte (aula_id, profesor_id, reportado_por_nombre, tipo_falla, bloquea_clase, descripcion, origen, entrada, registrado_por, ficha_vista_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'qr', ?, ?, ?) RETURNING id, reportado_en`,
     )
-      .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion), entrada, sesion.email)
+      .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion), entrada, sesion.email, fichaVista?.id ?? null)
       .first<{ id: number; reportado_en: string }>();
     if (creado) {
       await env.DB.prepare("INSERT INTO reporte_evento (reporte_id, estado, email, en) VALUES (?, 'abierto', ?, ?)")
@@ -546,7 +581,12 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
       ctx.waitUntil(
         notificarTi(env, url.origin, {
           titulo: `${bloquea ? "Urgente · " : ""}${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}: ${ETIQUETA_FALLA[tipo]}`,
-          cuerpo: [bloquea ? "No puede continuar la clase." : null, texto(datos?.descripcion), `Reporta ${sesion.email.split("@")[0]}`]
+          cuerpo: [
+            bloquea ? "No puede continuar la clase." : null,
+            texto(datos?.descripcion),
+            fichaVista ? `Ya vio los pasos de "${fichaVista.titulo}"` : null,
+            `Reporta ${sesion.email.split("@")[0]}`,
+          ]
             .filter(Boolean)
             .join("\n"),
           url: `/aula/${aula.id}`,

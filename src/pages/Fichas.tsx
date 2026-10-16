@@ -296,6 +296,10 @@ function FormFicha({ inicial, onGuardar, onCancelar }: FormProps) {
           rows={4}
           placeholder={"Revisa que el cable HDMI esté bien conectado\nPresiona Windows + P y elige Duplicar"}
         />
+        <small className="nota-campo">
+          El docente ve estos pasos en el QR al elegir esta falla, antes de avisar a TI. Solo pasos seguros: nada de abrir
+          equipos, tocar la instalación eléctrica ni cambiar configuraciones de red.
+        </small>
       </label>
       <label>
         Procedimiento de TI (un paso por línea)

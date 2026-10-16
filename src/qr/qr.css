@@ -117,3 +117,18 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .boton-tema { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 14px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--suave); cursor: pointer; flex: none; }
 .boton-tema:hover { color: var(--texto); }
 .boton-tema .icono { width: 20px; height: 20px; }
+
+/* Asistencia guiada: pasos de la ficha antes de avisar a TI */
+.guia { margin-top: 14px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
+.guia[hidden] { display: none; }
+.guia-titulo { margin: 0 0 6px; font-weight: 800; color: var(--primario); }
+.guia-ficha, .guia summary { margin: 0; font-weight: 700; font-size: 0.95rem; }
+.guia summary { cursor: pointer; padding: 6px 0; }
+.guia details + details { border-top: 1px solid var(--borde); margin-top: 6px; padding-top: 4px; }
+.guia ol { margin: 8px 0 10px; padding-left: 22px; font-size: 0.95rem; line-height: 1.45; }
+.guia ol li + li { margin-top: 4px; }
+.guia p.suave { margin: 0 0 10px; font-size: 0.88rem; }
+.guia .guia-pie { margin: 10px 0 0; }
+.boton-funciono { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 44px; font: inherit; font-size: 0.95rem; font-weight: 700; color: var(--verde); background: none; border: 1.5px solid var(--verde); border-radius: 999px; cursor: pointer; }
+.boton-funciono .icono { width: 18px; height: 18px; }
+.boton-funciono:disabled { opacity: 0.6; cursor: default; }

@@ -50,6 +50,7 @@ export interface Reporte {
   escalado_en: string | null;
   registrado_por: string | null; // correo de quien lo registró
   fotos: number; // cuántas fotos de evidencia tiene (0 a 3)
+  ficha_vista: string | null; // título de la ficha cuyos pasos vio el docente en el QR antes de avisar
 }
 
 // Un cambio de estado de un reporte (ver migrations/0011_atencion_tecnica.sql)
@@ -120,6 +121,9 @@ export interface Metricas {
   por_dia: { dia: string; n: number }[]; // AAAA-MM-DD en hora de Lima; los días sin reportes no vienen
   por_estado: { estado: "pendiente" | "escalado" | "resuelto"; n: number }[];
   recurrentes: Recurrente[];
+  // Asistencia guiada del QR: cuántas veces el docente lo solucionó con los pasos de una ficha,
+  // y cuántas vio los pasos pero igual tuvo que avisar a TI
+  autosolucion: { resueltas: number; avisaron: number };
 }
 
 // La misma falla repetida en un aula, con las causas que TI registró al resolverla
@@ -152,4 +156,14 @@ export interface EstadoAulaQr {
   abiertos: Pick<Reporte, "id" | "tipo_falla" | "bloquea_clase" | "estado" | "reportado_en">[];
   prom_atencion_urgente_min: number | null; // promedio de los últimos 90 días
   email: string;
+  guias: GuiaDocente[]; // pasos que el docente puede probar antes de avisar, por tipo de falla
+}
+
+// Pasos de una ficha que el docente puede probar solo (los escribe TI en la Base de conocimiento)
+export interface GuiaDocente {
+  id: number;
+  tipo_falla: TipoFalla;
+  titulo: string;
+  pasos: string[];
+  cuando_llamar_ti: string | null;
 }
