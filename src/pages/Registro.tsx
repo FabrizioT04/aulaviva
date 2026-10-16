@@ -425,7 +425,7 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
 
         {(estado === "resuelto" || estado === "escalado") && (
           <label>
-            {estado === "escalado" ? "Diagnóstico: ¿qué encontraste?" : "¿Qué encontraste? (causa, si la sabes)"}
+            {estado === "escalado" ? "Diagnóstico: ¿qué encontraste?" : "Diagnóstico: ¿qué encontraste y por qué fallaba?"}
             <textarea
               rows={2}
               value={causa}
@@ -433,7 +433,7 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
               placeholder={
                 estado === "escalado"
                   ? "Ej. el proyector no enciende ni con otro cable de poder; parece la fuente"
-                  : "Ej. el cable HDMI estaba suelto detrás del proyector"
+                  : "Ej. el cable HDMI estaba suelto detrás del proyector y no llegaba la señal"
               }
             />
           </label>
@@ -441,13 +441,13 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
 
         {estado === "resuelto" && (
           <label>
-            ¿Qué hiciste para resolverlo?
+            Solución: ¿qué hiciste y cómo comprobaste que quedó bien?
             <textarea
               ref={campoNotas}
               rows={3}
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
-              placeholder="Ej. reinicié el switch del piso 3 y volvió el internet"
+              placeholder="Ej. reinicié el switch del piso 3 y comprobé que la laptop del docente cargara páginas"
             />
           </label>
         )}
