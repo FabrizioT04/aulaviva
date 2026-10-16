@@ -10,7 +10,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Registro rápido** (`/`): aula, tipo de falla, si bloquea la clase, docente, detalle y la hora real del mensaje de WhatsApp. Si TI ya lo atendió, se registra resuelto de una vez con la hora de llegada, la hora de solución y qué se hizo.
 - **Dashboard en vivo** (`/dashboard`): semáforo por aula (verde, amarillo, rojo) y lista de reportes abiertos ordenada por urgencia. Se actualiza sola por WebSocket. Toca un aula para ver su detalle.
 - **Detalle de aula** (`/aula/:id`): historial completo, tiempos promedio y cómo se resolvió cada caso.
-- **Observatorio** (`/observatorio`): incidencias, bloqueos y tiempos promedio de atención y resolución; incidencias por tipo de falla y aulas con más incidencias (7, 30 o 90 días).
+- **Observatorio** (`/observatorio`): incidencias, bloqueos y tiempos promedio de atención y resolución; incidencias por tipo de falla, por dónde llegan los reportes (QR impreso, escáner o lista de /docente, WhatsApp) y aulas con más incidencias (7, 30 o 90 días).
 - **Atender y resolver**: guarda `atendido_en` y `resuelto_en` (tus métricas de tiempo) y pide las notas de resolución, que serán la base del asistente RAG del Sprint 3.
 
 ### Sprint 2 · Autorreporte por QR
@@ -33,6 +33,7 @@ migrations/0003_fotos_multiples.sql  tabla foto_reporte (hasta 3 fotos por repor
 migrations/0004_causa.sql          columna causa: qué se encontró, aparte de qué se hizo
 migrations/0005_fichas.sql         tabla ficha (fichas de solución de TI)
 migrations/0006_secciones.sql      pabellón, nivel y sección de cada aula (cuadro de asignación 2026)
+migrations/0007_entrada.sql       por dónde llegó cada reporte del docente (QR impreso, escáner o lista)
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo

@@ -62,10 +62,15 @@ export interface DetalleAula {
   resumen: Promedios & { total: number };
 }
 
+// Por dónde llegó el reporte del docente (ver migrations/0007_entrada.sql)
+export const ENTRADAS = ["qr", "escaner", "lista"] as const;
+export type EntradaReporte = (typeof ENTRADAS)[number];
+
 export interface Metricas {
   dias: number;
   resumen: Promedios & { total: number; abiertos: number | null; bloqueantes: number | null };
   por_tipo: { tipo_falla: TipoFalla; n: number }[];
+  por_entrada: { entrada: EntradaReporte | "whatsapp"; n: number }[];
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
 }
 

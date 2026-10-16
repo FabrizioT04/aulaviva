@@ -30,6 +30,9 @@ const EJEMPLO: Record<TipoFalla, string> = {
 
 const app = document.getElementById("app")!;
 const codigo = decodeURIComponent(location.pathname.split("/")[2] ?? "");
+// Por dónde llegó el docente: /docente agrega ?via=lista o ?via=escaner; sin eso, escaneó el QR impreso
+const via = new URLSearchParams(location.search).get("via");
+const entrada = via === "lista" || via === "escaner" ? via : "qr";
 
 function minutos(m: number | null): string | null {
   if (m == null) return null;
@@ -226,7 +229,7 @@ function pintar(estado: EstadoAulaQr, aviso = "") {
     const res = await fetch(`/api/qr/${encodeURIComponent(codigo)}/reportes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo_falla: tipo, bloquea_clase: bloquea, descripcion: detalle }),
+      body: JSON.stringify({ tipo_falla: tipo, bloquea_clase: bloquea, descripcion: detalle, entrada }),
     }).catch(() => null);
 
     if (!res?.ok) {

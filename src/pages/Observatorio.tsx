@@ -4,6 +4,13 @@ import type { Metricas } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import { duracion, ETIQUETA_FALLA } from "../formato";
 
+const ENTRADA: Record<string, string> = {
+  qr: "QR impreso",
+  escaner: "Escáner de /docente",
+  lista: "Lista de /docente",
+  whatsapp: "WhatsApp (vía TI)",
+};
+
 const PERIODOS = [
   { dias: 7, etiqueta: "7 días" },
   { dias: 30, etiqueta: "30 días" },
@@ -115,6 +122,11 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
             titulo="Incidencias por tipo de falla"
             total={m.resumen.total}
             filas={m.por_tipo.map((t) => ({ clave: t.tipo_falla, etiqueta: ETIQUETA_FALLA[t.tipo_falla], n: t.n }))}
+          />
+          <Barras
+            titulo="Por dónde llegan los reportes"
+            total={m.resumen.total}
+            filas={m.por_entrada.map((e) => ({ clave: e.entrada, etiqueta: ENTRADA[e.entrada] ?? e.entrada, n: e.n }))}
           />
           <Barras
             titulo="Aulas con más incidencias"

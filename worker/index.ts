@@ -1,4 +1,5 @@
-import type { AulaConEstado, AulasDocente, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
+import { ENTRADAS } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EstadoAulaQr, EventoEnVivo, Sesion, TipoFalla } from "../shared/tipos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { accessConfigurado, obtenerSesion } from "./sesion";
 
@@ -118,7 +119,7 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
     const dias = Math.min(Math.max(Number(url.searchParams.get("dias")) || 30, 1), 365);
     const desde = `-${dias} days`;
     const filtro = `reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?)`;
-    const [resumen, porTipo, ranking] = await env.DB.batch([
+    const [resumen, porTipo, ranking, porEntrada] = await env.DB.batch([
       env.DB.prepare(
         `SELECT COUNT(*) AS total,
                 SUM(estado <> 'resuelto') AS abiertos,
@@ -136,11 +137,17 @@ async function enrutar(request: Request, url: URL, env: Env): Promise<Response> 
          WHERE r.${filtro}
          GROUP BY a.id ORDER BY n DESC, a.codigo LIMIT 10`,
       ).bind(desde),
+      // Los reportes por QR anteriores a la columna entrada vinieron todos del QR impreso
+      env.DB.prepare(
+        `SELECT CASE WHEN origen = 'whatsapp' THEN 'whatsapp' ELSE COALESCE(entrada, 'qr') END AS entrada, COUNT(*) AS n
+         FROM reporte WHERE ${filtro} GROUP BY 1 ORDER BY n DESC`,
+      ).bind(desde),
     ]);
     return json({
       dias,
       resumen: resumen.results[0],
       por_tipo: porTipo.results,
+      por_entrada: porEntrada.results,
       ranking_aulas: ranking.results,
     });
   }
@@ -354,11 +361,12 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): 
       .first<{ id: number; activo: number }>();
     if (!profesor?.activo) return json({ error: "Tu cuenta está desactivada para reportar" }, 403);
 
+    const entrada = ENTRADAS.includes(datos?.entrada as EntradaReporte) ? (datos!.entrada as EntradaReporte) : "qr";
     const creado = await env.DB.prepare(
-      `INSERT INTO reporte (aula_id, profesor_id, reportado_por_nombre, tipo_falla, bloquea_clase, descripcion, origen)
-       VALUES (?, ?, ?, ?, ?, ?, 'qr') RETURNING id`,
+      `INSERT INTO reporte (aula_id, profesor_id, reportado_por_nombre, tipo_falla, bloquea_clase, descripcion, origen, entrada)
+       VALUES (?, ?, ?, ?, ?, ?, 'qr', ?) RETURNING id`,
     )
-      .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion))
+      .bind(aula.id, profesor.id, sesion.email, tipo, datos?.bloquea_clase ? 1 : 0, texto(datos?.descripcion), entrada)
       .first<{ id: number }>();
     await avisarCambio(env, aula.id);
     return json(creado, 201);

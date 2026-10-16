@@ -28,7 +28,7 @@ function normalizar(t: string): string {
 
 function botonAula(a: AulaConEstado): string {
   const nombre = `Aula ${a.codigo}${a.seccion ? `, ${a.seccion}` : ""}, ${SEMAFORO[a.semaforo]}`;
-  return `<a class="aula-item ${a.semaforo}" href="/r/${encodeURIComponent(a.codigo)}" aria-label="${esc(nombre)}" data-buscar="${esc(normalizar(`${a.codigo} ${a.seccion ?? ""} ${a.nombre}`))}">
+  return `<a class="aula-item ${a.semaforo}" href="/r/${encodeURIComponent(a.codigo)}?via=lista" aria-label="${esc(nombre)}" data-buscar="${esc(normalizar(`${a.codigo} ${a.seccion ?? ""} ${a.nombre} ${a.nivel ?? ""} ${a.pabellon ? `pabellón ${a.pabellon}` : ""}`))}">
     <strong>${esc(a.codigo)}</strong>${a.seccion ? `<span>${esc(a.seccion)}</span>` : ""}<i aria-hidden="true"></i></a>`;
 }
 
@@ -73,14 +73,14 @@ function pintar(datos: AulasDocente | null, error = "") {
     </header>
     <button type="button" class="escanear" id="escanear">
       <span class="escanear-ic">${iconoSvg("qr")}</span>
-      <span class="escanear-texto"><strong>Escanear QR del aula</strong><small>Se abre la cámara aquí mismo</small></span>
+      <span class="escanear-texto"><strong>Escanear QR del aula</strong><small>Lo más rápido: apunta al QR del aula</small></span>
     </button>
     <p class="error" id="error-camara" role="alert"></p>
     <section class="tarjeta elegir">
       <h2>¿No puedes escanear? Elige tu aula</h2>
-      <label class="buscar">${iconoSvg("buscar")}<input id="buscar" type="search" inputmode="search" autocomplete="off" placeholder="Número o sección, ej. 204 o 4A" aria-label="Buscar aula por número o sección" /></label>
+      <label class="buscar">${iconoSvg("buscar")}<input id="buscar" type="search" inputmode="search" autocomplete="off" placeholder="Ej. 204, 4A o primaria" aria-label="Buscar aula por número, sección, nivel o pabellón" /></label>
       <div id="lista">${lista || `<p class="suave">${esc(error || "No hay aulas para mostrar.")}</p>`}</div>
-      <p class="suave" id="sin-resultados" hidden>No hay un aula con ese número o sección.</p>
+      <p class="suave" id="sin-resultados" hidden>No hay un aula con ese número, sección o nivel.</p>
     </section>
     <div id="instalar"></div>
     ${datos ? `<p class="pie">Conectado como ${esc(datos.email)}</p>` : ""}`;
@@ -112,7 +112,7 @@ function pintar(datos: AulasDocente | null, error = "") {
     try {
       const { escanearAula } = await import("./escaner");
       const codigo = await escanearAula();
-      if (codigo) return location.assign(`/r/${encodeURIComponent(codigo)}`);
+      if (codigo) return location.assign(`/r/${encodeURIComponent(codigo)}?via=escaner`);
     } catch (e) {
       errorCamara.textContent = e instanceof Error && e.name !== "TypeError" ? e.message : "No se pudo abrir la cámara. Elige tu aula de la lista.";
       document.getElementById("buscar")?.focus();
