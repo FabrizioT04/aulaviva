@@ -51,6 +51,7 @@ migrations/0014_espacios.sql       Welcome Lobby y Sala de docentes; qué comput
 migrations/0015_sala_docentes_piso.sql  la Sala de docentes está en el piso 2
 migrations/0016_danos.sql          daños de equipos tecnológicos y del local, con sus fotos
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
+seed/fichas-iniciales.sql     7 fichas de Base de conocimiento con pasos para el docente (se cargan una vez, no duplican)
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
 src/                          panel de TI en React (Registro, Dashboard, Detalle, Observatorio, QR)
