@@ -47,6 +47,15 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 @media (prefers-color-scheme: dark) { .boton-urgente { background: var(--rojo-suave); } }
 .aviso-elegir { margin: 10px 0 0; text-align: center; }
 .aviso-elegir[hidden] { display: none; }
+.aviso-duplicado { margin-top: 14px; padding: 14px 16px; border-radius: 16px; background: var(--primario-suave); color: var(--texto); }
+.aviso-duplicado[hidden] { display: none; }
+.aviso-duplicado p { margin: 0 0 8px; font-size: 0.92rem; }
+.aviso-duplicado p:last-child { margin: 8px 0 0; }
+.aviso-duplicado-titulo { display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--primario); }
+.aviso-duplicado-titulo .icono { width: 18px; height: 18px; flex: none; }
+.ver-estado { width: 100%; min-height: 42px; font: inherit; font-size: 0.92rem; font-weight: 700; color: var(--primario); background: var(--superficie); border: 1px solid var(--borde); border-radius: 999px; cursor: pointer; }
+.abiertos li.resaltado { animation: resaltar 1.6s ease-out; border-radius: 12px; }
+@keyframes resaltar { 0%, 40% { background: var(--primario-suave); } 100% { background: transparent; } }
 
 /* Detalle y fotos plegados: la mayoría de los reportes no los necesita */
 .extra { margin-bottom: 18px; }

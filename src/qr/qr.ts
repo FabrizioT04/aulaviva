@@ -95,7 +95,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
         <ul class="abiertos">${abiertos
           .map(
             (r) =>
-              `<li><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="insignia">Urgente</em>' : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
+              `<li data-tipo="${r.tipo_falla}"><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="insignia">Urgente</em>' : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
           )
           .join("")}</ul>
         ${enviado ? "" : '<p class="suave">TI ya fue avisado. Solo reporta si es otra falla.</p>'}
@@ -125,6 +125,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     <form id="form"${enviado ? " hidden" : ""}>
       <h2>¿Qué está fallando?</h2>
       <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false"><span class="ic">${iconoSvg(v)}</span>${e}</button>`).join("")}</div>
+      <div class="aviso-duplicado" id="aviso-duplicado" role="status" hidden></div>
       <details class="extra" id="extra">
         <summary>${iconoSvg("registrar")}<span id="titulo-extra">Agregar detalle o foto (opcional)</span></summary>
         <label><span id="etiqueta-detalle">Detalle (opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. desde cuándo pasa o qué ya probaste"></textarea></label>
@@ -207,7 +208,30 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     document.getElementById("titulo-extra")!.textContent = otro ? "Describe la falla" : "Agregar detalle o foto (opcional)";
     detalleCampo.placeholder = EJEMPLO[tipo];
     if (otro) extra.open = true;
+    avisarDuplicado();
   });
+
+  // Si ya hay un reporte abierto del mismo tipo, se avisa sin bloquear: puede ser otra falla del mismo equipo
+  const avisoDuplicado = document.getElementById("aviso-duplicado")!;
+  function avisarDuplicado() {
+    const previo = tipo && tipo !== "otro" ? abiertos.find((r) => r.tipo_falla === tipo) : undefined;
+    avisoDuplicado.hidden = !previo;
+    if (!previo) return;
+    const nombre = ETIQUETA[previo.tipo_falla];
+    avisoDuplicado.innerHTML = `
+      <p class="aviso-duplicado-titulo">${iconoSvg("info")}Ya existe un reporte de ${nombre}</p>
+      <p>TI ya tiene registrada una falla de ${nombre} en esta aula. Estado: <strong>${ESTADO[previo.estado] ?? previo.estado}</strong>.</p>
+      <button type="button" class="ver-estado" id="ver-estado">Ver estado del reporte</button>
+      <p class="suave">¿Es una falla diferente? Puedes avisar igual con los botones de abajo.</p>`;
+    document.getElementById("ver-estado")!.addEventListener("click", () => {
+      const fila = document.querySelector<HTMLElement>(`.abiertos li[data-tipo="${previo.tipo_falla}"]`);
+      if (!fila) return;
+      fila.scrollIntoView({ behavior: "smooth", block: "center" });
+      fila.classList.remove("resaltado");
+      void fila.offsetWidth;
+      fila.classList.add("resaltado");
+    });
+  }
 
   const form = document.getElementById("form") as HTMLFormElement;
   form.addEventListener("submit", (e) => e.preventDefault());
