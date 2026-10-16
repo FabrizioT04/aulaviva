@@ -36,6 +36,7 @@ migrations/0005_fichas.sql         tabla ficha (fichas de solución de TI)
 migrations/0006_secciones.sql      pabellón, nivel y sección de cada aula (cuadro de asignación 2026)
 migrations/0007_entrada.sql       por dónde llegó cada reporte del docente (QR impreso, escáner o lista)
 migrations/0008_push.sql          navegadores de TI suscritos a las notificaciones push
+migrations/0009_aula_207.sql      el aula 207 es un MediaLab (ML)
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
