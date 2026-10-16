@@ -113,6 +113,9 @@ export interface Metricas {
   por_tipo: { tipo_falla: TipoFalla; n: number }[];
   por_entrada: { entrada: EntradaReporte | EntradaTi; n: number }[];
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
+  por_dia: { dia: string; n: number }[]; // AAAA-MM-DD en hora de Lima; los días sin reportes no vienen
+  por_estado: { estado: "pendiente" | "escalado" | "resuelto"; n: number }[];
+  recurrentes: { id: number; codigo: string; nombre: string; tipo_falla: TipoFalla; n: number; ultima: string }[];
 }
 
 export interface Sesion {

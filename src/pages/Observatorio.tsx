@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { Ruta } from "../App";
 import type { Metricas } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
-import { duracion, ETIQUETA_FALLA } from "../formato";
+import Icono from "../Icono";
+import { duracion, ETIQUETA_FALLA, fechaCorta } from "../formato";
 
 const ENTRADA: Record<string, string> = {
   qr: "QR impreso",
@@ -32,12 +33,12 @@ interface Barra {
 }
 
 // Barras horizontales de una sola serie: el título nombra la medida, sin leyenda
-function Barras({ titulo, filas, total }: { titulo: string; filas: Barra[]; total: number }) {
+function Barras({ titulo, filas, total, vacio }: { titulo: string; filas: Barra[]; total: number; vacio: string }) {
   const max = Math.max(1, ...filas.map((f) => f.n));
   return (
     <section className="tarjeta">
       <h2>{titulo}</h2>
-      {filas.length === 0 && <p className="vacio">Sin datos en este periodo.</p>}
+      {filas.length === 0 && <p className="vacio">{vacio}</p>}
       <ul className="barras">
         {filas.map((f) => {
           const pct = total ? Math.round((f.n / total) * 100) : 0;
@@ -66,6 +67,100 @@ function Barras({ titulo, filas, total }: { titulo: string; filas: Barra[]; tota
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+// Fecha AAAA-MM-DD de Lima para un instante
+const diaLima = (d: Date) => new Date(d.getTime() - 5 * 3600_000).toISOString().slice(0, 10);
+const etiquetaDia = (dia: string, opciones: Intl.DateTimeFormatOptions) =>
+  new Date(`${dia}T12:00:00Z`).toLocaleDateString("es-PE", { timeZone: "UTC", ...opciones });
+
+// Columnas por día (7 y 30 días) o por semana (90 días), con los días sin reportes en cero
+function Tendencia({ dias, datos }: { dias: number; datos: Metricas["por_dia"] }) {
+  const porDia = new Map(datos.map((d) => [d.dia, d.n]));
+  const hoy = new Date();
+  const lista = Array.from({ length: dias }, (_, i) => diaLima(new Date(hoy.getTime() - (dias - 1 - i) * 86_400_000)));
+  const semanal = dias > 31;
+  const columnas: { clave: string; etiqueta: string; ayuda: string; n: number }[] = [];
+  if (semanal) {
+    for (let i = 0; i < lista.length; i += 7) {
+      const tramo = lista.slice(i, i + 7);
+      const n = tramo.reduce((s, d) => s + (porDia.get(d) ?? 0), 0);
+      const desde = etiquetaDia(tramo[0], { day: "numeric", month: "short" });
+      columnas.push({ clave: tramo[0], etiqueta: desde, ayuda: `Semana del ${desde}: ${n} incidencias`, n });
+    }
+  } else {
+    for (const d of lista) {
+      const n = porDia.get(d) ?? 0;
+      columnas.push({
+        clave: d,
+        etiqueta: etiquetaDia(d, dias <= 7 ? { weekday: "short", day: "numeric" } : { day: "numeric", month: "short" }),
+        ayuda: `${etiquetaDia(d, { weekday: "long", day: "numeric", month: "long" })}: ${n} incidencias`,
+        n,
+      });
+    }
+  }
+  const max = Math.max(1, ...columnas.map((c) => c.n));
+  const total = columnas.reduce((s, c) => s + c.n, 0);
+  // En 30 días no caben todas las fechas: se muestra una de cada cinco
+  const cada = columnas.length > 14 ? 5 : 1;
+  return (
+    <section className="tarjeta">
+      <h2>Incidencias {semanal ? "por semana" : "por día"}</h2>
+      {total === 0 ? (
+        <p className="vacio">Aquí verás cuántas incidencias llegan cada {semanal ? "semana" : "día"} cuando se registren las primeras.</p>
+      ) : (
+        <>
+          <div className="tendencia" role="img" aria-label={`${total} incidencias; el máximo fue ${max} en ${semanal ? "una semana" : "un día"}`}>
+            <span className="tendencia-max">{max}</span>
+            {columnas.map((c, i) => (
+              <div key={c.clave} className="tendencia-col" data-ayuda={c.ayuda} tabIndex={0} aria-label={c.ayuda}>
+                <span className="tendencia-barra" style={{ height: `${(c.n / max) * 100}%` }} data-vacia={c.n === 0 || undefined} />
+                <small className={(columnas.length - 1 - i) % cada === 0 ? "" : "oculta"}>{c.etiqueta}</small>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+const ESTADOS: { clave: "resuelto" | "pendiente" | "escalado"; etiqueta: string }[] = [
+  { clave: "resuelto", etiqueta: "Resueltas" },
+  { clave: "pendiente", etiqueta: "Pendientes" },
+  { clave: "escalado", etiqueta: "Escaladas a GLPI" },
+];
+
+// Cómo quedaron las incidencias del periodo: una barra apilada con su leyenda y números
+function Estados({ datos }: { datos: Metricas["por_estado"] }) {
+  const n = (clave: string) => datos.find((d) => d.estado === clave)?.n ?? 0;
+  const total = ESTADOS.reduce((s, e) => s + n(e.clave), 0);
+  return (
+    <section className="tarjeta">
+      <h2>Cómo quedaron</h2>
+      {total === 0 ? (
+        <p className="vacio">Aquí verás cuántas se resolvieron, siguen pendientes o se escalaron a GLPI.</p>
+      ) : (
+        <>
+          <div className="apilada" role="img" aria-label={ESTADOS.map((e) => `${e.etiqueta}: ${n(e.clave)}`).join(", ")}>
+            {ESTADOS.filter((e) => n(e.clave) > 0).map((e) => (
+              <span key={e.clave} className={`tramo ${e.clave}`} style={{ flexGrow: n(e.clave) }} title={`${e.etiqueta}: ${n(e.clave)}`} />
+            ))}
+          </div>
+          <ul className="leyenda-estados">
+            {ESTADOS.map((e) => (
+              <li key={e.clave}>
+                <i className={`muestra-estado ${e.clave}`} />
+                {e.etiqueta}
+                <strong>{n(e.clave)}</strong>
+                <small>{Math.round((n(e.clave) / total) * 100)}%</small>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }
@@ -123,18 +218,51 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
             </div>
           </section>
 
+          <Tendencia dias={dias} datos={m.por_dia} />
+          <Estados datos={m.por_estado} />
+
+          <section className="tarjeta">
+            <h2>Fallas que se repiten</h2>
+            <p className="nota-seccion">La misma falla 3 veces o más en un aula durante el periodo: conviene revisar el equipo.</p>
+            {m.recurrentes.length === 0 ? (
+              <p className="vacio">Ninguna falla se repitió 3 veces en la misma aula en este periodo.</p>
+            ) : (
+              <ul className="recurrentes">
+                {m.recurrentes.map((r) => (
+                  <li key={`${r.id}-${r.tipo_falla}`}>
+                    <button onClick={() => ir({ pantalla: "aula", id: r.id })}>
+                      <span className={`tipo-icono ${r.tipo_falla}`}>
+                        <Icono nombre={r.tipo_falla} />
+                      </span>
+                      <span>
+                        <strong>
+                          {r.nombre} · {ETIQUETA_FALLA[r.tipo_falla]}
+                        </strong>
+                        <small>Última: {fechaCorta(r.ultima)}</small>
+                      </span>
+                      <span className="veces">{r.n} veces</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <Barras
+            vacio="Aquí verás qué fallas son más comunes cuando se registren las primeras incidencias."
             titulo="Incidencias por tipo de falla"
             total={m.resumen.total}
             filas={m.por_tipo.map((t) => ({ clave: t.tipo_falla, etiqueta: ETIQUETA_FALLA[t.tipo_falla], n: t.n }))}
           />
           <Barras
+            vacio="Aquí verás si los reportes llegan más por el QR, por /docente o por WhatsApp."
             titulo="Por dónde llegan los reportes"
             total={m.resumen.total}
             filas={m.por_entrada.map((e) => ({ clave: e.entrada, etiqueta: ENTRADA[e.entrada] ?? e.entrada, n: e.n }))}
           />
           <Barras
-            titulo="Aulas con más incidencias"
+            vacio="Aquí verás las cinco aulas con más incidencias del periodo."
+            titulo="Las 5 aulas con más incidencias"
             total={m.resumen.total}
             filas={m.ranking_aulas.map((a) => ({
               clave: String(a.id),

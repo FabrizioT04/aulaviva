@@ -272,6 +272,41 @@ fieldset .segmentado { display: flex; }
 
 /* Observatorio */
 .observatorio .tarjeta { margin-bottom: 20px; }
+.nota-seccion { margin: -6px 0 12px; color: var(--suave); font-size: 0.88rem; }
+
+/* Tendencia: una columna por día o semana, una sola serie (sin leyenda) */
+.tendencia { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 180px; padding: 18px 0 0; border-bottom: 1px solid var(--borde); }
+.tendencia-max { position: absolute; top: 0; left: 0; font-size: 0.72rem; color: var(--tenue); }
+.tendencia-col { position: relative; flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; outline: none; }
+.tendencia-barra { display: block; width: 100%; max-width: 28px; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--primario); }
+.tendencia-barra[data-vacia] { background: var(--borde); }
+.tendencia-col small { position: absolute; top: calc(100% + 6px); font-size: 0.7rem; color: var(--suave); white-space: nowrap; }
+.tendencia-col small.oculta { visibility: hidden; }
+.tendencia { margin-bottom: 26px; }
+.tendencia-col:hover .tendencia-barra, .tendencia-col:focus-visible .tendencia-barra { filter: brightness(1.15); }
+.tendencia-col:hover::after, .tendencia-col:focus-visible::after { content: attr(data-ayuda); position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); z-index: 2; padding: 6px 10px; border-radius: 8px; background: var(--texto); color: var(--superficie); font-size: 0.78rem; font-weight: 600; white-space: nowrap; pointer-events: none; }
+.tendencia-col:first-of-type:hover::after, .tendencia-col:nth-of-type(2):hover::after { left: 0; transform: none; }
+.tendencia-col:last-child:hover::after, .tendencia-col:nth-last-child(2):hover::after { left: auto; right: 0; transform: none; }
+
+/* Cómo quedaron: barra apilada con 2px de separación */
+.apilada { display: flex; gap: 2px; height: 14px; margin-bottom: 14px; }
+.apilada .tramo { min-width: 6px; border-radius: 4px; }
+.tramo.resuelto, .muestra-estado.resuelto { background: var(--verde-punto); }
+.tramo.pendiente, .muestra-estado.pendiente { background: var(--amarillo-fuerte); }
+.tramo.escalado, .muestra-estado.escalado { background: #7c3aed; }
+@media (prefers-color-scheme: dark) { .tramo.escalado, .muestra-estado.escalado { background: #b392f5; } }
+.leyenda-estados { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 0.9rem; }
+.leyenda-estados li { display: flex; align-items: center; gap: 8px; }
+.leyenda-estados small { color: var(--suave); }
+.muestra-estado { width: 10px; height: 10px; border-radius: 3px; }
+
+.recurrentes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.recurrentes button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: 100%; padding: 8px; border: 0; background: transparent; text-align: left; border-radius: 12px; font-weight: 500; }
+.recurrentes button:hover { background: var(--superficie-2); border: 0; }
+.recurrentes button > span:nth-child(2) { display: grid; }
+.recurrentes small { color: var(--suave); }
+.recurrentes .veces { font-weight: 800; font-variant-numeric: tabular-nums; }
+.recurrentes .tipo-icono { width: 38px; height: 38px; border-radius: 11px; }
 .barras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .barra-fila { display: grid; grid-template-columns: 96px 1fr 40px; align-items: center; gap: 14px; width: 100%; padding: 8px; min-height: 0; border: 0; background: transparent; text-align: left; border-radius: 10px; font-weight: 500; }
 button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2); border: 0; }

@@ -129,7 +129,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     const dias = Math.min(Math.max(Number(url.searchParams.get("dias")) || 30, 1), 365);
     const desde = `-${dias} days`;
     const filtro = `reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?)`;
-    const [resumen, porTipo, ranking, porEntrada] = await env.DB.batch([
+    const [resumen, porTipo, ranking, porEntrada, porDia, porEstado, recurrentes] = await env.DB.batch([
       env.DB.prepare(
         `SELECT COUNT(*) AS total,
                 SUM(estado <> 'resuelto') AS abiertos,
@@ -146,12 +146,27 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
         `SELECT a.id, a.codigo, a.nombre, COUNT(r.id) AS n
          FROM reporte r JOIN aula a ON a.id = r.aula_id
          WHERE r.${filtro}
-         GROUP BY a.id ORDER BY n DESC, a.codigo LIMIT 10`,
+         GROUP BY a.id ORDER BY n DESC, a.codigo LIMIT 5`,
       ).bind(desde),
       // Los reportes anteriores a la columna entrada: los de TI llegaron por WhatsApp y los del docente por el QR impreso
       env.DB.prepare(
         `SELECT COALESCE(entrada, CASE WHEN origen = 'whatsapp' THEN 'whatsapp' ELSE 'qr' END) AS entrada, COUNT(*) AS n
          FROM reporte WHERE ${filtro} GROUP BY 1 ORDER BY n DESC`,
+      ).bind(desde),
+      // Por día de Lima (UTC-5, sin horario de verano)
+      env.DB.prepare(
+        `SELECT date(reportado_en, '-5 hours') AS dia, COUNT(*) AS n FROM reporte WHERE ${filtro} GROUP BY 1 ORDER BY 1`,
+      ).bind(desde),
+      env.DB.prepare(
+        `SELECT CASE WHEN estado IN ('resuelto', 'escalado') THEN estado ELSE 'pendiente' END AS estado, COUNT(*) AS n
+         FROM reporte WHERE ${filtro} GROUP BY 1`,
+      ).bind(desde),
+      // La misma falla 3 veces o más en un aula: candidata a mantenimiento o cambio de equipo
+      env.DB.prepare(
+        `SELECT a.id, a.codigo, a.nombre, r.tipo_falla, COUNT(*) AS n, MAX(r.reportado_en) AS ultima
+         FROM reporte r JOIN aula a ON a.id = r.aula_id
+         WHERE r.${filtro}
+         GROUP BY a.id, r.tipo_falla HAVING COUNT(*) >= 3 ORDER BY n DESC, ultima DESC LIMIT 8`,
       ).bind(desde),
     ]);
     return json({
@@ -160,6 +175,9 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       por_tipo: porTipo.results,
       por_entrada: porEntrada.results,
       ranking_aulas: ranking.results,
+      por_dia: porDia.results,
+      por_estado: porEstado.results,
+      recurrentes: recurrentes.results,
     });
   }
 
