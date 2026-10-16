@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
+import { sugerirTipo } from "../../shared/sugerencia";
 import type { AulaConEstado, DetalleAula, EntradaTi, EstadoReporte, Reporte, TipoFalla } from "../../shared/tipos";
 import type { Ruta } from "../App";
 import { api, NoAutorizado } from "../api";
@@ -78,6 +79,8 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
     };
   }, [aulaId]);
 
+  // Si el detalle habla de otra falla que la elegida, se sugiere cambiarla
+  const sugerido = sugerirTipo(descripcion, tipo);
   const delTipo = tipo ? historial.filter((r) => r.tipo_falla === tipo) : [];
   const abiertos = delTipo.filter((r) => r.estado !== "resuelto");
   const anteriores = delTipo.filter((r) => r.estado === "resuelto" && (r.causa || r.notas_resolucion)).slice(0, 3);
@@ -306,6 +309,21 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
             placeholder="Ej. el proyector enciende pero no muestra imagen"
           />
         </label>
+        {sugerido && (
+          <p className="sugerencia" role="status">
+            Lo que escribiste parece una falla de <strong>{ETIQUETA_FALLA[sugerido]}</strong>.{" "}
+            <button
+              type="button"
+              className="enlace"
+              onClick={() => {
+                if (!TIPOS_PRINCIPALES.includes(sugerido)) setMasTipos(true);
+                setTipo(sugerido);
+              }}
+            >
+              Cambiar a {ETIQUETA_FALLA[sugerido]}
+            </button>
+          </p>
+        )}
 
         <h2 className="seccion-form">2. Atención técnica</h2>
         <fieldset>

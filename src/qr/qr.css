@@ -53,6 +53,9 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .aviso-elegir { margin: 10px 0 0; text-align: center; }
 .aviso-elegir[hidden] { display: none; }
 .aviso-duplicado { margin-top: 14px; padding: 14px 16px; border-radius: 16px; background: var(--primario-suave); color: var(--texto); }
+.sugerencia { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--primario-suave); color: var(--texto); font-size: 0.95rem; line-height: 1.4; }
+.sugerencia[hidden] { display: none; }
+.sugerencia button { display: inline; margin-left: 4px; padding: 0; border: 0; background: none; color: var(--primario); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; min-height: 0; }
 .aviso-duplicado[hidden] { display: none; }
 .aviso-duplicado p { margin: 0 0 8px; font-size: 0.92rem; }
 .aviso-duplicado p:last-child { margin: 8px 0 0; }

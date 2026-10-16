@@ -429,3 +429,5 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 @media (prefers-color-scheme: dark) {
   .selector-tema button.activo { color: var(--primario); box-shadow: 0 0 0 1px rgb(138 180 255 / 0.45), 0 0 14px -4px rgb(138 180 255 / 0.6); }
 }
+.sugerencia { margin: -4px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--primario-suave); font-size: 0.92rem; }
+.sugerencia .enlace { min-height: 0; padding: 0; font-weight: 700; }
