@@ -17,6 +17,21 @@ declare global {
 
 export class SinCamara extends Error {}
 
+// Mensaje según por qué no abrió la cámara, para que el docente sepa qué hacer
+function motivoSinCamara(e: unknown): string {
+  const nombre = e instanceof DOMException ? e.name : "";
+  if (nombre === "NotAllowedError" || nombre === "SecurityError") {
+    return "El navegador no tiene permiso para usar la cámara. Toca el candado junto a la dirección, permite la cámara y vuelve a intentarlo, o elige tu aula de la lista.";
+  }
+  if (nombre === "NotFoundError" || nombre === "OverconstrainedError") {
+    return "No encontramos una cámara en este equipo. Elige tu aula de la lista.";
+  }
+  if (nombre === "NotReadableError" || nombre === "AbortError") {
+    return "Otra app está usando la cámara. Ciérrala y vuelve a intentarlo, o elige tu aula de la lista.";
+  }
+  return "No se pudo abrir la cámara. Elige tu aula de la lista.";
+}
+
 // El QR impreso lleva la dirección completa del aula: https://…/r/204
 export function codigoDeQr(texto: string): string | null {
   try {
@@ -54,7 +69,7 @@ async function crearLector(): Promise<(video: HTMLVideoElement) => Promise<strin
 
 // Abre la cámara a pantalla completa. Devuelve el código del aula leído, o null si el docente cancela.
 export async function escanearAula(): Promise<string | null> {
-  if (!navigator.mediaDevices?.getUserMedia) throw new SinCamara("Este navegador no permite usar la cámara.");
+  if (!navigator.mediaDevices?.getUserMedia) throw new SinCamara("Este navegador no permite usar la cámara aquí. Elige tu aula de la lista.");
 
   const capa = document.createElement("div");
   capa.className = "escaner";
@@ -101,10 +116,10 @@ export async function escanearAula(): Promise<string | null> {
           video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
           audio: false,
         });
-      } catch {
+      } catch (e) {
         cerrar();
         document.removeEventListener("keydown", tecla);
-        return rechazar(new SinCamara("No se pudo abrir la cámara. Dale permiso al navegador o elige tu aula de la lista."));
+        return rechazar(new SinCamara(motivoSinCamara(e)));
       }
       if (!activo) return flujo.getTracks().forEach((t) => t.stop());
       video.srcObject = flujo;
