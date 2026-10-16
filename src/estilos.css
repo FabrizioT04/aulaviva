@@ -328,6 +328,10 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .qr figcaption strong { font-size: 1.15rem; font-weight: 800; }
 .qr figcaption span { font-size: 0.72rem; color: #5f6672; }
 .qr figcaption em { font-style: normal; font-size: 0.65rem; font-weight: 700; color: #2f5bea; margin-top: 2px; }
+.acciones-una { display: flex; justify-content: center; gap: 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #e6e8ee; font-size: 0.82rem; font-weight: 700; }
+.acciones-una a { color: #2f5bea; text-decoration: none; }
+.acciones-una .enlace { color: #2f5bea; font-size: inherit; }
+.imprimir-qr .buscador { margin-bottom: 14px; }
 
 @media print {
   .cabecera-app, .barra, .no-imprimir { display: none !important; }
@@ -336,6 +340,12 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
   main, .app > main { max-width: none; padding: 0; }
   .hoja-qr { grid-template-columns: repeat(3, 1fr); gap: 8mm; }
   .qr { border: 1px dashed #94a3b8; border-radius: 0; }
+  /* Un solo QR: grande y centrado, para pegarlo en la puerta del aula */
+  .hoja-qr.solo { grid-template-columns: 1fr; justify-items: center; padding-top: 20mm; }
+  .hoja-qr.solo .qr { width: 140mm; padding: 10mm; border: 0; }
+  .hoja-qr.solo .qr figcaption strong { font-size: 26pt; }
+  .hoja-qr.solo .qr figcaption span { font-size: 13pt; }
+  .hoja-qr.solo .qr figcaption em { font-size: 10pt; }
 }
 
 /* Fichas de solución */

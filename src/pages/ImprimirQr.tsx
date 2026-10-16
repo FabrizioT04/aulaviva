@@ -12,6 +12,21 @@ interface Props {
 // Hoja con un QR por aula, lista para imprimir y pegar junto a la puerta o el proyector
 export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
   const [qrs, setQrs] = useState<{ aula: AulaConEstado; svg: string; url: string }[]>([]);
+  const [busqueda, setBusqueda] = useState("");
+  // Aula que se imprime sola, en tamaño grande para pegarla en la puerta
+  const [solo, setSolo] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (solo == null) return;
+    const listo = () => setSolo(null);
+    addEventListener("afterprint", listo);
+    // Espera a que React pinte la hoja con un solo QR antes de abrir el diálogo de impresión
+    const t = setTimeout(() => print(), 50);
+    return () => {
+      clearTimeout(t);
+      removeEventListener("afterprint", listo);
+    };
+  }, [solo]);
 
   useEffect(() => {
     let cancelado = false;
@@ -37,23 +52,42 @@ export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
     };
   }, [onNoAutorizado]);
 
+  const buscado = busqueda.trim().toLowerCase();
+  const visibles = qrs.filter(
+    ({ aula }) =>
+      solo === aula.id ||
+      (solo == null &&
+        (!buscado || [aula.codigo, aula.nombre, aula.seccion ?? "", aula.nivel ?? ""].some((v) => v.toLowerCase().includes(buscado)))),
+  );
+
   return (
     <div className="imprimir-qr">
       <div className="no-imprimir acciones-qr">
         <button className="volver" onClick={() => ir({ pantalla: "dashboard" })}>
           <Icono nombre="volver" /> Dashboard
         </button>
-        <button className="primario" onClick={() => print()} disabled={!qrs.length}>
-          Imprimir {qrs.length} QR
+        <button className="primario" onClick={() => print()} disabled={!visibles.length}>
+          Imprimir {visibles.length === qrs.length ? `los ${qrs.length}` : visibles.length} QR
         </button>
       </div>
+      <label className="buscador no-imprimir">
+        <Icono nombre="buscar" />
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar aula: 204, 4A, primaria…"
+          aria-label="Buscar aula"
+        />
+      </label>
       <p className="no-imprimir vacio">
-        Cada QR abre la página de reporte de su aula. Imprímelos después de publicar la app, para que apunten a la
-        dirección final.
+        Cada QR abre la página de reporte de su aula en {location.host}. "Probar" la abre como la verá el docente, e
+        "Imprimir este" saca solo ese QR en tamaño grande para la puerta.
       </p>
       {!qrs.length && <p className="vacio">Generando QR…</p>}
-      <section className="hoja-qr">
-        {qrs.map(({ aula, svg }) => (
+      {qrs.length > 0 && visibles.length === 0 && <p className="vacio">Ninguna aula coincide con "{busqueda}".</p>}
+      <section className={solo == null ? "hoja-qr" : "hoja-qr solo"}>
+        {visibles.map(({ aula, svg, url }) => (
           <figure key={aula.id} className="qr">
             <div className="qr-imagen" dangerouslySetInnerHTML={{ __html: svg }} />
             <figcaption>
@@ -64,6 +98,14 @@ export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
               <span>Escanea para reportar una falla a TI</span>
               <em>AulaViva · Soporte TI</em>
             </figcaption>
+            <div className="acciones-una no-imprimir">
+              <a href={url} target="_blank" rel="noopener">
+                Probar
+              </a>
+              <button type="button" className="enlace" onClick={() => setSolo(aula.id)}>
+                Imprimir este
+              </button>
+            </div>
           </figure>
         ))}
       </section>
