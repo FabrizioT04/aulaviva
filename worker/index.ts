@@ -343,13 +343,16 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion): 
     const tipo = datos?.tipo_falla as TipoFalla;
     if (!TIPOS_FALLA.includes(tipo)) return json({ error: "Elige el tipo de falla" }, 400);
 
-    // Evita reportes duplicados de la misma falla mientras siga abierta
+    // Evita reportes duplicados de la misma falla mientras siga abierta. Si el docente explica
+    // en qué es diferente (otra PC del aula, por ejemplo), se acepta como un reporte nuevo
     const repetido = await env.DB.prepare(
       `SELECT id FROM reporte WHERE aula_id = ? AND tipo_falla = ? AND estado <> 'resuelto' LIMIT 1`,
     )
       .bind(aula.id, tipo)
       .first();
-    if (repetido) return json({ error: "Esta falla ya está reportada y TI ya fue avisado" }, 409);
+    if (repetido && !texto(datos?.descripcion)) {
+      return json({ error: "Esta falla ya está reportada. Si es otra, cuenta en qué es diferente." }, 409);
+    }
 
     // El docente queda registrado en la tabla profesor la primera vez que reporta
     const profesor = await env.DB.prepare(
