@@ -88,6 +88,7 @@ function cabecera(aula: EstadoAulaQr["aula"]): string {
         </div>
         <div class="cubo-escena" aria-hidden="true"><div class="cubo ${aula.semaforo}">${esc(aula.codigo)}</div></div>
       </div>
+      <a class="cambiar-aula" href="/docente">${iconoSvg("volver")}¿No es tu aula? Cambiar de aula</a>
     </header>`;
 }
 

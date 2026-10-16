@@ -138,6 +138,9 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .enlace-dano .icono { flex: none; width: 20px; height: 20px; color: var(--suave); }
 .volver-ti { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 14px; padding: 6px 0; border: 0; background: none; color: var(--primario); font: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
 .volver-ti .icono { width: 18px; height: 18px; }
+/* Por si escanearon el QR de otra aula: vuelve al inicio del docente */
+.cambiar-aula { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-top: 12px; padding: 6px 0; color: var(--primario); font-size: 0.92rem; font-weight: 700; text-decoration: none; }
+.cambiar-aula .icono { width: 18px; height: 18px; }
 .opciones-dano button { min-height: 96px; }
 .chips-dano { display: flex; flex-wrap: wrap; gap: 8px; margin: -10px 0 18px; }
 .chips-dano[hidden], .campos-chromebook[hidden] { display: none; }
