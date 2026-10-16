@@ -83,7 +83,7 @@ function pintar(datos: AulasDocente | null, error = "") {
       const conReporte = aulas.filter((a) => a.semaforo !== "verde").length;
       const info = `${aulas.length} ${aulas.length === 1 ? "aula" : "aulas"}${conReporte ? ` · ${conReporte} con reporte` : ""}`;
       return `<details class="grupo-piso" data-piso="${esc(piso)}"${pisosAbiertos.has(piso) ? " open" : ""}>
-        <summary><span class="piso-nombre">${piso}</span><span class="piso-info">${info}</span>${iconoSvg("abajo")}</summary>
+        <summary><span class="piso-nombre">${piso}</span><span class="piso-info" data-total="${esc(info)}">${info}</span>${iconoSvg("abajo")}</summary>
         <div class="aulas-docente">${aulas.map(botonAula).join("")}</div></details>`;
     })
     .join("");
@@ -127,6 +127,9 @@ function pintar(datos: AulasDocente | null, error = "") {
       grupo.hidden = enGrupo === 0;
       // Al buscar se abren los pisos con resultados; al borrar vuelven como el docente los dejó
       grupo.open = q ? enGrupo > 0 : pisosAbiertos.has(grupo.dataset.piso!);
+      // Mientras busca, el encabezado cuenta las coincidencias del piso, no todas sus aulas
+      const info = grupo.querySelector<HTMLElement>(".piso-info")!;
+      info.textContent = q ? `${enGrupo} ${enGrupo === 1 ? "coincidencia" : "coincidencias"}` : info.dataset.total!;
       visibles += enGrupo;
     }
     document.getElementById("sin-resultados")!.hidden = visibles > 0 || !datos?.aulas.length;
