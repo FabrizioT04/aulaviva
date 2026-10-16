@@ -294,7 +294,7 @@ function FormFicha({ inicial, onGuardar, onCancelar }: FormProps) {
         <textarea
           {...campo("pasos_docente")}
           rows={4}
-          placeholder={"Revisa que el cable HDMI esté bien conectado\nPresiona Windows + P y elige Duplicar"}
+          placeholder={"Revisa que el cable HDMI esté bien conectado\nPresiona Super + P hasta que la imagen salga en el proyector"}
         />
         <small className="nota-campo">
           El docente ve estos pasos en el QR al elegir esta falla, antes de avisar a TI. Solo pasos seguros: nada de abrir

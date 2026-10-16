@@ -122,7 +122,7 @@ export default function Notificaciones() {
       return avisar(
         esIphone()
           ? "En iPhone, primero agrega el panel a la pantalla de inicio (Compartir → Agregar a inicio) y ábrelo desde ahí."
-          : "Este navegador no permite notificaciones. Prueba con Chrome o Edge.",
+          : "Este navegador no permite notificaciones. Prueba con Chrome o Firefox.",
       );
     }
     if (estado === "sin-claves") return avisar("Falta configurar las claves de notificaciones en el servidor (npm run push:claves).");

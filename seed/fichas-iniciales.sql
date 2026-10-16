@@ -2,15 +2,15 @@
 -- Solo pasos seguros para el docente: nada de abrir equipos, tocar la instalación eléctrica
 -- ni cambiar configuraciones de red. Si ya existe una ficha con el mismo título, no se duplica.
 -- Se pueden editar después en Base de conocimiento.
--- Equipos de la sede: laptops Lenovo K14; proyectores Epson PowerLite X49 o X119 (algunos ViewSonic).
+-- Equipos de la sede: laptops Lenovo K14 con Ubuntu Desktop; proyectores Epson PowerLite X49 o X119 (algunos ViewSonic).
 
 INSERT INTO ficha (tipo_falla, titulo, sintomas, causas_posibles, pasos_docente, pasos_ti, cuando_llamar_ti)
 SELECT 'internet',
     'La laptop no tiene internet',
     'No carga ninguna página o sale "Sin conexión"',
     'WiFi apagado en la laptop, conectada a otra red, router del aula sin energía',
-    'Revisa que el WiFi de la laptop esté activado (ícono abajo a la derecha)
-Desconéctate y vuelve a conectarte a la red de docentes del colegio
+    'Abre el menú de arriba a la derecha (donde están la red, el volumen y la batería) y revisa que el Wi-Fi esté activado
+En ese menú, entra en Wi-Fi y vuelve a conectarte a la red de docentes del colegio
 Reinicia la laptop',
     'Revisar el router o access point del aula
 Verificar en la consola si el equipo tiene IP asignada
@@ -22,9 +22,9 @@ INSERT INTO ficha (tipo_falla, titulo, sintomas, causas_posibles, pasos_docente,
 SELECT 'internet', 'Una página no carga pero las demás sí',
     'Solo una página o plataforma no abre',
     'La página está caída, el navegador guardó una versión antigua',
-    'Recarga la página con Ctrl + F5
+    'Recarga la página con Ctrl + Shift + R
 Cierra el navegador por completo y vuelve a abrirlo
-Prueba abrir la página en otro navegador (Chrome o Edge)',
+Prueba abrir la página en otro navegador (Firefox o Chrome)',
     'Revisar si la página está bloqueada por el filtro de contenido
 Limpiar caché y cookies del navegador',
     'Si la página sigue sin abrir en ningún navegador'
@@ -35,7 +35,7 @@ SELECT 'proyector', 'El proyector dice "Sin señal"',
     'El proyector prende pero no muestra la pantalla de la laptop',
     'Cable HDMI suelto, entrada equivocada en el proyector, la laptop no está duplicando pantalla',
     'Revisa que el cable HDMI esté bien conectado en la laptop y en la pared
-En la laptop, presiona Windows + P y elige Duplicar
+En la laptop, presiona la tecla Super (la del logo, junto a Alt) + P hasta que la imagen salga en el proyector
 En el control del proyector Epson, presiona Source Search y espera unos segundos (en ViewSonic, el botón Source)
 Si el proyector está prendido pero la imagen sale en negro, presiona A/V Mute en el control o abre la tapa del lente',
     'Revisar el cable HDMI detrás del proyector
@@ -74,8 +74,8 @@ INSERT INTO ficha (tipo_falla, titulo, sintomas, causas_posibles, pasos_docente,
 SELECT 'audio', 'No se escucha el audio',
     'El video o la presentación no tiene sonido',
     'Volumen en silencio, salida de audio equivocada, parlantes apagados',
-    'Revisa que la laptop no esté en silencio y sube el volumen
-Haz clic en el ícono de volumen y elige los parlantes del aula como salida
+    'Abre el menú de arriba a la derecha, revisa que no esté en silencio y sube el volumen
+Abre Configuración > Sonido y en Salida elige los parlantes del aula (o HDMI si el sonido sale por el proyector)
 Revisa que los parlantes estén prendidos y con el volumen arriba',
     'Revisar el cable de audio o la conexión Bluetooth
 Revisar el driver de audio

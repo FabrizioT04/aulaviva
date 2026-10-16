@@ -50,6 +50,7 @@ migrations/0013_asistencia_guiada.sql  autosoluciones del docente y la ficha que
 migrations/0014_espacios.sql       Welcome Lobby y Sala de docentes; qué computadora hay en cada ambiente (laptop o AIO)
 migrations/0015_sala_docentes_piso.sql  la Sala de docentes está en el piso 2
 migrations/0016_danos.sql          daños de equipos tecnológicos y del local, con sus fotos
+migrations/0017_fichas_ubuntu.sql  pasos de las fichas iniciales para Ubuntu Desktop (solo si no se editaron)
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 seed/fichas-iniciales.sql     7 fichas de Base de conocimiento con pasos para el docente (se cargan una vez, no duplican)
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
