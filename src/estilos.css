@@ -457,11 +457,11 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .dano .acciones, .cerrar-dano .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .dano .acciones .primario { width: auto; }
 .cerrar-dano { margin-top: 12px; display: grid; gap: 8px; }
-.tipo-icono.area-coa { background: #eef2ff; color: #2f5bea; }
-.tipo-icono.area-mantenimiento { background: #fff4e5; color: #b45309; }
+.tipo-icono.grupo-tecnologia { background: #eef2ff; color: #2f5bea; }
+.tipo-icono.grupo-local { background: #fff4e5; color: #b45309; }
 @media (prefers-color-scheme: dark) {
-  .tipo-icono.area-coa { background: #1a2340; color: #8fa8ff; }
-  .tipo-icono.area-mantenimiento { background: #3a2a12; color: #f5b45c; }
+  .tipo-icono.grupo-tecnologia { background: #1a2340; color: #8fa8ff; }
+  .tipo-icono.grupo-local { background: #3a2a12; color: #f5b45c; }
 }
 .insignia.estado-dano.pendiente { background: var(--amarillo-suave); color: var(--amarillo); }
 .insignia.estado-dano.en_proceso { background: var(--primario-suave); color: var(--primario); }

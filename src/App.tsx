@@ -54,11 +54,10 @@ const PESTANAS: {
   { pantalla: "qr", etiqueta: "QR de aulas", icono: "qr", soloPc: true },
 ];
 
-// COA y Mantenimiento solo usan Daños y mantenimiento
+// COA / Mantenimiento solo usa Daños y mantenimiento
 const AREA_USUARIO: Record<string, string> = {
   ti: "Área de TI",
-  coa: "COA",
-  mantenimiento: "Mantenimiento",
+  coa: "COA / Mantenimiento",
 };
 
 function rutaActual(): Ruta {

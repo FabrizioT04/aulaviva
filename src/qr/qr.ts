@@ -5,8 +5,8 @@ import { etiquetaFalla, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipo
 import { sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import { comprimir } from "../comprimir";
-import { ETIQUETA_AREA, GRUPO_DANO, TIPOS_DANO, tiposDe } from "../../shared/danos";
-import type { AreaDano, TipoDano } from "../../shared/danos";
+import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, GRUPO_DANO, TIPOS_DANO, tiposDe } from "../../shared/danos";
+import type { GrupoDano, TipoDano } from "../../shared/danos";
 import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
@@ -457,28 +457,28 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
   }
 }
 
-// Daños (Chromebook o mobiliario): no avisan a TI, le llegan a COA o a Mantenimiento
+// Daños: los de equipos tecnológicos le llegan a TI y a COA / Mantenimiento; los del local, solo a COA / Mantenimiento
 function pintarDano(estado: EstadoAulaQr) {
   const { aula, email } = estado;
-  let area: AreaDano = "coa";
+  let grupo: GrupoDano = "tecnologia";
   let tipo: TipoDano | null = null;
   const fotos: Blob[] = [];
   const MAX_FOTOS = 3;
-  const ICONO = { coa: "chromebook", mantenimiento: "edificio" } as const;
+  const ICONO = { tecnologia: "chromebook", local: "edificio" } as const;
 
   app.innerHTML = `
     ${cabecera(aula)}
     <form id="form-dano">
       <button type="button" class="volver-ti" id="volver">${iconoSvg("volver")}Volver a fallas para TI</button>
       <h2>¿Qué está dañado?</h2>
-      <div class="opciones opciones-dano" id="areas">${(["coa", "mantenimiento"] as const)
-        .map((a) => `<button type="button" data-area="${a}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[a])}</span>${GRUPO_DANO[a]}</button>`)
+      <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
+        .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${GRUPO_DANO[g]}</button>`)
         .join("")}</div>
       <div class="chips-dano" id="tipos-dano" role="group" aria-label="Tipo de daño" hidden></div>
       <div class="campos-chromebook" id="campos-chromebook" hidden>
-        <label>Código de la Chromebook<input id="equipo" maxlength="40" placeholder="Ej. CB-ML-12" /></label>
+        <label>Código del equipo<input id="equipo" maxlength="40" placeholder="Ej. CB-ML-12" /></label>
         <label>Sección del estudiante<input id="seccion" maxlength="20" value="${esc(aula.seccion ?? "")}" /></label>
-        <label>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI, COA y Mantenimiento.</span></label>
+        <label>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI y ${EQUIPO_DANOS}.</span></label>
       </div>
       <label class="campo-dano"><span id="etiqueta-detalle-dano">Detalle (opcional)</span><textarea id="detalle-dano" rows="2" maxlength="500"></textarea></label>
       <div class="foto">
@@ -487,7 +487,7 @@ function pintarDano(estado: EstadoAulaQr) {
         <label class="boton-foto" id="elegir-foto-dano">${iconoSvg("camara")}<span id="texto-foto-dano">Tomar o elegir foto</span><input type="file" id="archivo-dano" accept="image/*" multiple hidden /></label>
       </div>
       <button type="button" class="enviar" id="enviar-dano" disabled>Enviar</button>
-      <p class="suave" id="destino-dano">Esto no avisa a TI.</p>
+      <p class="suave" id="destino-dano"></p>
       <p class="error" id="error-dano" role="alert"></p>
     </form>
     <p class="pie">Reportando como ${esc(email)}</p>`;
@@ -502,22 +502,22 @@ function pintarDano(estado: EstadoAulaQr) {
 
   function pintarTipos() {
     tipos.hidden = false;
-    tipos.innerHTML = tiposDe(area)
+    tipos.innerHTML = tiposDe(grupo)
       .map((t) => `<button type="button" data-tipo-dano="${t}" aria-pressed="${t === tipo}"${t === tipo ? ' class="activo"' : ""}>${TIPOS_DANO[t].etiqueta}</button>`)
       .join("");
-    $("campos-chromebook").hidden = area !== "coa";
+    $("campos-chromebook").hidden = grupo !== "tecnologia";
     const otro = Boolean(tipo?.endsWith("_otro"));
     $("etiqueta-detalle-dano").textContent = otro ? "Describe el daño" : "Detalle (opcional)";
-    detalle.placeholder = area === "coa" ? "Ej. La pantalla tiene una rajadura en la esquina" : "Ej. El ventilador hace ruido y no gira";
+    detalle.placeholder = grupo === "tecnologia" ? "Ej. La pantalla tiene una rajadura en la esquina" : "Ej. El ventilador hace ruido y no gira";
     enviar.disabled = !tipo;
-    enviar.textContent = `Enviar a ${ETIQUETA_AREA[area]}`;
-    $("destino-dano").textContent = `Esto no avisa a TI: le llega a ${ETIQUETA_AREA[area]}.`;
+    enviar.textContent = "Enviar";
+    $("destino-dano").textContent = `Le llega a ${DESTINO_DANO[grupo]}.`;
   }
 
-  $("areas").addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-area]");
+  $("grupos").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-grupo]");
     if (!b) return;
-    area = b.dataset.area as AreaDano;
+    grupo = b.dataset.grupo as GrupoDano;
     tipo = null;
     for (const x of b.parentElement!.children) {
       x.classList.toggle("activo", x === b);
@@ -588,7 +588,7 @@ function pintarDano(estado: EstadoAulaQr) {
       const { error: msg } = ((await res?.json().catch(() => ({}))) ?? {}) as { error?: string };
       error.textContent = msg ?? "No se pudo enviar. Revisa tu conexión e intenta de nuevo.";
       enviar.disabled = false;
-      enviar.textContent = `Enviar a ${ETIQUETA_AREA[area]}`;
+      enviar.textContent = "Enviar";
       return;
     }
     const { id } = (await res.json()) as { id: number };
@@ -605,8 +605,8 @@ function pintarDano(estado: EstadoAulaQr) {
     pintar(
       estado,
       `<section class="tarjeta exito">
-        <h2><span class="check">${iconoSvg("check")}</span>Listo, avisamos a ${ETIQUETA_AREA[area]}</h2>
-        <p>${TIPOS_DANO[tipo].etiqueta}. Ellos se encargan del seguimiento; TI no recibe este aviso.</p>${
+        <h2><span class="check">${iconoSvg("check")}</span>Listo, avisamos a ${DESTINO_DANO[grupo]}</h2>
+        <p>${TIPOS_DANO[tipo].etiqueta}. ${ETIQUETA_ATIENDE[ATIENDE_DANO[grupo]]} se encarga del seguimiento.</p>${
           fallidas ? `<p class="suave">El aviso llegó, pero ${fallidas === 1 ? "una foto no se pudo subir" : `${fallidas} fotos no se pudieron subir`}.</p>` : ""
         }
         <a class="enviar boton-listo" href="/docente">Entendido</a>

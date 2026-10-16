@@ -1,7 +1,8 @@
+import { EQUIPO_DANOS, TIPOS_DANO } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
-import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos } from "./danos";
+import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, type AlCrearDano } from "./danos";
 import { SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -17,8 +18,7 @@ export interface Env {
   ACCESS_TEAM_DOMAIN?: string; // ej. https://innova-ti.cloudflareaccess.com
   ACCESS_AUD?: string; // "Application Audience (AUD) Tag" de la aplicación de Access
   TI_EMAILS?: string; // correos de TI separados por coma
-  COA_EMAILS?: string; // correos de COA: solo ven Daños y mantenimiento
-  MANTENIMIENTO_EMAILS?: string; // correos de Mantenimiento: ídem
+  COA_EMAILS?: string; // correos de COA / Mantenimiento: solo ven Daños y mantenimiento
   ACCESS_SERVICE_TOKEN_ID?: string; // Client ID del service token que usa el reporte semanal
   DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
   // Notificaciones push a TI (secretos; se generan con `npm run push:claves`)
@@ -27,7 +27,6 @@ export interface Env {
   // Desarrollo local sin Access
   TOKEN_TI?: string;
   TOKEN_COA?: string;
-  TOKEN_MANTENIMIENTO?: string;
   DEV_EMAIL_DOCENTE?: string;
 }
 
@@ -90,12 +89,12 @@ export default {
 
       if (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion, ctx);
 
-      // Daños y mantenimiento: TI, COA y Mantenimiento (cada uno ve lo de su área)
+      // Daños y mantenimiento: TI atiende los equipos tecnológicos; COA / Mantenimiento, el local (ver shared/danos.ts)
       if (url.pathname === "/api/danos" || url.pathname.startsWith("/api/danos/")) {
-        if (!puedeVerDanos(sesion)) return json({ error: "Solo TI, COA y Mantenimiento pueden ver los daños" }, 403);
+        if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA / Mantenimiento pueden ver los daños" }, 403);
         return await enrutarDanos(request, url, env, sesion);
       }
-      // COA y Mantenimiento también eligen el aula al registrar un daño
+      // COA / Mantenimiento también elige el aula al registrar un daño del local
       if (url.pathname === "/api/aulas" && request.method === "GET" && puedeVerDanos(sesion)) {
         const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.codigo`).all();
         return json(results);
@@ -528,10 +527,11 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     return json(estado);
   }
 
-  // Daños (Chromebook o mobiliario): no avisan a TI, van a COA o Mantenimiento
+  // Daños: los de equipos tecnológicos le llegan a TI como push; los del local, solo a COA / Mantenimiento
   if (coincide[2]?.startsWith("/danos")) {
     if (!coincide[4] && request.method === "POST") {
-      return crearDano(env, aula.id, await request.json<Record<string, unknown>>().catch(() => null), sesion.email);
+      const datos = await request.json<Record<string, unknown>>().catch(() => null);
+      return crearDano(env, aula.id, datos, sesion.email, avisarDanoTi(env, url.origin, ctx));
     }
     if (coincide[4] && request.method === "PUT") {
       // Solo quien lo reportó, en los 15 minutos siguientes
@@ -739,6 +739,25 @@ interface AvisoPush {
   url: string;
   tag: string;
   urgente?: boolean;
+}
+
+// Daño de un equipo tecnológico reportado desde el QR: le llega a TI como push
+function avisarDanoTi(env: Env, origen: string, ctx: ExecutionContext): AlCrearDano {
+  return ({ id, aulaId, tipo, email }) => {
+    ctx.waitUntil(
+      (async () => {
+        const aula = await env.DB.prepare("SELECT nombre, seccion FROM aula WHERE id = ?")
+          .bind(aulaId)
+          .first<{ nombre: string; seccion: string | null }>();
+        await notificarTi(env, origen, {
+          titulo: `Daño · ${aula?.nombre ?? "Aula"}${aula?.seccion ? ` (${aula.seccion})` : ""}: ${TIPOS_DANO[tipo].etiqueta}`,
+          cuerpo: `Reporta ${email.split("@")[0]}. ${EQUIPO_DANOS} también lo ve.`,
+          url: "/danos",
+          tag: `dano-${id}`,
+        });
+      })().catch((e) => console.error("push daño", e)),
+    );
+  };
 }
 
 // Avisa a todos los navegadores de TI suscritos. Un fallo en uno no detiene a los demás.

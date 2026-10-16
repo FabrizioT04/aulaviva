@@ -56,11 +56,8 @@ async function sesionLocal(request: Request, url: URL, env: Env): Promise<Sesion
   if (env.TOKEN_TI && enviado && iguales(enviado, env.TOKEN_TI)) {
     return { email: "ti@local", rol: "ti", modo: "local" };
   }
-  // Para probar la vista de COA y Mantenimiento sin Access
+  // Para probar la vista de COA / Mantenimiento sin Access
   if (env.TOKEN_COA && enviado && iguales(enviado, env.TOKEN_COA)) return { email: "coa@local", rol: "coa", modo: "local" };
-  if (env.TOKEN_MANTENIMIENTO && enviado && iguales(enviado, env.TOKEN_MANTENIMIENTO)) {
-    return { email: "mantenimiento@local", rol: "mantenimiento", modo: "local" };
-  }
   // Para probar la página del QR en tu computadora sin Access
   const esLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
   if (esLocal && env.DEV_EMAIL_DOCENTE && (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/"))) {
@@ -74,7 +71,7 @@ export function sigueEnTi(email: string, env: Env): boolean {
   return accessConfigurado(env) ? rolDe(email, env) === "ti" : email === "ti@local";
 }
 
-// TI: correos listados en TI_EMAILS. COA y Mantenimiento: COA_EMAILS y MANTENIMIENTO_EMAILS.
+// TI: correos listados en TI_EMAILS. COA / Mantenimiento: COA_EMAILS.
 // Docente: cualquier otro correo del dominio del colegio.
 function rolDe(email: string, env: Env): Sesion["rol"] | null {
   const lista = (secreto?: string) =>
@@ -83,9 +80,8 @@ function rolDe(email: string, env: Env): Sesion["rol"] | null {
       .map((c) => c.trim().toLowerCase())
       .filter(Boolean);
   if (lista(env.TI_EMAILS).includes(email)) return "ti";
-  // COA y Mantenimiento solo usan la pestaña de Daños y mantenimiento
+  // COA / Mantenimiento solo usa la pestaña de Daños y mantenimiento
   if (lista(env.COA_EMAILS).includes(email)) return "coa";
-  if (lista(env.MANTENIMIENTO_EMAILS).includes(email)) return "mantenimiento";
   const dominio = (env.DOMINIO_DOCENTES ?? "innovaschools.edu.pe").toLowerCase();
   if (email.endsWith(`@${dominio}`)) return "docente";
   return null;

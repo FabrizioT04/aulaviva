@@ -1,11 +1,12 @@
 -- Daños y mantenimiento: aparte de las incidencias de TI (ver shared/danos.ts).
--- Chromebooks dañadas por estudiantes (las sigue COA) y desperfectos del local (Mantenimiento).
+-- Equipos tecnológicos dañados (Chromebooks, laptops, proyectores) y desperfectos del local.
+-- Todo lo atiende COA / Mantenimiento; los equipos tecnológicos también los ve TI.
 CREATE TABLE dano (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   aula_id         INTEGER NOT NULL REFERENCES aula(id),
-  area            TEXT NOT NULL CHECK (area IN ('coa', 'mantenimiento')),
+  grupo           TEXT NOT NULL CHECK (grupo IN ('tecnologia', 'local')),
   tipo            TEXT NOT NULL,           -- clave de TIPOS_DANO
-  equipo          TEXT,                    -- código o etiqueta de la Chromebook
+  equipo          TEXT,                    -- código o etiqueta del equipo
   seccion         TEXT,                    -- sección del estudiante
   estudiante      TEXT,                    -- opcional
   descripcion     TEXT,
@@ -16,7 +17,7 @@ CREATE TABLE dano (
   nota_cierre     TEXT,                    -- qué se hizo
   actualizado_por TEXT
 );
-CREATE INDEX idx_dano_estado ON dano (area, estado, reportado_en);
+CREATE INDEX idx_dano_estado ON dano (grupo, estado, reportado_en);
 
 CREATE TABLE foto_dano (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,

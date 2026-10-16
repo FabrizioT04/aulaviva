@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ETIQUETA_AREA,
+  ATIENDE_DANO,
+  EQUIPO_DANOS,
+  ETIQUETA_ATIENDE,
   ETIQUETA_ESTADO_DANO,
   GRUPO_DANO,
+  gruposQueAtiende,
+  gruposQueVe,
+  puedeEditarDano,
   TIPOS_DANO,
   tiposDe,
-  type AreaDano,
+  type GrupoDano,
   type Dano,
   type EstadoDano,
   type TipoDano,
@@ -22,25 +27,27 @@ interface Props {
   onNoAutorizado: () => void;
 }
 
-const ICONO_AREA = { coa: "chromebook", mantenimiento: "edificio" } as const;
+const ICONO_GRUPO = { tecnologia: "chromebook", local: "edificio" } as const;
 const MAX_FOTOS = 3;
 
-// Chromebooks dañadas (COA) y desperfectos del local (Mantenimiento). Va aparte de las incidencias de TI:
-// no cambia el semáforo de las aulas ni las métricas. COA y Mantenimiento solo ven esta pestaña y lo de su área.
+// Equipos tecnológicos dañados y desperfectos del local. Va aparte de las incidencias de TI: no cambia el
+// semáforo de las aulas ni las métricas. Quién ve y quién atiende cada grupo está en shared/danos.ts.
 export default function Danos({ sesion, onNoAutorizado }: Props) {
-  const propia = sesion.rol === "coa" || sesion.rol === "mantenimiento" ? sesion.rol : null;
-  const [area, setArea] = useState<AreaDano | null>(propia);
+  const esTi = sesion.rol === "ti";
+  const visibles = gruposQueVe(sesion.rol);
+  const atiende = gruposQueAtiende(sesion.rol);
+  const [grupo, setGrupo] = useState<GrupoDano | null>(null);
   const [resueltos, setResueltos] = useState(false);
   const [danos, setDanos] = useState<Dano[] | null>(null);
   const [registrando, setRegistrando] = useState(false);
   const [aviso, setAviso] = useState("");
 
   const cargar = useCallback(() => {
-    const filtro = new URLSearchParams({ estado: resueltos ? "resueltos" : "abiertos", ...(area ? { area } : {}) });
+    const filtro = new URLSearchParams({ estado: resueltos ? "resueltos" : "abiertos", ...(grupo ? { grupo } : {}) });
     api<Dano[]>(`/api/danos?${filtro}`)
       .then(setDanos)
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : setDanos([])));
-  }, [area, resueltos, onNoAutorizado]);
+  }, [grupo, resueltos, onNoAutorizado]);
 
   useEffect(cargar, [cargar]);
 
@@ -61,14 +68,12 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
         <div>
           <h1>Daños y mantenimiento</h1>
           <p className="subtitulo">
-            {propia === "coa"
-              ? "Chromebooks dañadas por estudiantes: golpes, cintillo de seguridad roto, manchas o piezas faltantes."
-              : propia === "mantenimiento"
-                ? "Desperfectos del local: ventiladores, paredes, mobiliario, puertas, luz y tomacorrientes."
-                : "Chromebooks dañadas (las ve COA) y desperfectos del local (los ve Mantenimiento). No cuentan en las incidencias de TI."}
+            {esTi
+              ? `Chromebooks, laptops y proyectores dañados. ${EQUIPO_DANOS} también los ve. No cuentan en las incidencias de TI.`
+              : "Desperfectos del local: ventiladores, paredes, mobiliario, puertas, luz. También ves los equipos dañados, que atiende TI."}
           </p>
         </div>
-        {!registrando && (
+        {atiende.length > 0 && !registrando && (
           <button className="primario" onClick={() => setRegistrando(true)}>
             Registrar daño
           </button>
@@ -77,7 +82,7 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
 
       {registrando && (
         <FormDano
-          areaInicial={propia ?? "coa"}
+          grupos={atiende}
           onNoAutorizado={onNoAutorizado}
           onCancelar={() => setRegistrando(false)}
           onGuardado={(mensaje) => {
@@ -90,11 +95,11 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
       {aviso && <p className="aviso ok" role="status">{aviso}</p>}
 
       <div className="filtros-danos">
-        {!propia && (
-          <div className="chips" role="group" aria-label="Área">
-            {([null, "coa", "mantenimiento"] as const).map((a) => (
-              <button key={a ?? "todas"} className={area === a ? "chip activo" : "chip"} aria-pressed={area === a} onClick={() => setArea(a)}>
-                {a ? `${GRUPO_DANO[a]} · ${ETIQUETA_AREA[a]}` : "Todos"}
+        {visibles.length > 1 && (
+          <div className="chips" role="group" aria-label="Qué está dañado">
+            {[null, ...visibles].map((g) => (
+              <button key={g ?? "todos"} className={grupo === g ? "chip activo" : "chip"} aria-pressed={grupo === g} onClick={() => setGrupo(g)}>
+                {g ? `${GRUPO_DANO[g]} · ${ETIQUETA_ATIENDE[ATIENDE_DANO[g]]}` : "Todos"}
               </button>
             ))}
           </div>
@@ -114,21 +119,21 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
         <p className="vacio">{resueltos ? "Todavía no hay daños resueltos." : "No hay daños por atender."}</p>
       )}
       <ul className="lista-danos">
-        {danos?.map((d) => <FilaDano key={d.id} dano={d} onCambiar={cambiar} />)}
+        {danos?.map((d) => <FilaDano key={d.id} dano={d} editable={puedeEditarDano(sesion.rol, d.grupo)} onCambiar={cambiar} />)}
       </ul>
     </div>
   );
 }
 
-function FilaDano({ dano: d, onCambiar }: { dano: Dano; onCambiar: (d: Dano, e: EstadoDano, nota?: string) => void }) {
+function FilaDano({ dano: d, editable, onCambiar }: { dano: Dano; editable: boolean; onCambiar: (d: Dano, e: EstadoDano, nota?: string) => void }) {
   const [cerrando, setCerrando] = useState(false);
   const [nota, setNota] = useState("");
-  const datosChromebook = [d.equipo && `Chromebook ${d.equipo}`, d.seccion && `Sección ${d.seccion}`, d.estudiante].filter(Boolean);
+  const datosEquipo = [d.equipo && `Código ${d.equipo}`, d.seccion && `Sección ${d.seccion}`, d.estudiante].filter(Boolean);
   return (
     <li className={`tarjeta dano ${d.estado}`}>
       <div className="dano-cabecera">
-        <span className={`tipo-icono area-${d.area}`}>
-          <Icono nombre={ICONO_AREA[d.area]} />
+        <span className={`tipo-icono grupo-${d.grupo}`}>
+          <Icono nombre={ICONO_GRUPO[d.grupo]} />
         </span>
         <div>
           <p className="dano-titulo">
@@ -137,9 +142,9 @@ function FilaDano({ dano: d, onCambiar }: { dano: Dano; onCambiar: (d: Dano, e: 
             <span className={`insignia estado-dano ${d.estado}`}>{ETIQUETA_ESTADO_DANO[d.estado]}</span>
           </p>
           <small>
-            {GRUPO_DANO[d.area]} · {ETIQUETA_AREA[d.area]} · hace {duracion(minutosDesde(d.reportado_en))} · {d.reportado_por}
+            {GRUPO_DANO[d.grupo]} · hace {duracion(minutosDesde(d.reportado_en))} · {d.reportado_por}
           </small>
-          {datosChromebook.length > 0 && <p className="dano-datos">{datosChromebook.join(" · ")}</p>}
+          {datosEquipo.length > 0 && <p className="dano-datos">{datosEquipo.join(" · ")}</p>}
           {d.descripcion && <p className="descripcion">“{d.descripcion}”</p>}
           {d.estado === "resuelto" && (
             <p className="dano-cierre">
@@ -151,7 +156,8 @@ function FilaDano({ dano: d, onCambiar }: { dano: Dano; onCambiar: (d: Dano, e: 
           {d.fotos > 0 && <FotosReporte reporteId={d.id} total={d.fotos} ruta={`/api/danos/${d.id}/fotos`} />}
         </div>
       </div>
-      {d.estado !== "resuelto" &&
+      {editable &&
+        d.estado !== "resuelto" &&
         (cerrando ? (
           <form
             className="cerrar-dano"
@@ -186,19 +192,19 @@ function FilaDano({ dano: d, onCambiar }: { dano: Dano; onCambiar: (d: Dano, e: 
 }
 
 function FormDano({
-  areaInicial,
+  grupos,
   onGuardado,
   onCancelar,
   onNoAutorizado,
 }: {
-  areaInicial: AreaDano;
+  grupos: GrupoDano[];
   onGuardado: (mensaje: string) => void;
   onCancelar: () => void;
   onNoAutorizado: () => void;
 }) {
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
   const [aulaId, setAulaId] = useState<number | null>(null);
-  const [area, setArea] = useState<AreaDano>(areaInicial);
+  const [grupo, setGrupo] = useState<GrupoDano>(grupos[0]);
   const [tipo, setTipo] = useState<TipoDano | null>(null);
   const [equipo, setEquipo] = useState("");
   const [seccion, setSeccion] = useState("");
@@ -214,7 +220,7 @@ function FormDano({
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : null));
   }, [onNoAutorizado]);
 
-  const chromebook = area === "coa";
+  const tecnologia = grupo === "tecnologia";
 
   async function elegirFotos(lista: FileList | null) {
     const elegidas = [...(lista ?? [])].slice(0, MAX_FOTOS - fotos.length);
@@ -244,7 +250,7 @@ function FormDano({
         if (!res?.ok) fallidas++;
       }
       onGuardado(
-        `Daño registrado para ${ETIQUETA_AREA[area]}.${fallidas ? ` ${fallidas === 1 ? "Una foto no se pudo subir" : `${fallidas} fotos no se pudieron subir`}.` : ""}`,
+        `Daño registrado.${tecnologia ? ` ${EQUIPO_DANOS} también lo ve.` : ""}${fallidas ? ` ${fallidas === 1 ? "Una foto no se pudo subir" : `${fallidas} fotos no se pudieron subir`}.` : ""}`,
       );
     } catch (err) {
       if (err instanceof NoAutorizado) onNoAutorizado();
@@ -278,36 +284,37 @@ function FormDano({
       </label>
       <fieldset>
         <legend>¿Qué está dañado?</legend>
-        <div className="opciones-falla dos">
-          {(["coa", "mantenimiento"] as const).map((a) => (
-            <button
-              type="button"
-              key={a}
-              className={area === a ? "opcion activo" : "opcion"}
-              aria-pressed={area === a}
-              onClick={() => {
-                setArea(a);
-                setTipo(null);
-              }}
-            >
-              <Icono nombre={ICONO_AREA[a]} />
-              {GRUPO_DANO[a]}
-              <small>Lo ve {ETIQUETA_AREA[a]}</small>
-            </button>
-          ))}
-        </div>
+        {grupos.length > 1 && (
+          <div className="opciones-falla dos">
+            {grupos.map((g) => (
+              <button
+                type="button"
+                key={g}
+                className={grupo === g ? "opcion activo" : "opcion"}
+                aria-pressed={grupo === g}
+                onClick={() => {
+                  setGrupo(g);
+                  setTipo(null);
+                }}
+              >
+                <Icono nombre={ICONO_GRUPO[g]} />
+                {GRUPO_DANO[g]}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="chips tipos-dano" role="group" aria-label="Tipo de daño">
-          {tiposDe(area).map((t) => (
+          {tiposDe(grupo).map((t) => (
             <button type="button" key={t} className={tipo === t ? "chip activo" : "chip"} aria-pressed={tipo === t} onClick={() => setTipo(t)}>
               {TIPOS_DANO[t].etiqueta}
             </button>
           ))}
         </div>
       </fieldset>
-      {chromebook && (
+      {tecnologia && (
         <div className="fila-campos">
           <label>
-            Código de la Chromebook
+            Código del equipo
             <input value={equipo} onChange={(e) => setEquipo(e.target.value)} placeholder="Ej. CB-ML-12" maxLength={40} />
           </label>
           <label>
@@ -317,7 +324,7 @@ function FormDano({
           <label>
             Estudiante (opcional)
             <input value={estudiante} onChange={(e) => setEstudiante(e.target.value)} maxLength={80} />
-            <small className="nota-campo">Solo lo ven TI, COA y Mantenimiento.</small>
+            <small className="nota-campo">Solo lo ven TI y {EQUIPO_DANOS}.</small>
           </label>
         </div>
       )}
@@ -327,7 +334,7 @@ function FormDano({
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
           rows={2}
-          placeholder={chromebook ? "Ej. La pantalla tiene una rajadura en la esquina" : "Ej. El ventilador hace ruido y no gira"}
+          placeholder={tecnologia ? "Ej. La pantalla tiene una rajadura en la esquina" : "Ej. El ventilador hace ruido y no gira"}
           required={tipo?.endsWith("_otro")}
         />
       </label>
@@ -341,7 +348,7 @@ function FormDano({
           Cancelar
         </button>
         <button className="primario" type="submit" disabled={!aulaId || !tipo || guardando}>
-          {guardando ? "Guardando…" : `Enviar a ${ETIQUETA_AREA[area]}`}
+          {guardando ? "Guardando…" : "Registrar daño"}
         </button>
       </div>
       {error && <p className="aviso error">{error}</p>}
