@@ -32,6 +32,11 @@ h2 { font-size: 1.12rem; font-weight: 800; margin: 0 0 12px; letter-spacing: -0.
 .opciones .icono { width: 24px; height: 24px; }
 .opciones button.activo { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); }
 .opciones button.activo .ic { background: var(--primario); color: var(--primario-texto); }
+.opciones button[hidden] { display: none; }
+/* Los tipos menos comunes quedan a un toque, para no llenar la pantalla */
+.mas-tipos { display: flex; align-items: center; gap: 6px; margin: -12px 0 22px; padding: 6px 0; border: 0; background: none; color: var(--primario); font: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+.mas-tipos .icono { width: 18px; height: 18px; }
+.mas-tipos[hidden] { display: none; }
 
 label { display: flex; flex-direction: column; gap: 8px; font-weight: 800; font-size: 1rem; }
 textarea { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); resize: vertical; }

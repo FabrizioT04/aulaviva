@@ -1,9 +1,4 @@
-export const ETIQUETA_FALLA: Record<string, string> = {
-  internet: "Internet",
-  proyector: "Proyector",
-  pc: "PC",
-  otro: "Otro",
-};
+export { ETIQUETA_FALLA } from "../shared/tipos";
 
 export const ETIQUETA_ESTADO: Record<string, string> = {
   abierto: "Abierto",
@@ -39,4 +34,12 @@ export function fechaCorta(fecha: string): string {
 // "4A · Primaria · Pabellón A", con lo que tenga el aula
 export function descripcionAula(a: { seccion: string | null; nivel: string | null; pabellon: string | null }): string {
   return [a.seccion, a.nivel, a.pabellon && `Pabellón ${a.pabellon}`].filter(Boolean).join(" · ");
+}
+
+// Por dónde llegó el reporte, para mostrarlo junto a la hora: "por QR", "en persona"…
+export function canal(r: { origen: string; entrada: string | null }): string {
+  if (r.origen === "qr") return "por QR";
+  if (r.entrada === "presencial") return "en persona";
+  if (r.entrada === "otro") return "por otro canal";
+  return "por WhatsApp";
 }

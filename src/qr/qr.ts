@@ -1,18 +1,12 @@
 // Página que abre el docente al escanear el QR del aula.
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
+import { ETIQUETA_FALLA as ETIQUETA, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import type { EstadoAulaQr, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
 import "./qr.css";
 import "./qr-efectos.css";
 
-const TIPOS: [TipoFalla, string][] = [
-  ["internet", "Internet"],
-  ["proyector", "Proyector"],
-  ["pc", "PC"],
-  ["otro", "Otro"],
-];
-const ETIQUETA: Record<string, string> = Object.fromEntries(TIPOS);
 const ESTADO: Record<string, string> = { abierto: "En cola", en_atencion: "En atención" };
 // Lo que el docente ve del aula: "Operativa" confundía si algo fallaba y aún nadie lo había reportado
 const SEMAFORO: Record<string, string> = {
@@ -25,7 +19,10 @@ const EJEMPLO: Record<TipoFalla, string> = {
   internet: "Ej. no carga ninguna página en la laptop",
   proyector: "Ej. el proyector no detecta la laptop",
   pc: "Ej. la PC no enciende",
-  otro: "Ej. el parlante no suena",
+  otro: "Ej. la pizarra digital no responde al tacto",
+  audio: "Ej. los parlantes no suenan con la laptop",
+  impresora: "Ej. la impresora no imprime o se atasca el papel",
+  perifericos: "Ej. el mouse o el teclado no responden",
 };
 
 const app = document.getElementById("app")!;
@@ -124,7 +121,8 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     ${reportados}
     <form id="form"${enviado ? " hidden" : ""}>
       <h2>¿Qué está fallando?</h2>
-      <div class="opciones" id="tipos">${TIPOS.map(([v, e]) => `<button type="button" data-tipo="${v}" aria-pressed="false"><span class="ic">${iconoSvg(v)}</span>${e}</button>`).join("")}</div>
+      <div class="opciones" id="tipos">${TIPOS_FALLA.map((v) => `<button type="button" data-tipo="${v}" aria-pressed="false"${TIPOS_PRINCIPALES.includes(v) ? "" : " hidden"}><span class="ic">${iconoSvg(v)}</span>${ETIQUETA[v]}</button>`).join("")}</div>
+      <button type="button" class="mas-tipos" id="mas-tipos">Ver más: ${TIPOS_FALLA.filter((v) => !TIPOS_PRINCIPALES.includes(v)).map((v) => ETIQUETA[v]).join(", ")}${iconoSvg("abajo")}</button>
       <div class="aviso-duplicado" id="aviso-duplicado" role="status" hidden></div>
       <details class="extra" id="extra">
         <summary>${iconoSvg("registrar")}<span id="titulo-extra">Agregar detalle o foto (opcional)</span></summary>
@@ -190,6 +188,12 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     if (!b) return;
     fotos.splice(Number(b.dataset.quitar), 1);
     pintarFotos();
+  });
+
+  const masTipos = document.getElementById("mas-tipos")!;
+  masTipos.addEventListener("click", () => {
+    for (const b of document.querySelectorAll<HTMLButtonElement>("#tipos button[hidden]")) b.hidden = false;
+    masTipos.hidden = true;
   });
 
   document.getElementById("tipos")!.addEventListener("click", (e) => {

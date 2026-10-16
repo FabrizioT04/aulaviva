@@ -181,12 +181,18 @@ fieldset .segmentado { display: flex; }
 .tipo-icono.proyector { background: #f3ecff; color: #7c3aed; }
 .tipo-icono.pc { background: #e5f6f3; color: #0f766e; }
 .tipo-icono.otro { background: #fdf0e3; color: #c2410c; }
+.tipo-icono.audio { background: #fdeaf3; color: #be185d; }
+.tipo-icono.impresora { background: #eef1f5; color: #475569; }
+.tipo-icono.perifericos { background: #ecf7e3; color: #4d7c0f; }
 .bloquea .tipo-icono { background: var(--rojo); color: #fff; }
 @media (prefers-color-scheme: dark) {
   .tipo-icono.internet { background: #14213a; color: #8ab4ff; }
   .tipo-icono.proyector { background: #221a3d; color: #b392f5; }
   .tipo-icono.pc { background: #0f2a26; color: #4fd1c5; }
   .tipo-icono.otro { background: #2e1d0c; color: #f6a35c; }
+  .tipo-icono.audio { background: #3a1427; color: #f472b6; }
+  .tipo-icono.impresora { background: #1c222b; color: #a3b3c6; }
+  .tipo-icono.perifericos { background: #1a2a0e; color: #a3d96a; }
   .bloquea .tipo-icono { background: var(--rojo); color: var(--fondo); }
 }
 
@@ -200,7 +206,27 @@ fieldset .segmentado { display: flex; }
 .foto-grande img { max-width: 100%; max-height: 100%; border-radius: 10px; }
 
 /* Registro */
-.registro { max-width: 680px; margin: 0 auto; }
+.registro { max-width: 860px; margin: 0 auto; }
+/* En escritorio, aula y origen van en una fila, y docente y fecha en otra; en el celular, una columna */
+.fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; align-items: start; }
+@media (max-width: 720px) { .fila-doble { grid-template-columns: 1fr; } }
+.ver-mas-tipos { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: 0.88rem; }
+.ver-mas-tipos .icono { width: 16px; height: 16px; }
+
+/* Lo que ya pasó en el aula con la misma falla */
+.historial-relacionado { margin: -4px 0 18px; display: grid; gap: 12px; }
+.historial-relacionado h2 { margin: 4px 0 0; font-size: 0.92rem; }
+.historial-relacionado ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.historial-relacionado li { padding: 14px 16px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie-2); display: grid; gap: 6px; }
+.historial-relacionado li p { margin: 0; font-size: 0.9rem; }
+.historial-relacionado li p span { color: var(--suave); font-weight: 700; }
+.historial-relacionado li button { justify-self: start; min-height: 38px; padding: 7px 14px; margin-top: 4px; }
+.caso-cabecera { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.caso-cabecera small { color: var(--suave); white-space: nowrap; }
+.ya-abierto { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 14px 16px; border-radius: 16px; background: var(--amarillo-suave); color: var(--amarillo); }
+.ya-abierto p { margin: 0; font-size: 0.9rem; font-weight: 600; }
+.ya-abierto .icono { width: 20px; height: 20px; margin-top: 1px; }
+.ya-abierto .enlace { grid-column: 2; justify-self: start; }
 .horas { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 12px; }
 
 /* Detalle del aula */
