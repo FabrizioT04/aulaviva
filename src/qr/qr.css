@@ -44,6 +44,9 @@ textarea::placeholder { color: var(--tenue); }
 textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
 /* Dos formas de avisar: normal, o urgente si la clase no puede seguir */
 .acciones-reporte { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+/* Con la falla elegida, los botones quedan fijos al pie mientras el docente lee la guía */
+.acciones-reporte.fijas { position: sticky; bottom: 0; z-index: 2; gap: 8px; margin: 4px -20px 0; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--fondo) 92%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--borde); }
+.acciones-reporte.fijas .enviar { min-height: 50px; }
 .enviar { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 58px; font: inherit; font-size: 1.05rem; font-weight: 800; border: 0; border-radius: 18px; background: var(--primario); color: var(--primario-texto); box-shadow: var(--sombra-boton); cursor: pointer; }
 .enviar:disabled { background: color-mix(in srgb, var(--primario) 40%, var(--superficie)); box-shadow: none; cursor: not-allowed; }
 .boton-urgente { min-height: 54px; font-size: 1rem; background: var(--superficie); color: var(--rojo-texto); box-shadow: inset 0 0 0 2px var(--rojo); }
