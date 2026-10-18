@@ -1,6 +1,6 @@
 import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
-import { conRed, ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, TIPOS_FALLA } from "../shared/tipos";
+import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
@@ -516,7 +516,9 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
       email: sesion.email,
       guias: (guias.results as (Omit<GuiaDocente, "pasos"> & { pasos_docente: string })[]).map(({ pasos_docente, ...g }) => ({
         ...g,
-        pasos: pasos_docente.split("\n").map((p) => conRed(p.trim(), aula.red_wifi)).filter(Boolean),
+        titulo: paraAmbiente(g.titulo, aula),
+        cuando_llamar_ti: g.cuando_llamar_ti && paraAmbiente(g.cuando_llamar_ti, aula),
+        pasos: pasos_docente.split("\n").map((p) => paraAmbiente(p.trim(), aula)).filter(Boolean),
       })),
     };
     return json(estado);

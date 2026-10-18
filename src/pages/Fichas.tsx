@@ -300,7 +300,7 @@ function FormFicha({ inicial, onGuardar, onCancelar }: FormProps) {
         <small className="nota-campo">
           El docente ve estos pasos en el QR al elegir esta falla, antes de avisar a TI. Solo pasos seguros: nada de abrir
           equipos, tocar la instalación eléctrica ni cambiar configuraciones de red. Escribe {"{red}"} donde va la red Wi-Fi: el QR
-          pone la de cada ambiente (la de docentes en las aulas y la propia en el WL y la SD).
+          pone la de cada ambiente ("aula_innova" en las aulas y la propia en el WL y la SD). En el WL y la SD, "laptop" se lee "computadora".
         </small>
       </label>
       <label>
