@@ -109,3 +109,9 @@ body.con-escaner { overflow: hidden; }
 .mis-reportes { margin-top: 20px; }
 .mis-reportes h2 { margin-bottom: 2px; }
 .mis-reportes > .suave { margin: 0 0 12px; }
+.mas-reportes summary { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; font-weight: 700; color: var(--primario); cursor: pointer; list-style: none; }
+.mas-reportes summary::-webkit-details-marker { display: none; }
+.mas-reportes summary .icono { width: 18px; height: 18px; transition: transform 0.2s; }
+.mas-reportes[open] summary .icono { transform: rotate(180deg); }
+.mas-reportes[open] summary { margin-bottom: 10px; }
+.mas-reportes .abiertos li:first-child { border-top: 1px solid var(--borde); padding-top: 10px; }

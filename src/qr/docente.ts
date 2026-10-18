@@ -83,14 +83,24 @@ function pintarInstalar() {
   });
 }
 
-// Lo que el docente reportó hace poco y en qué va: así no tiene que preguntar por WhatsApp
+// Lo que el docente reportó hace poco y en qué va: así no tiene que preguntar por WhatsApp.
+// Solo los primeros a la vista (los sin resolver van antes) para no tapar el botón de escanear ni la lista de aulas
+const A_LA_VISTA = 3;
 function misReportes(datos: AulasDocente | null): string {
   if (!datos?.mios.length) return "";
-  const pendientes = datos.mios.filter((m) => m.estado !== "resuelto").length;
+  const orden = [...datos.mios].sort((a, b) => Number(a.estado === "resuelto") - Number(b.estado === "resuelto"));
+  const pendientes = orden.filter((m) => m.estado !== "resuelto").length;
+  const resto = orden.slice(A_LA_VISTA);
   return `<section class="tarjeta mis-reportes">
       <h2>Tus reportes</h2>
       <p class="suave">${pendientes ? `${pendientes === 1 ? "1 sin resolver" : `${pendientes} sin resolver`}. TI ya está avisado.` : "Todo lo que reportaste ya se resolvió."}</p>
-      <ul class="abiertos">${datos.mios.map((m) => filaMiReporte(m)).join("")}</ul>
+      <ul class="abiertos">${orden.slice(0, A_LA_VISTA).map((m) => filaMiReporte(m)).join("")}</ul>
+      ${
+        resto.length
+          ? `<details class="mas-reportes"><summary>Ver ${resto.length === 1 ? "1 más" : `${resto.length} más`}${iconoSvg("abajo")}</summary>
+              <ul class="abiertos">${resto.map((m) => filaMiReporte(m)).join("")}</ul></details>`
+          : ""
+      }
     </section>`;
 }
 
