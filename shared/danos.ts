@@ -1,6 +1,6 @@
 // Daños y mantenimiento: van aparte de las incidencias de TI y no cuentan en el semáforo
 // ni en las métricas de TI. Los equipos tecnológicos los atiende TI y COA / Mantenimiento solo los ve;
-// los desperfectos del local los atiende COA / Mantenimiento y TI no los ve.
+// los desperfectos del local los atiende COA / Mantenimiento. TI es el administrador: ve y cambia todo.
 
 export type GrupoDano = "tecnologia" | "local";
 export type EstadoDano = "pendiente" | "en_proceso" | "resuelto";
@@ -33,9 +33,9 @@ export const EQUIPO_DANOS = "COA / Mantenimiento";
 export const ATIENDE_DANO: Record<GrupoDano, "ti" | "coa"> = { tecnologia: "ti", local: "coa" };
 export const ETIQUETA_ATIENDE: Record<"ti" | "coa", string> = { ti: "TI", coa: EQUIPO_DANOS };
 export const DESTINO_DANO: Record<GrupoDano, string> = { tecnologia: `TI y a ${EQUIPO_DANOS}`, local: EQUIPO_DANOS };
-export const puedeEditarDano = (rol: string, grupo: GrupoDano) => ATIENDE_DANO[grupo] === rol;
-// TI solo ve los equipos tecnológicos; COA / Mantenimiento, todo
-export const gruposQueVe = (rol: string): GrupoDano[] => (rol === "ti" ? ["tecnologia"] : ["tecnologia", "local"]);
+export const puedeEditarDano = (rol: string, grupo: GrupoDano) => rol === "ti" || ATIENDE_DANO[grupo] === rol;
+// TI y COA / Mantenimiento ven los dos grupos
+export const gruposQueVe = (_rol: string): GrupoDano[] => ["tecnologia", "local"];
 export const gruposQueAtiende = (rol: string): GrupoDano[] => (["tecnologia", "local"] as const).filter((g) => puedeEditarDano(rol, g));
 export const ETIQUETA_ESTADO_DANO: Record<EstadoDano, string> = {
   pendiente: "Pendiente",
