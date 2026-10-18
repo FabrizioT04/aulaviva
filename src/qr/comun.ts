@@ -1,5 +1,6 @@
 // Piezas compartidas por las páginas livianas del docente: la del QR del aula y su inicio.
-import { iconoSvg } from "../../shared/iconos";
+import { iconoSvg, type NombreIcono } from "../../shared/iconos";
+import { TIPOS_FALLA, type EstadoMiReporte, type MiReporte, type TipoFalla } from "../../shared/tipos";
 
 export function esc(texto: string): string {
   return texto.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -38,4 +39,35 @@ export function activarBotonTema(app: HTMLElement) {
     boton.outerHTML = botonTema();
     document.getElementById("boton-tema")?.focus();
   });
+}
+
+// Estado de los reportes en palabras del docente (fallas y daños usan los mismos)
+export const ESTADO_DOCENTE: Record<EstadoMiReporte, string> = {
+  recibido: "Recibido",
+  en_atencion: "En atención",
+  escalado: "Escalado",
+  resuelto: "Resuelto",
+};
+
+export function haceCuanto(iso: string): string {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (min < 1) return "hace un momento";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  return d === 1 ? "ayer" : `hace ${d} días`;
+}
+
+const iconoDe = (m: MiReporte): NombreIcono =>
+  m.clase === "reporte" && TIPOS_FALLA.includes(m.tipo as TipoFalla) ? (m.tipo as TipoFalla) : "dano";
+
+// Una fila por reporte del docente: qué, dónde, cuándo y en qué va
+export function filaMiReporte(m: MiReporte, conAula = true): string {
+  const cuando = m.estado === "resuelto" && m.resuelto_en ? `Resuelto ${haceCuanto(m.resuelto_en)}` : `Enviado ${haceCuanto(m.reportado_en)}`;
+  return `<li class="mi-reporte ${m.estado}">
+    <span class="tipo-icono ${m.clase === "reporte" ? esc(m.tipo) : "dano"}">${iconoSvg(iconoDe(m))}</span>
+    <span class="abierto-texto"><strong>${esc(m.titulo)}</strong><small>${conAula ? `${esc(m.aula_nombre)} · ` : ""}${cuando}</small></span>
+    <span class="estado-reporte ${m.estado}">${m.estado === "resuelto" ? iconoSvg("check") : ""}${ESTADO_DOCENTE[m.estado]}</span>
+  </li>`;
 }

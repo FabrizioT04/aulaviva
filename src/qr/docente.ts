@@ -3,7 +3,7 @@
 // Liviana como la página del QR: el lector se descarga solo al tocar "Escanear".
 import { iconoSvg } from "../../shared/iconos";
 import type { AulaConEstado, AulasDocente } from "../../shared/tipos";
-import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
+import { activarBotonTema, botonTema, esc, filaMiReporte, MARCA } from "./comun";
 import "./qr.css";
 import "./qr-efectos.css";
 import "./docente.css";
@@ -83,6 +83,17 @@ function pintarInstalar() {
   });
 }
 
+// Lo que el docente reportó hace poco y en qué va: así no tiene que preguntar por WhatsApp
+function misReportes(datos: AulasDocente | null): string {
+  if (!datos?.mios.length) return "";
+  const pendientes = datos.mios.filter((m) => m.estado !== "resuelto").length;
+  return `<section class="tarjeta mis-reportes">
+      <h2>Tus reportes</h2>
+      <p class="suave">${pendientes ? `${pendientes === 1 ? "1 sin resolver" : `${pendientes} sin resolver`}. TI ya está avisado.` : "Todo lo que reportaste ya se resolvió."}</p>
+      <ul class="abiertos">${datos.mios.map((m) => filaMiReporte(m)).join("")}</ul>
+    </section>`;
+}
+
 function pintar(datos: AulasDocente | null, error = "") {
   const pisos = new Map<string, AulaConEstado[]>();
   for (const a of datos?.aulas ?? []) {
@@ -112,6 +123,7 @@ function pintar(datos: AulasDocente | null, error = "") {
       <span class="escanear-texto"><strong>Escanear QR del aula</strong><small>Lo más rápido: apunta al QR del aula</small></span>
     </button>
     <p class="error" id="error-camara" role="alert"></p>
+    ${misReportes(datos)}
     <section class="tarjeta elegir">
       <h2>¿No puedes escanear? Elige tu aula</h2>
       <label class="buscar">${iconoSvg("buscar")}<input id="buscar" type="search" inputmode="search" autocomplete="off" placeholder="Ej. 204, 4A o primaria" aria-label="Buscar aula por número, sección, nivel o pabellón" /></label>
@@ -187,3 +199,18 @@ async function cargar() {
 }
 
 cargar();
+
+// Al volver a la app (por ejemplo, después de que TI atendió), se pone al día sola
+addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  fetch("/api/qr")
+    .then((res) => (res.ok ? (res.json() as Promise<AulasDocente>) : null))
+    .then((datos) => {
+      const caja = app.querySelector(".mis-reportes");
+      const nueva = datos && misReportes(datos);
+      if (caja && nueva) caja.outerHTML = nueva;
+      else if (caja && !nueva) caja.remove();
+      else if (!caja && nueva) document.getElementById("error-camara")?.insertAdjacentHTML("afterend", nueva);
+    })
+    .catch(() => null);
+});

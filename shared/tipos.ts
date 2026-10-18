@@ -179,13 +179,32 @@ export interface Sesion {
 export interface AulasDocente {
   aulas: AulaConEstado[];
   email: string;
+  mios: MiReporte[];
 }
+
+// Lo que el docente reportó hace poco (fallas y daños), para que sepa en qué va sin preguntar por WhatsApp.
+// Los resueltos se muestran 7 días; los demás, hasta que se resuelvan.
+export interface MiReporte {
+  clase: "reporte" | "dano";
+  id: number;
+  tipo: string; // tipo_falla, o el tipo de daño
+  titulo: string;
+  aula_codigo: string;
+  aula_nombre: string;
+  estado: EstadoMiReporte;
+  reportado_en: string;
+  resuelto_en: string | null;
+}
+
+// Los estados de reportes y daños, en palabras del docente
+export type EstadoMiReporte = "recibido" | "en_atencion" | "escalado" | "resuelto";
 
 export interface EstadoAulaQr {
   aula: AulaConEstado;
   abiertos: Pick<Reporte, "id" | "tipo_falla" | "bloquea_clase" | "estado" | "reportado_en">[];
   espera_urgente_min: number | null; // mediana de los urgentes de los últimos 90 días, del reporte a la llegada de TI
   email: string;
+  mios: MiReporte[]; // los del docente en esta aula, también los resueltos hace poco
   guias: GuiaDocente[]; // pasos que el docente puede probar antes de avisar, por tipo de falla
 }
 

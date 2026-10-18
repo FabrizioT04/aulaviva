@@ -104,3 +104,8 @@ body.con-escaner { overflow: hidden; }
 @keyframes barrer { to { top: 88%; } }
 .escaner.leido .escaner-marco i { border-color: #2bd49a; }
 .escaner.leido .escaner-linea { display: none; }
+
+/* Tus reportes: en qué va lo que reportó el docente */
+.mis-reportes { margin-top: 20px; }
+.mis-reportes h2 { margin-bottom: 2px; }
+.mis-reportes > .suave { margin: 0 0 12px; }

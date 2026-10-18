@@ -89,6 +89,10 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .estado-reporte { font-size: 0.78rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--amarillo-suave); color: var(--amarillo); }
 .estado-reporte.en_atencion { background: var(--primario-suave); color: var(--primario); }
 .estado-reporte.escalado { background: #f3ecff; color: #6d28d9; }
+.estado-reporte.resuelto { display: inline-flex; align-items: center; gap: 4px; background: var(--verde-suave); color: var(--verde); }
+.estado-reporte .icono { width: 14px; height: 14px; }
+.abierto-texto small { display: block; font-size: 0.8rem; font-weight: 500; color: var(--suave); }
+.mi-reporte.resuelto .abierto-texto strong { color: var(--suave); }
 @media (prefers-color-scheme: dark) { .estado-reporte.escalado { background: #221a3d; color: #b392f5; } }
 .tipo-icono { display: inline-grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 12px; background: var(--superficie-2); color: var(--suave); }
 .tipo-icono .icono { width: 20px; height: 20px; }
