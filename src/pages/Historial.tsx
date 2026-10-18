@@ -159,7 +159,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
   const archivo = d?.mes ?? "todo";
 
   return (
-    <div className="observatorio historial">
+    <div className="observatorio pagina-historial">
       <header className="cabecera-pagina">
         <div>
           <h1>Historial</h1>
@@ -233,7 +233,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                 disabled={clase === "fallas" ? !fallas.length : !danos.length}
                 onClick={() => (clase === "fallas" ? csvFallas(fallas, archivo) : csvDanos(danos, archivo))}
               >
-                <Icono nombre="abajo" />
+                <Icono nombre="descargar" />
                 Descargar Excel
               </button>
             </div>
@@ -261,10 +261,10 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                         <tr key={r.id} onClick={() => ir({ pantalla: "aula", id: r.aula_id })} title="Ver el aula">
                           <td className="fecha">{fechaHora(r.reportado_en)}</td>
                           <td className="col-aula">{aulaDe(r)}</td>
-                          <td>
+                          <td className="col-falla">
                             {ETIQUETA_FALLA[r.tipo_falla]}
-                            {r.bloquea_clase ? <span className="insignia roja">Bloqueó</span> : null}
                             {r.descripcion && <small>{r.descripcion}</small>}
+                            {r.bloquea_clase ? <span className="marca-bloqueo">Bloqueó la clase</span> : null}
                           </td>
                           <td>
                             {r.reportado_por_nombre?.split("@")[0] ?? "—"}
