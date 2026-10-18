@@ -161,7 +161,7 @@ export interface AulasDocente {
 export interface EstadoAulaQr {
   aula: AulaConEstado;
   abiertos: Pick<Reporte, "id" | "tipo_falla" | "bloquea_clase" | "estado" | "reportado_en">[];
-  prom_atencion_urgente_min: number | null; // promedio de los últimos 90 días
+  espera_urgente_min: number | null; // mediana de los urgentes de los últimos 90 días, del reporte a la llegada de TI
   email: string;
   guias: GuiaDocente[]; // pasos que el docente puede probar antes de avisar, por tipo de falla
 }
