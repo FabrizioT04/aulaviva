@@ -236,6 +236,8 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     }
     for (const x of botones) x.disabled = false;
     document.getElementById("aviso-elegir")!.hidden = true;
+    // Los pasos de la guía empujan los botones fuera de la pantalla: quedan fijos abajo para no tener que buscarlos
+    botones[0].parentElement!.classList.add("fijas");
     // En "Otro" TI necesita saber qué pasa, y si ya hay un reporte del mismo tipo, en qué se diferencia:
     // en ambos casos el detalle se abre y es obligatorio
     const otro = tipo === "otro";
