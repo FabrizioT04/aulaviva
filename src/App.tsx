@@ -54,10 +54,10 @@ const PESTANAS: {
   { pantalla: "qr", etiqueta: "QR de aulas", icono: "qr", soloPc: true },
 ];
 
-// COA / Mantenimiento ve todo el panel, pero solo cambia los daños del local
+// COA ve todo el panel, pero solo cambia los daños del local
 const AREA_USUARIO: Record<string, string> = {
   ti: "Área de TI",
-  coa: "COA / Mantenimiento",
+  coa: "COA",
 };
 
 function rutaActual(): Ruta {

@@ -12,7 +12,7 @@ import { canal, descripcionAula, duracion, ETIQUETA_FALLA, minutosDesde } from "
 interface Props {
   onNoAutorizado: () => void;
   ir: (r: Ruta) => void;
-  soloLectura?: boolean; // COA / Mantenimiento: ve los reportes pero no los atiende
+  soloLectura?: boolean; // COA: ve los reportes pero no los atiende
 }
 
 export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {

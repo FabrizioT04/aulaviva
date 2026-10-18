@@ -56,7 +56,7 @@ async function sesionLocal(request: Request, url: URL, env: Env): Promise<Sesion
   if (env.TOKEN_TI && enviado && iguales(enviado, env.TOKEN_TI)) {
     return { email: "ti@local", rol: "ti", modo: "local" };
   }
-  // Para probar la vista de COA / Mantenimiento sin Access
+  // Para probar la vista de COA sin Access
   if (env.TOKEN_COA && enviado && iguales(enviado, env.TOKEN_COA)) return { email: "coa@local", rol: "coa", modo: "local" };
   // Para probar la página del QR en tu computadora sin Access
   const esLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
@@ -71,7 +71,7 @@ export function sigueEnTi(email: string, env: Env): boolean {
   return accessConfigurado(env) ? rolDe(email, env) === "ti" : email === "ti@local";
 }
 
-// TI: correos listados en TI_EMAILS. COA / Mantenimiento: COA_EMAILS.
+// TI: correos listados en TI_EMAILS. COA: COA_EMAILS.
 // Docente: cualquier otro correo del dominio del colegio.
 function rolDe(email: string, env: Env): Sesion["rol"] | null {
   const lista = (secreto?: string) =>
@@ -80,7 +80,7 @@ function rolDe(email: string, env: Env): Sesion["rol"] | null {
       .map((c) => c.trim().toLowerCase())
       .filter(Boolean);
   if (lista(env.TI_EMAILS).includes(email)) return "ti";
-  // COA / Mantenimiento ve todo el panel, pero solo cambia los daños del local
+  // COA ve todo el panel, pero solo cambia los daños del local
   if (lista(env.COA_EMAILS).includes(email)) return "coa";
   const dominio = (env.DOMINIO_DOCENTES ?? "innovaschools.edu.pe").toLowerCase();
   if (email.endsWith(`@${dominio}`)) return "docente";

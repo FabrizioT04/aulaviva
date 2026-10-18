@@ -7,7 +7,7 @@ import Icono from "../Icono";
 
 interface Props {
   onNoAutorizado: () => void;
-  soloLectura?: boolean; // COA / Mantenimiento: consulta las fichas pero no las cambia
+  soloLectura?: boolean; // COA: consulta las fichas pero no las cambia
 }
 
 const TIPOS = TIPOS_FALLA;

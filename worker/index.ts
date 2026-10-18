@@ -18,7 +18,7 @@ export interface Env {
   ACCESS_TEAM_DOMAIN?: string; // ej. https://innova-ti.cloudflareaccess.com
   ACCESS_AUD?: string; // "Application Audience (AUD) Tag" de la aplicación de Access
   TI_EMAILS?: string; // correos de TI separados por coma
-  COA_EMAILS?: string; // correos de COA / Mantenimiento: solo ven Daños y mantenimiento
+  COA_EMAILS?: string; // correos de COA: ven todo el panel y solo cambian Daños y mantenimiento
   ACCESS_SERVICE_TOKEN_ID?: string; // Client ID del service token que usa el reporte semanal
   DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
   // Notificaciones push a TI (secretos; se generan con `npm run push:claves`)
@@ -89,12 +89,12 @@ export default {
 
       if (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/")) return await enrutarQr(request, url, env, sesion, ctx);
 
-      // Daños y mantenimiento: TI atiende los equipos tecnológicos; COA / Mantenimiento, el local (ver shared/danos.ts)
+      // Daños y mantenimiento: TI atiende los equipos tecnológicos; COA, el local (ver shared/danos.ts)
       if (url.pathname === "/api/danos" || url.pathname.startsWith("/api/danos/")) {
-        if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA / Mantenimiento pueden ver los daños" }, 403);
+        if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA pueden ver los daños" }, 403);
         return await enrutarDanos(request, url, env, sesion);
       }
-      // COA / Mantenimiento ve todo el panel (solo lectura); los avisos al celular son solo de TI
+      // COA ve todo el panel (solo lectura); los avisos al celular son solo de TI
       const soloLee = sesion.rol === "coa" && request.method === "GET" && !url.pathname.startsWith("/api/push");
       // El resto de la API lo cambia solo el área de TI
       if (sesion.rol !== "ti" && !soloLee) return json({ error: "Solo el área de TI puede cambiar esto" }, 403);
@@ -523,7 +523,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     return json(estado);
   }
 
-  // Daños: los de equipos tecnológicos le llegan a TI como push; los del local, solo a COA / Mantenimiento
+  // Daños: los de equipos tecnológicos le llegan a TI como push; los del local, solo a COA
   if (coincide[2]?.startsWith("/danos")) {
     if (!coincide[4] && request.method === "POST") {
       const datos = await request.json<Record<string, unknown>>().catch(() => null);
