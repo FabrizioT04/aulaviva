@@ -42,6 +42,8 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
   const [grupo, setGrupo] = useState<GrupoDano | null>(null);
   const [resueltos, setResueltos] = useState(false);
   const [danos, setDanos] = useState<Dano[] | null>(null);
+  // Sin resolver de cada grupo, para el número rojo de cada filtro (no depende del filtro elegido)
+  const [porGrupo, setPorGrupo] = useState<Partial<Record<GrupoDano, number>>>({});
   const [metricas, setMetricas] = useState<MetricasDanos | null>(null);
   const [registrando, setRegistrando] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -53,6 +55,13 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : setDanos([])));
     api<MetricasDanos>(`/api/danos/metricas?dias=30${grupo ? `&grupo=${grupo}` : ""}`)
       .then(setMetricas)
+      .catch(() => null);
+    api<Dano[]>("/api/danos?estado=abiertos")
+      .then((abiertos) => {
+        const cuenta: Partial<Record<GrupoDano, number>> = {};
+        for (const d of abiertos) cuenta[d.grupo] = (cuenta[d.grupo] ?? 0) + 1;
+        setPorGrupo(cuenta);
+      })
       .catch(() => null);
   }, [grupo, resueltos, onNoAutorizado]);
 
@@ -111,6 +120,12 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
             {[null, ...visibles].map((g) => (
               <button key={g ?? "todos"} className={grupo === g ? "chip activo" : "chip"} aria-pressed={grupo === g} onClick={() => setGrupo(g)}>
                 {g ? `${GRUPO_DANO[g]} · ${ETIQUETA_ATIENDE[ATIENDE_DANO[g]]}` : "Todos"}
+                {g && (porGrupo[g] ?? 0) > 0 && (
+                  <span className="cuenta-chip" title={`${porGrupo[g]} sin resolver`}>
+                    {porGrupo[g]}
+                    <span className="solo-lector"> sin resolver</span>
+                  </span>
+                )}
               </button>
             ))}
           </div>
