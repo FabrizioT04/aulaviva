@@ -94,14 +94,10 @@ export default {
         if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA / Mantenimiento pueden ver los daños" }, 403);
         return await enrutarDanos(request, url, env, sesion);
       }
-      // COA / Mantenimiento también elige el aula al registrar un daño del local
-      if (url.pathname === "/api/aulas" && request.method === "GET" && puedeVerDanos(sesion)) {
-        const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.codigo`).all();
-        return json(results);
-      }
-
-      // El resto de la API es solo para el área de TI
-      if (sesion.rol !== "ti") return json({ error: "Solo el área de TI puede usar esta sección" }, 403);
+      // COA / Mantenimiento ve todo el panel (solo lectura); los avisos al celular son solo de TI
+      const soloLee = sesion.rol === "coa" && request.method === "GET" && !url.pathname.startsWith("/api/push");
+      // El resto de la API lo cambia solo el área de TI
+      if (sesion.rol !== "ti" && !soloLee) return json({ error: "Solo el área de TI puede cambiar esto" }, 403);
       return await enrutar(request, url, env, sesion);
     } catch (err) {
       console.error(err);

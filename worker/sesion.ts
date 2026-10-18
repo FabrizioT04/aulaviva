@@ -80,7 +80,7 @@ function rolDe(email: string, env: Env): Sesion["rol"] | null {
       .map((c) => c.trim().toLowerCase())
       .filter(Boolean);
   if (lista(env.TI_EMAILS).includes(email)) return "ti";
-  // COA / Mantenimiento solo usa la pestaña de Daños y mantenimiento
+  // COA / Mantenimiento ve todo el panel, pero solo cambia los daños del local
   if (lista(env.COA_EMAILS).includes(email)) return "coa";
   const dominio = (env.DOMINIO_DOCENTES ?? "innovaschools.edu.pe").toLowerCase();
   if (email.endsWith(`@${dominio}`)) return "docente";

@@ -7,6 +7,7 @@ import Icono from "../Icono";
 
 interface Props {
   onNoAutorizado: () => void;
+  soloLectura?: boolean; // COA / Mantenimiento: consulta las fichas pero no las cambia
 }
 
 const TIPOS = TIPOS_FALLA;
@@ -41,7 +42,7 @@ const pasos = (texto: string | null) =>
 
 // Fichas que escribe TI con la solución de las fallas comunes.
 // Son lo primero que consultará el asistente del Sprint 3.
-export default function Fichas({ onNoAutorizado }: Props) {
+export default function Fichas({ onNoAutorizado, soloLectura }: Props) {
   const [fichas, setFichas] = useState<Ficha[] | null>(null);
   // null = sin formulario, 0 = ficha nueva, n = editando la ficha n
   const [editando, setEditando] = useState<number | null>(null);
@@ -102,7 +103,7 @@ export default function Fichas({ onNoAutorizado }: Props) {
             resolver un reporte se muestran las fichas de su tipo, y el asistente las usará junto con los casos resueltos.
           </p>
         </div>
-        {editando === null && (
+        {editando === null && !soloLectura && (
           <button className="primario" onClick={() => setEditando(0)}>
             Nueva ficha
           </button>
@@ -211,7 +212,7 @@ export default function Fichas({ onNoAutorizado }: Props) {
                       <strong>Llama a TI:</strong> {f.cuando_llamar_ti}
                     </p>
                   )}
-                  {editando === null && (
+                  {editando === null && !soloLectura && (
                     <div className="acciones">
                       <button onClick={() => setEditando(f.id)}>Editar</button>
                       <button className="enlace peligro" onClick={() => borrar(f)}>

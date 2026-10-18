@@ -6,7 +6,7 @@ entró (verificando la firma del token de Access) y decide su rol:
 | Rol | Quién | Qué puede usar |
 |---|---|---|
 | TI | Los correos de `TI_EMAILS` | Todo: registro, dashboard, observatorio, QR |
-| COA / Mantenimiento | Los correos de `COA_EMAILS` | Solo Daños y mantenimiento: atiende los del local y solo mira los equipos tecnológicos |
+| COA / Mantenimiento | Los correos de `COA_EMAILS` | Ve todo el panel sin cambiar nada; en Daños y mantenimiento atiende los del local y solo mira los equipos tecnológicos |
 | Docente | Cualquier `@innovaschools.edu.pe` | Solo la página del QR (`/r/<aula>`) |
 
 Cualquier otro correo queda fuera. Los menús del panel de Cloudflare pueden cambiar de nombre con el tiempo; si algo no coincide, busca la opción equivalente.
@@ -64,7 +64,7 @@ npx wrangler secret put TI_EMAILS
 
 Para agregar o quitar a alguien de TI, vuelve a correr ese comando con la lista completa.
 
-COA / Mantenimiento entra al mismo panel, pero solo ve la pestaña Daños y mantenimiento. Registra y cierra los desperfectos del local; los equipos tecnológicos dañados los atiende TI y COA solo los mira. Sus correos van en otro secreto, con el mismo formato:
+COA / Mantenimiento entra al mismo panel y ve todas las pestañas en modo lectura, menos Registrar. Solo cambia cosas en Daños y mantenimiento: registra y cierra los desperfectos del local; los equipos tecnológicos dañados los atiende TI y COA solo los mira. Sus correos van en otro secreto, con el mismo formato:
 
 ```bash
 npx wrangler secret put COA_EMAILS
