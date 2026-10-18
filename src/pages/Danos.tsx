@@ -13,11 +13,13 @@ import {
   type GrupoDano,
   type Dano,
   type EstadoDano,
+  type MetricasDanos,
   type TipoDano,
 } from "../../shared/danos";
 import type { AulaConEstado, Sesion } from "../../shared/tipos";
 import { api, leerToken, NoAutorizado } from "../api";
 import { comprimir } from "../comprimir";
+import Contador from "../Contador";
 import { duracion, fechaCorta, minutosDesde } from "../formato";
 import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
@@ -31,7 +33,7 @@ const ICONO_GRUPO = { tecnologia: "chromebook", local: "edificio" } as const;
 const MAX_FOTOS = 3;
 
 // Equipos tecnológicos dañados y desperfectos del local. Va aparte de las incidencias de TI: no cambia el
-// semáforo de las aulas ni las métricas. Quién ve y quién atiende cada grupo está en shared/danos.ts.
+// semáforo de las aulas ni las métricas de incidencias; tiene su propio resumen arriba. Quién ve y quién atiende cada grupo está en shared/danos.ts.
 export default function Danos({ sesion, onNoAutorizado }: Props) {
   const esTi = sesion.rol === "ti";
   const visibles = gruposQueVe(sesion.rol);
@@ -39,6 +41,7 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
   const [grupo, setGrupo] = useState<GrupoDano | null>(null);
   const [resueltos, setResueltos] = useState(false);
   const [danos, setDanos] = useState<Dano[] | null>(null);
+  const [metricas, setMetricas] = useState<MetricasDanos | null>(null);
   const [registrando, setRegistrando] = useState(false);
   const [aviso, setAviso] = useState("");
 
@@ -47,6 +50,9 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
     api<Dano[]>(`/api/danos?${filtro}`)
       .then(setDanos)
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : setDanos([])));
+    api<MetricasDanos>(`/api/danos/metricas?dias=30${grupo ? `&grupo=${grupo}` : ""}`)
+      .then(setMetricas)
+      .catch(() => null);
   }, [grupo, resueltos, onNoAutorizado]);
 
   useEffect(cargar, [cargar]);
@@ -114,6 +120,8 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
         </div>
       </div>
 
+      {metricas && <ResumenDanos m={metricas} />}
+
       {danos === null && <p className="vacio">Cargando…</p>}
       {danos?.length === 0 && (
         <p className="vacio">{resueltos ? "Todavía no hay daños resueltos." : "No hay daños por atender."}</p>
@@ -122,6 +130,40 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
         {danos?.map((d) => <FilaDano key={d.id} dano={d} editable={puedeEditarDano(sesion.rol, d.grupo)} onCambiar={cambiar} />)}
       </ul>
     </div>
+  );
+}
+
+// Lo abierto ahora y lo registrado y resuelto en los últimos días, según el grupo elegido arriba
+function ResumenDanos({ m }: { m: MetricasDanos }) {
+  const abiertos = m.pendientes + m.en_proceso;
+  const periodo = `Últimos ${m.dias} días`;
+  return (
+    <section className="resumen" aria-label="Resumen de daños">
+      <div className="dato">
+        <span>Por atender</span>
+        <strong className="num"><Contador valor={abiertos} /></strong>
+        <small>
+          {abiertos === 0
+            ? "Nada pendiente"
+            : `${m.en_proceso} en proceso${m.abierto_mas_antiguo ? ` · el más antiguo, hace ${duracion(minutosDesde(m.abierto_mas_antiguo))}` : ""}`}
+        </small>
+      </div>
+      <div className="dato">
+        <span>Registrados</span>
+        <strong className="num"><Contador valor={m.registrados} /></strong>
+        <small>{periodo}</small>
+      </div>
+      <div className="dato">
+        <span>Resueltos</span>
+        <strong className="num"><Contador valor={m.resueltos} /></strong>
+        <small>{periodo}</small>
+      </div>
+      <div className="dato">
+        <span>Tiempo de atención</span>
+        <strong className="num">{duracion(m.prom_atencion_min)}</strong>
+        <small>Promedio de registro a resuelto</small>
+      </div>
+    </section>
   );
 }
 
