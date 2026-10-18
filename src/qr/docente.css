@@ -107,5 +107,12 @@ body.con-escaner { overflow: hidden; }
 
 /* Tus reportes: en qué va lo que reportó el docente */
 .mis-reportes { margin-top: 20px; }
-.mis-reportes h2 { margin-bottom: 2px; }
-.mis-reportes > .suave { margin: 0 0 12px; }
+.mis-reportes summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.mis-reportes summary::-webkit-details-marker { display: none; }
+.mis-reportes-titulo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.mis-reportes-titulo strong { font-size: 1rem; font-weight: 800; letter-spacing: -0.02em; }
+.mis-reportes-titulo small { font-size: 0.85rem; font-weight: 600; color: var(--amarillo); }
+.mis-reportes-titulo small.todo-resuelto { color: var(--verde); }
+.mis-reportes summary .icono { flex: none; width: 22px; height: 22px; color: var(--suave); transition: transform 0.2s; }
+.mis-reportes[open] summary .icono { transform: rotate(180deg); }
+.mis-reportes[open] summary { margin-bottom: 12px; }
