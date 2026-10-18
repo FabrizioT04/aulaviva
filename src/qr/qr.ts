@@ -28,6 +28,7 @@ const EJEMPLO: Record<TipoFalla, string> = {
   audio: "Ej. los parlantes no suenan con la laptop",
   impresora: "Ej. la impresora no imprime o se atasca el papel",
   perifericos: "Ej. el mouse o el teclado no responden",
+  ecran: "Ej. el ecran no baja o se quedó a medias",
 };
 
 const app = document.getElementById("app")!;
