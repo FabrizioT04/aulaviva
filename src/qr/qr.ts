@@ -1,7 +1,7 @@
 // Página que abre el docente al escanear el QR del aula.
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
-import { etiquetaFalla, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
+import { etiquetaFalla, fallasDe, TIPOS_FALLA } from "../../shared/tipos";
 import { sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import { comprimir } from "../comprimir";
@@ -90,7 +90,7 @@ function cabecera(aula: EstadoAulaQr["aula"]): string {
       <div class="cabecera-fila">
         ${MARCA}
         <span class="cabecera-acciones">
-          <span class="estado ${aula.semaforo}"><i></i>${SEMAFORO[aula.semaforo]}</span>
+          <span class="estado ${aula.semaforo}"><i></i>${aula.semaforo === "rojo" && !aula.clases ? "Falla urgente" : SEMAFORO[aula.semaforo]}</span>
           ${botonTema()}
         </span>
       </div>
@@ -111,6 +111,9 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
   const { aula, abiertos, email } = estado;
   // "Laptop" en las aulas, "Computadora" donde hay All in One
   const ETIQUETA = Object.fromEntries(TIPOS_FALLA.map((t) => [t, etiquetaFalla(t, aula.equipo)])) as Record<TipoFalla, string>;
+  // Solo lo que hay en este ambiente: sin proyector donde no hay clases, impresora solo donde la hay
+  const fallas = fallasDe(aula);
+  const principales = fallas.slice(0, 4);
   let tipo: TipoFalla | null = null;
   const fotos: Blob[] = [];
   const MAX_FOTOS = 3;
@@ -135,8 +138,8 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     <form id="form"${enviado ? " hidden" : ""}>
       <div class="borrador-recuperado" id="borrador" role="status" hidden></div>
       <h2>¿Qué está fallando?</h2>
-      <div class="opciones" id="tipos">${TIPOS_FALLA.map((v) => `<button type="button" data-tipo="${v}" aria-pressed="false"${TIPOS_PRINCIPALES.includes(v) ? "" : " hidden"}><span class="ic">${iconoSvg(v)}</span>${ETIQUETA[v]}</button>`).join("")}</div>
-      <button type="button" class="mas-tipos" id="mas-tipos">Ver más: ${TIPOS_FALLA.filter((v) => !TIPOS_PRINCIPALES.includes(v)).map((v) => ETIQUETA[v]).join(", ")}${iconoSvg("abajo")}</button>
+      <div class="opciones" id="tipos">${fallas.map((v) => `<button type="button" data-tipo="${v}" aria-pressed="false"${principales.includes(v) ? "" : " hidden"}><span class="ic">${iconoSvg(v)}</span>${ETIQUETA[v]}</button>`).join("")}</div>
+      <button type="button" class="mas-tipos" id="mas-tipos"${fallas.length > principales.length ? "" : " hidden"}>Ver más: ${fallas.filter((v) => !principales.includes(v)).map((v) => ETIQUETA[v]).join(", ")}${iconoSvg("abajo")}</button>
       <div class="aviso-duplicado" id="aviso-duplicado" role="status" hidden></div>
       <div class="guia" id="guia" hidden></div>
       <details class="extra" id="extra">
@@ -151,7 +154,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       </details>
       <div class="acciones-reporte">
         <button type="button" class="enviar" data-bloquea="0" disabled>Avisar a TI</button>
-        <button type="button" class="enviar boton-urgente" data-bloquea="1" disabled>${iconoSvg("alerta")}No puedo continuar mi clase</button>
+        <button type="button" class="enviar boton-urgente" data-bloquea="1" disabled>${iconoSvg("alerta")}${aula.clases ? "No puedo continuar mi clase" : "No puedo seguir trabajando"}</button>
       </div>
       <p class="aviso-elegir suave" id="aviso-elegir">Primero elige qué está fallando.</p>
       <p class="error" id="error" role="alert"></p>
@@ -317,7 +320,8 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
   // Si el detalle habla de otra falla ("No agarra el internet" con Laptop elegido), se sugiere cambiarla
   const sugerencia = document.getElementById("sugerencia")!;
   function sugerir() {
-    const otro = sugerirTipo(detalleCampo.value, tipo);
+    const sugerido = sugerirTipo(detalleCampo.value, tipo);
+    const otro = sugerido && fallas.includes(sugerido) ? sugerido : null;
     sugerencia.hidden = !otro;
     if (!otro) return;
     sugerencia.innerHTML = `Lo que escribiste parece una falla de <strong>${ETIQUETA[otro]}</strong>. <button type="button" data-cambiar="${otro}">Cambiar a ${ETIQUETA[otro]}</button>`;

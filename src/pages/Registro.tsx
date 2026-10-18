@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
+import { fallasDe, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import { sugerirTipo } from "../../shared/sugerencia";
 import type { AulaConEstado, DetalleAula, EntradaTi, EstadoReporte, Reporte, TipoFalla } from "../../shared/tipos";
@@ -89,6 +89,14 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
     (a) => a.nombre.toUpperCase() === buscado || a.codigo === buscado || a.seccion?.toUpperCase() === buscado,
   );
 
+  // Solo las fallas que hay en ese ambiente: el Welcome Lobby no tiene proyector y solo él tiene impresora
+  const fallas: readonly TipoFalla[] = aula ? fallasDe(aula) : TIPOS_FALLA;
+  const principales = fallas.slice(0, 4);
+  const fallasClave = fallas.join();
+  useEffect(() => {
+    if (tipo && !fallasClave.split(",").includes(tipo)) setTipo(null);
+  }, [fallasClave, tipo]);
+
   // Historial del aula elegida, para avisar si ya está reportada y mostrar cómo se resolvió antes
   const aulaId = aula?.id;
   useEffect(() => {
@@ -134,7 +142,8 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
   }
 
   // Si el detalle habla de otra falla que la elegida, se sugiere cambiarla
-  const sugerido = sugerirTipo(descripcion, tipo);
+  const sugerencia = sugerirTipo(descripcion, tipo);
+  const sugerido = sugerencia && fallas.includes(sugerencia) ? sugerencia : null;
   const delTipo = tipo ? historial.filter((r) => r.tipo_falla === tipo) : [];
   const abiertos = delTipo.filter((r) => r.estado !== "resuelto");
   const anteriores = delTipo.filter((r) => r.estado === "resuelto" && (r.causa || r.notas_resolucion)).slice(0, 3);
@@ -255,7 +264,7 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
         <fieldset>
           <legend>Tipo de falla</legend>
           <div className="opciones-falla">
-            {(masTipos ? TIPOS_FALLA : TIPOS_PRINCIPALES).map((t) => (
+            {(masTipos ? fallas : principales).map((t) => (
               <button
                 type="button"
                 key={t}
@@ -268,9 +277,9 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
               </button>
             ))}
           </div>
-          {!masTipos && (
+          {!masTipos && fallas.length > principales.length && (
             <button type="button" className="enlace ver-mas-tipos" onClick={() => setMasTipos(true)}>
-              Ver más: {TIPOS_FALLA.filter((t) => !TIPOS_PRINCIPALES.includes(t)).map((t) => ETIQUETA_FALLA[t]).join(", ")}
+              Ver más: {fallas.filter((t) => !principales.includes(t)).map((t) => ETIQUETA_FALLA[t]).join(", ")}
               <Icono nombre="abajo" />
             </button>
           )}
@@ -369,7 +378,7 @@ export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () =>
               type="button"
               className="enlace"
               onClick={() => {
-                if (!TIPOS_PRINCIPALES.includes(sugerido)) setMasTipos(true);
+                if (!principales.includes(sugerido)) setMasTipos(true);
                 setTipo(sugerido);
               }}
             >
