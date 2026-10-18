@@ -5,7 +5,7 @@ import { etiquetaFalla, fallasDe, TIPOS_FALLA } from "../../shared/tipos";
 import { sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import { comprimir } from "../comprimir";
-import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, GRUPO_DANO, seccionesDe, TIPOS_DANO, tiposDe } from "../../shared/danos";
+import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, grupoDanoDe, seccionesDe, tieneChromebooks, TIPOS_DANO, tiposDanoDe } from "../../shared/danos";
 import type { GrupoDano, TipoDano } from "../../shared/danos";
 import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, ESTADO_DOCENTE, filaMiReporte, MARCA } from "./comun";
@@ -172,7 +172,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       <p class="aviso-elegir suave" id="aviso-elegir">Primero elige qué está fallando.</p>
       <p class="error" id="error" role="alert"></p>
     </form>
-    <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo dañado? Chromebook, carpetas, ventilador, pared…</span></button>
+    <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo dañado? ${tieneChromebooks(aula) ? "Chromebook" : etiquetaFalla("pc", aula.equipo)}, carpetas, ventilador, pared…</span></button>
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
   // Dos botones en vez de la pregunta "¿Te impide dar la clase?": el docente avisa en dos toques
@@ -499,7 +499,7 @@ function pintarDano(estado: EstadoAulaQr) {
   let tipo: TipoDano | null = null;
   const fotos: Blob[] = [];
   const MAX_FOTOS = 3;
-  const ICONO = { tecnologia: "chromebook", local: "edificio" } as const;
+  const ICONO = { tecnologia: tieneChromebooks(aula) ? "chromebook" : "pc", local: "edificio" } as const;
   // La sección sale del aula y no se escribe a mano. Si el aula es de dos secciones (ej. ML/10B), se elige una
   const secciones = seccionesDe(aula.seccion);
   const campoSeccion =
@@ -515,7 +515,7 @@ function pintarDano(estado: EstadoAulaQr) {
       <div class="borrador-recuperado" id="borrador-dano" role="status" hidden></div>
       <h2>¿Qué tipo de daño es?</h2>
       <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
-        .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${GRUPO_DANO[g]}</button>`)
+        .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${grupoDanoDe(g, aula)}</button>`)
         .join("")}</div>
       <label class="campo-dano" id="campo-tipo-dano" hidden>¿Qué está dañado?<select id="tipo-dano"></select></label>
       <div class="campos-chromebook solo-tecnologia" hidden>
@@ -559,7 +559,7 @@ function pintarDano(estado: EstadoAulaQr) {
   // Lista desplegable con los tipos del grupo elegido: ocupa una línea en vez de siete botones
   function pintarTipos() {
     $("campo-tipo-dano").hidden = false;
-    tipos.innerHTML = `<option value="">Elige una opción</option>${tiposDe(grupo)
+    tipos.innerHTML = `<option value="">Elige una opción</option>${tiposDanoDe(grupo, aula)
       .map((t) => `<option value="${t}">${TIPOS_DANO[t].etiqueta}</option>`)
       .join("")}`;
     tipos.value = tipo ?? "";

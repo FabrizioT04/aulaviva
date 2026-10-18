@@ -1,6 +1,6 @@
 // API de Daños y mantenimiento (ver shared/danos.ts).
 // Quién ve y quién atiende cada grupo está en shared/danos.ts. El docente solo puede reportar desde el QR.
-import { ATIENDE_DANO, ETIQUETA_ATIENDE, ETIQUETA_ESTADO_DANO, gruposQueVe, LISTA_TIPOS_DANO, puedeEditarDano, TIPOS_DANO } from "../shared/danos";
+import { ATIENDE_DANO, ETIQUETA_ATIENDE, ETIQUETA_ESTADO_DANO, gruposQueVe, LISTA_TIPOS_DANO, puedeEditarDano, TIPOS_DANO, tiposDanoDe } from "../shared/danos";
 import type { Dano, EstadoDano, GrupoDano, MetricasDanos, TipoDano } from "../shared/danos";
 import type { Sesion } from "../shared/tipos";
 import type { Env } from "./index";
@@ -119,6 +119,11 @@ export async function crearDano(env: Env, aulaId: number, datos: Record<string, 
   const tipo = datos?.tipo as TipoDano;
   if (!LISTA_TIPOS_DANO.includes(tipo)) return json({ error: "Elige qué está dañado" }, 400);
   const grupo = TIPOS_DANO[tipo].grupo;
+  const ambiente = await env.DB.prepare("SELECT seccion, clases, audio, equipo FROM aula WHERE id = ?")
+    .bind(aulaId)
+    .first<Parameters<typeof tiposDanoDe>[1]>();
+  if (!ambiente) return json({ error: "Aula no encontrada" }, 404);
+  if (!tiposDanoDe(grupo, ambiente).includes(tipo)) return json({ error: "Ese equipo no está en esta aula" }, 400);
   const tecnologia = grupo === "tecnologia";
   const descripcion = texto(datos?.descripcion);
   if (tipo.endsWith("_otro") && !descripcion) return json({ error: "Cuenta en pocas palabras qué está dañado" }, 400);

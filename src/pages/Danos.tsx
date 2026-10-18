@@ -5,10 +5,12 @@ import {
   ETIQUETA_ATIENDE,
   ETIQUETA_ESTADO_DANO,
   GRUPO_DANO,
+  grupoDanoDe,
   gruposQueAtiende,
   gruposQueVe,
   puedeEditarDano,
   TIPOS_DANO,
+  tiposDanoDe,
   tiposDe,
   type GrupoDano,
   type Dano,
@@ -283,6 +285,9 @@ function FormDano({
   }, [onNoAutorizado]);
 
   const tecnologia = grupo === "tecnologia";
+  // Solo lo que hay en el aula elegida: Chromebooks en los ML, proyector donde hay clases
+  const aula = aulas.find((a) => a.id === aulaId);
+  const tiposVisibles = aula ? tiposDanoDe(grupo, aula) : tiposDe(grupo);
 
   async function elegirFotos(lista: FileList | null) {
     const elegidas = [...(lista ?? [])].slice(0, MAX_FOTOS - fotos.length);
@@ -332,6 +337,7 @@ function FormDano({
             setAulaId(id);
             const elegida = aulas.find((a) => a.id === id);
             if (elegida?.seccion && !seccion) setSeccion(elegida.seccion);
+            if (elegida && tipo && !tiposDanoDe(grupo, elegida).includes(tipo)) setTipo(null);
           }}
           required
         >
@@ -360,13 +366,13 @@ function FormDano({
                 }}
               >
                 <Icono nombre={ICONO_GRUPO[g]} />
-                {GRUPO_DANO[g]}
+                {aula ? grupoDanoDe(g, aula) : GRUPO_DANO[g]}
               </button>
             ))}
           </div>
         )}
         <div className="chips tipos-dano" role="group" aria-label="Tipo de daño">
-          {tiposDe(grupo).map((t) => (
+          {tiposVisibles.map((t) => (
             <button type="button" key={t} className={tipo === t ? "chip activo" : "chip"} aria-pressed={tipo === t} onClick={() => setTipo(t)}>
               {TIPOS_DANO[t].etiqueta}
             </button>
