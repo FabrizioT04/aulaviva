@@ -69,7 +69,7 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
           <h1>Daños y mantenimiento</h1>
           <p className="subtitulo">
             {esTi
-              ? `Chromebooks, laptops y proyectores dañados. ${EQUIPO_DANOS} también los ve. No cuentan en las incidencias de TI.`
+              ? `Equipos dañados (los atiende TI) y desperfectos del local (los atiende ${EQUIPO_DANOS}). Como TI puedes cambiar todos. No cuentan en las incidencias de TI.`
               : "Desperfectos del local: ventiladores, paredes, mobiliario, puertas, luz. También ves los equipos dañados, que atiende TI."}
           </p>
         </div>
