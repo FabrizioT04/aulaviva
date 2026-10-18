@@ -40,6 +40,17 @@ interface BorradorQr {
   detalle: string;
   fotos: number;
 }
+// El aviso de daño a medio llenar se guarda aparte, con la misma vigencia
+const CLAVE_BORRADOR_DANO = `aulaviva:borrador-dano:${codigo}`;
+interface BorradorDano {
+  grupo: GrupoDano | null;
+  tipo: TipoDano | null;
+  equipo: string;
+  seccion: string;
+  estudiante: string;
+  detalle: string;
+  fotos: number;
+}
 // Por dónde llegó el docente: /docente agrega ?via=lista o ?via=escaner; sin eso, escaneó el QR impreso
 const via = new URLSearchParams(location.search).get("via");
 const entrada = via === "lista" || via === "escaner" ? via : "qr";
@@ -66,7 +77,10 @@ async function cargar() {
     const { error } = (await res.json().catch(() => ({}))) as { error?: string };
     return mensaje("No se pudo abrir el aula", error ?? "Intenta escanear el QR de nuevo.");
   }
-  pintar((await res.json()) as EstadoAulaQr);
+  const estado = (await res.json()) as EstadoAulaQr;
+  // Si dejó un aviso de daño a medio llenar, vuelve directo a ese formulario
+  if (leerBorrador<BorradorDano>(CLAVE_BORRADOR_DANO, VIGENCIA_BORRADOR_MIN)) pintarDano(estado);
+  else pintar(estado);
 }
 
 // Cabecera con el aula y su semáforo; la comparten el reporte a TI y el de daños
@@ -462,6 +476,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
 function pintarDano(estado: EstadoAulaQr) {
   const { aula, email } = estado;
   let grupo: GrupoDano = "tecnologia";
+  let grupoElegido = false;
   let tipo: TipoDano | null = null;
   const fotos: Blob[] = [];
   const MAX_FOTOS = 3;
@@ -471,6 +486,7 @@ function pintarDano(estado: EstadoAulaQr) {
     ${cabecera(aula)}
     <form id="form-dano">
       <button type="button" class="volver-ti" id="volver">${iconoSvg("volver")}Volver a fallas para TI</button>
+      <div class="borrador-recuperado" id="borrador-dano" role="status" hidden></div>
       <h2>¿Qué está dañado?</h2>
       <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
         .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${GRUPO_DANO[g]}</button>`)
@@ -519,19 +535,40 @@ function pintarDano(estado: EstadoAulaQr) {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-grupo]");
     if (!b) return;
     grupo = b.dataset.grupo as GrupoDano;
+    grupoElegido = true;
     tipo = null;
     for (const x of b.parentElement!.children) {
       x.classList.toggle("activo", x === b);
       x.setAttribute("aria-pressed", String(x === b));
     }
     pintarTipos();
+    guardarDano();
   });
   tipos.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-tipo-dano]");
     if (!b) return;
     tipo = b.dataset.tipoDano as TipoDano;
     pintarTipos();
+    guardarDano();
   });
+
+  // Como en el reporte a TI: lo elegido y escrito queda en el celular hasta enviarlo.
+  // Las fotos no se guardan, solo cuántas había para avisar que hay que elegirlas de nuevo
+  const campo = (id: string) => $<HTMLInputElement>(id).value;
+  function guardarDano() {
+    const datos: BorradorDano = {
+      grupo: grupoElegido ? grupo : null,
+      tipo,
+      equipo: campo("equipo"),
+      seccion: campo("seccion"),
+      estudiante: campo("estudiante"),
+      detalle: detalle.value,
+      fotos: fotos.length,
+    };
+    if (!datos.grupo && !datos.detalle.trim()) borrarBorrador(CLAVE_BORRADOR_DANO);
+    else guardarBorrador<BorradorDano>(CLAVE_BORRADOR_DANO, datos);
+  }
+  for (const id of ["equipo", "seccion", "estudiante", "detalle-dano"]) $(id).addEventListener("input", guardarDano);
 
   const archivo = $<HTMLInputElement>("archivo-dano");
   const vista = $("vista-dano");
@@ -544,6 +581,28 @@ function pintarDano(estado: EstadoAulaQr) {
       .join("");
     $("elegir-foto-dano").hidden = fotos.length >= MAX_FOTOS;
     $("texto-foto-dano").textContent = fotos.length ? `Agregar otra foto (${fotos.length}/${MAX_FOTOS})` : "Tomar o elegir foto";
+    guardarDano();
+  }
+
+  const previo = leerBorrador<BorradorDano>(CLAVE_BORRADOR_DANO, VIGENCIA_BORRADOR_MIN);
+  if (previo) {
+    const b = previo.datos;
+    if (b.grupo) $("grupos").querySelector<HTMLButtonElement>(`[data-grupo="${b.grupo}"]`)?.click();
+    if (b.tipo && TIPOS_DANO[b.tipo]?.grupo === grupo) tipos.querySelector<HTMLButtonElement>(`[data-tipo-dano="${b.tipo}"]`)?.click();
+    $<HTMLInputElement>("equipo").value = b.equipo ?? "";
+    $<HTMLInputElement>("seccion").value = b.seccion ?? $<HTMLInputElement>("seccion").value;
+    $<HTMLInputElement>("estudiante").value = b.estudiante ?? "";
+    detalle.value = b.detalle ?? "";
+    guardarDano();
+    const aviso = $("borrador-dano");
+    aviso.innerHTML = `${iconoSvg("info")}<span>Recuperamos tu aviso sin enviar. Revísalo y toca <strong>Enviar</strong>.${
+      b.fotos ? ` ${b.fotos === 1 ? "La foto hay" : "Las fotos hay"} que volver a elegirla${b.fotos === 1 ? "" : "s"}.` : ""
+    } <button type="button" id="descartar-borrador-dano">Descartar</button></span>`;
+    aviso.hidden = false;
+    $("descartar-borrador-dano").addEventListener("click", () => {
+      borrarBorrador(CLAVE_BORRADOR_DANO);
+      pintarDano(estado);
+    });
   }
   archivo.addEventListener("change", async () => {
     const elegidos = [...(archivo.files ?? [])].slice(0, MAX_FOTOS - fotos.length);
@@ -603,6 +662,7 @@ function pintarDano(estado: EstadoAulaQr) {
       }).catch(() => null);
       if (!subida?.ok) fallidas++;
     }
+    borrarBorrador(CLAVE_BORRADOR_DANO);
     pintar(
       estado,
       `<section class="tarjeta exito">
