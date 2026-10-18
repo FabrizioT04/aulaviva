@@ -54,10 +54,10 @@ const PESTANAS: {
   { pantalla: "qr", etiqueta: "QR de aulas", icono: "qr", soloPc: true },
 ];
 
-// COA / Mantenimiento solo usa Daños y mantenimiento
+// COA ve todo el panel, pero solo cambia los daños del local
 const AREA_USUARIO: Record<string, string> = {
   ti: "Área de TI",
-  coa: "COA / Mantenimiento",
+  coa: "COA",
 };
 
 function rutaActual(): Ruta {
@@ -138,12 +138,14 @@ export default function App() {
   }
 
   const { sesion } = estado;
-  const soloDanos = sesion.rol !== "ti";
-  const pantalla: Ruta = soloDanos ? { pantalla: "danos" } : ruta;
+  const soloLectura = sesion.rol !== "ti";
+  // COA no registra incidencias: entra directo a Daños
+  const pantalla: Ruta =
+    soloLectura && ruta.pantalla === "registro" ? { pantalla: "danos" } : ruta;
   const pestana =
     pantalla.pantalla === "aula" ? "dashboard" : pantalla.pantalla;
-  const pestanas = soloDanos
-    ? PESTANAS.filter((p) => p.pantalla === "danos")
+  const pestanas = soloLectura
+    ? PESTANAS.filter((p) => p.pantalla !== "registro")
     : PESTANAS;
   const usuario =
     sesion.modo === "local"
@@ -182,7 +184,7 @@ export default function App() {
           </nav>
         )}
         <div className="controles-cabecera">
-          {!soloDanos && <Notificaciones />}
+          {!soloLectura && <Notificaciones />}
           <SelectorTema />
         </div>
         <div className="usuario">
@@ -203,12 +205,12 @@ export default function App() {
           <Registro onNoAutorizado={salir} ir={ir} />
         )}
         {pantalla.pantalla === "dashboard" && (
-          <Dashboard onNoAutorizado={salir} ir={ir} />
+          <Dashboard onNoAutorizado={salir} ir={ir} soloLectura={soloLectura} />
         )}
         {pantalla.pantalla === "observatorio" && (
           <Observatorio onNoAutorizado={salir} ir={ir} />
         )}
-        {pantalla.pantalla === "fichas" && <Fichas onNoAutorizado={salir} />}
+        {pantalla.pantalla === "fichas" && <Fichas onNoAutorizado={salir} soloLectura={soloLectura} />}
         {pantalla.pantalla === "qr" && (
           <ImprimirQr onNoAutorizado={salir} ir={ir} />
         )}

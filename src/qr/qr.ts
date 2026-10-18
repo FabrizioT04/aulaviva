@@ -458,7 +458,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
   }
 }
 
-// Daños: los de equipos tecnológicos le llegan a TI y a COA / Mantenimiento; los del local, solo a COA / Mantenimiento
+// Daños: los de equipos tecnológicos le llegan a TI y a COA; los del local, solo a COA
 function pintarDano(estado: EstadoAulaQr) {
   const { aula, email } = estado;
   let grupo: GrupoDano = "tecnologia";

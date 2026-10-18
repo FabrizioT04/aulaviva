@@ -12,9 +12,10 @@ import { canal, descripcionAula, duracion, ETIQUETA_FALLA, minutosDesde } from "
 interface Props {
   onNoAutorizado: () => void;
   ir: (r: Ruta) => void;
+  soloLectura?: boolean; // COA: ve los reportes pero no los atiende
 }
 
-export default function Dashboard({ onNoAutorizado, ir }: Props) {
+export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
   const [abiertos, setAbiertos] = useState<Reporte[]>([]);
   const [conectado, setConectado] = useState(false);
@@ -129,9 +130,11 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
               ? "En vivo"
               : `Reconectando…${actualizado ? ` · datos de las ${actualizado.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}` : ""}`}
           </span>
-          <button className="primario" onClick={() => ir({ pantalla: "registro" })}>
-            <Icono nombre="registrar" /> Registrar incidencia
-          </button>
+          {!soloLectura && (
+            <button className="primario" onClick={() => ir({ pantalla: "registro" })}>
+              <Icono nombre="registrar" /> Registrar incidencia
+            </button>
+          )}
         </div>
       </header>
 
@@ -261,7 +264,7 @@ export default function Dashboard({ onNoAutorizado, ir }: Props) {
                   />
                 ) : abierto?.id === r.id && abierto.accion === "escalar" ? (
                   <FormEscalar onGuardar={(ticket, obs) => escalar(r, ticket, obs)} onCancelar={() => setAbierto(null)} />
-                ) : (
+                ) : soloLectura ? null : (
                   <div className="acciones">
                     {r.estado === "abierto" && <button onClick={() => atender(r)}>Atender</button>}
                     {r.estado !== "escalado" && <button onClick={() => setAbierto({ id: r.id, accion: "escalar" })}>Escalar</button>}
