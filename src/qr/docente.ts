@@ -84,24 +84,20 @@ function pintarInstalar() {
 }
 
 // Lo que el docente reportó hace poco y en qué va: así no tiene que preguntar por WhatsApp.
-// Solo los primeros a la vista (los sin resolver van antes) para no tapar el botón de escanear ni la lista de aulas
-const A_LA_VISTA = 3;
-function misReportes(datos: AulasDocente | null): string {
+// Va plegado, con solo el título y cuántos faltan, para no tapar el botón de escanear ni la lista de aulas.
+// Los sin resolver van primero.
+function misReportes(datos: AulasDocente | null, abierto = false): string {
   if (!datos?.mios.length) return "";
   const orden = [...datos.mios].sort((a, b) => Number(a.estado === "resuelto") - Number(b.estado === "resuelto"));
   const pendientes = orden.filter((m) => m.estado !== "resuelto").length;
-  const resto = orden.slice(A_LA_VISTA);
-  return `<section class="tarjeta mis-reportes">
-      <h2>Tus reportes</h2>
-      <p class="suave">${pendientes ? `${pendientes === 1 ? "1 sin resolver" : `${pendientes} sin resolver`}. TI ya está avisado.` : "Todo lo que reportaste ya se resolvió."}</p>
-      <ul class="abiertos">${orden.slice(0, A_LA_VISTA).map((m) => filaMiReporte(m)).join("")}</ul>
-      ${
-        resto.length
-          ? `<details class="mas-reportes"><summary>Ver ${resto.length === 1 ? "1 más" : `${resto.length} más`}${iconoSvg("abajo")}</summary>
-              <ul class="abiertos">${resto.map((m) => filaMiReporte(m)).join("")}</ul></details>`
-          : ""
-      }
-    </section>`;
+  return `<details class="tarjeta mis-reportes"${abierto ? " open" : ""}>
+      <summary>
+        <span class="mis-reportes-titulo"><strong>Tus reportes</strong>
+          <small class="${pendientes ? "" : "todo-resuelto"}">${pendientes ? `${pendientes} sin resolver · TI ya está avisado` : "Todo lo que reportaste ya se resolvió"}</small></span>
+        ${iconoSvg("abajo")}
+      </summary>
+      <ul class="abiertos">${orden.map((m) => filaMiReporte(m)).join("")}</ul>
+    </details>`;
 }
 
 function pintar(datos: AulasDocente | null, error = "") {
@@ -216,8 +212,9 @@ addEventListener("visibilitychange", () => {
   fetch("/api/qr")
     .then((res) => (res.ok ? (res.json() as Promise<AulasDocente>) : null))
     .then((datos) => {
-      const caja = app.querySelector(".mis-reportes");
-      const nueva = datos && misReportes(datos);
+      const caja = app.querySelector<HTMLDetailsElement>(".mis-reportes");
+      // Si el docente lo dejó abierto, sigue abierto
+      const nueva = datos && misReportes(datos, caja?.open);
       if (caja && nueva) caja.outerHTML = nueva;
       else if (caja && !nueva) caja.remove();
       else if (!caja && nueva) document.getElementById("error-camara")?.insertAdjacentHTML("afterend", nueva);
