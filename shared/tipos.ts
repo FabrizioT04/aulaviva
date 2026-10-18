@@ -16,6 +16,15 @@ export const ETIQUETA_FALLA: Record<TipoFalla, string> = {
 // En las aulas se trabaja con laptops; donde hay All in One (Welcome Lobby, Sala de docentes) los docentes dicen "computadora"
 export type EquipoAula = "laptop" | "aio";
 
+// Fallas que se pueden reportar en un ambiente, en el orden en que se muestran (las 4 primeras siempre a la vista).
+// Sin clases (Welcome Lobby, Sala de docentes) no hay proyector; impresora y parlantes, solo donde se marcaron
+const ORDEN_FALLAS: readonly TipoFalla[] = ["internet", "proyector", "pc", "impresora", "otro", "audio", "perifericos"];
+export function fallasDe(aula: Pick<AulaConEstado, "clases" | "impresora" | "audio">): TipoFalla[] {
+  return ORDEN_FALLAS.filter(
+    (t) => (t !== "proyector" || aula.clases) && (t !== "impresora" || aula.impresora) && (t !== "audio" || aula.audio),
+  );
+}
+
 // Nombre de la falla como lo dice el docente en ese ambiente
 export function etiquetaFalla(tipo: TipoFalla, equipo?: EquipoAula): string {
   if (tipo === "pc" && equipo) return equipo === "aio" ? "Computadora" : "Laptop";
@@ -33,6 +42,9 @@ export interface AulaConEstado {
   nivel: string | null; // Inicial, Primaria, Secundaria, Varios, Rotaciones
   seccion: string | null; // grado y sección que conocen los docentes, ej. "4A"
   equipo: EquipoAula;
+  clases: number; // 1 si se dictan clases (tiene proyector); 0 en el Welcome Lobby y la Sala de docentes
+  impresora: number; // 1 si tiene impresora de red
+  audio: number; // 1 si tiene parlantes
   semaforo: Semaforo;
   reportes_abiertos: number;
 }
