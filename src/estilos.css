@@ -427,6 +427,11 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .menu-avisos small { color: var(--suave); font-size: 0.78rem; margin: -2px 2px 4px; }
 .menu-avisos button { min-height: 44px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--texto); font: inherit; font-size: 0.88rem; font-weight: 600; text-align: left; cursor: pointer; }
 .menu-avisos button:hover { border-color: var(--primario); }
+.tono-avisos { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.tono-avisos label { grid-column: 1 / -1; font-size: 0.78rem; font-weight: 700; color: var(--suave); margin: 4px 2px 0; }
+.tono-avisos select { min-width: 0; min-height: 44px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--borde); background: var(--superficie-2); color: var(--texto); font: inherit; font-size: 0.88rem; font-weight: 600; }
+.menu-avisos .tono-avisos button { width: 44px; padding: 0; display: grid; place-items: center; }
+.menu-avisos .tono-avisos button:disabled { opacity: 0.45; cursor: default; }
 .menu-avisos button.peligro { color: var(--rojo-texto, var(--rojo)); background: transparent; }
 .aviso-avisos { position: fixed; z-index: 20; right: 24px; bottom: 24px; max-width: 360px; margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--texto); color: var(--superficie); font-size: 0.9rem; font-weight: 600; box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.45); }
 @media (max-width: 899px) {
