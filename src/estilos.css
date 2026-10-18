@@ -191,6 +191,7 @@ fieldset .segmentado { display: flex; }
 .tipo-icono.audio { background: #fdeaf3; color: #be185d; }
 .tipo-icono.impresora { background: #eef1f5; color: #475569; }
 .tipo-icono.perifericos { background: #ecf7e3; color: #4d7c0f; }
+.tipo-icono.ecran { background: #e6f4fb; color: #0369a1; }
 .bloquea .tipo-icono { background: var(--rojo); color: #fff; }
 @media (prefers-color-scheme: dark) {
   .tipo-icono.internet { background: #14213a; color: #8ab4ff; }
@@ -200,6 +201,7 @@ fieldset .segmentado { display: flex; }
   .tipo-icono.audio { background: #3a1427; color: #f472b6; }
   .tipo-icono.impresora { background: #1c222b; color: #a3b3c6; }
   .tipo-icono.perifericos { background: #1a2a0e; color: #a3d96a; }
+  .tipo-icono.ecran { background: #0c2433; color: #7cc7ee; }
   .bloquea .tipo-icono { background: var(--rojo); color: var(--fondo); }
 }
 

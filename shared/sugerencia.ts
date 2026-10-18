@@ -12,9 +12,11 @@ const CLARAS: Partial<Record<TipoFalla, string[]>> = {
   audio: ["audio", "parlante", "sonido", "volumen", "microfono", "bocina", "no se escucha"],
   impresora: ["imprim", "impresora", "toner", "tinta", "atasc"],
   perifericos: ["mouse", "raton", "teclado", "webcam", "camara web"],
+  ecran: ["ecran", "ecram", "telon", "pantalla de proyeccion"],
 };
 const DEBILES: Partial<Record<TipoFalla, string[]>> = {
   pc: ["laptop", "portatil", "no enciende", "no prende", "se apaga", "se apago"],
+  ecran: ["no baja", "no sube"],
 };
 
 function normalizar(texto: string): string {

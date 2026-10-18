@@ -1,6 +1,7 @@
 // Tipos de falla. Los cuatro primeros se muestran siempre; los demás, al tocar "Ver más".
-// Para agregar uno: este arreglo, su ícono en shared/iconos.ts y una migración que actualice el CHECK.
-export const TIPOS_FALLA = ["internet", "proyector", "pc", "otro", "audio", "impresora", "perifericos"] as const;
+// Para agregar uno: este arreglo, su etiqueta, su lugar en ORDEN_FALLAS, su ícono en shared/iconos.ts y su color en estilos.css.
+// La base de datos no restringe el tipo (ver 0019_ecran.sql): lo valida el Worker.
+export const TIPOS_FALLA = ["internet", "proyector", "pc", "otro", "audio", "impresora", "perifericos", "ecran"] as const;
 export type TipoFalla = (typeof TIPOS_FALLA)[number];
 export const TIPOS_PRINCIPALES: readonly TipoFalla[] = TIPOS_FALLA.slice(0, 4);
 
@@ -12,16 +13,17 @@ export const ETIQUETA_FALLA: Record<TipoFalla, string> = {
   audio: "Audio",
   impresora: "Impresora",
   perifericos: "Periféricos",
+  ecran: "Ecran", // la pantalla de proyección de las aulas
 };
 // En las aulas se trabaja con laptops; donde hay All in One (Welcome Lobby, Sala de docentes) los docentes dicen "computadora"
 export type EquipoAula = "laptop" | "aio";
 
 // Fallas que se pueden reportar en un ambiente, en el orden en que se muestran (las 4 primeras siempre a la vista).
-// Sin clases (Welcome Lobby, Sala de docentes) no hay proyector; impresora y parlantes, solo donde se marcaron
-const ORDEN_FALLAS: readonly TipoFalla[] = ["internet", "proyector", "pc", "impresora", "otro", "audio", "perifericos"];
+// Sin clases (Welcome Lobby, Sala de docentes) no hay proyector ni ecran; impresora y parlantes, solo donde se marcaron
+const ORDEN_FALLAS: readonly TipoFalla[] = ["internet", "proyector", "pc", "impresora", "otro", "ecran", "audio", "perifericos"];
 export function fallasDe(aula: Pick<AulaConEstado, "clases" | "impresora" | "audio">): TipoFalla[] {
   return ORDEN_FALLAS.filter(
-    (t) => (t !== "proyector" || aula.clases) && (t !== "impresora" || aula.impresora) && (t !== "audio" || aula.audio),
+    (t) => ((t !== "proyector" && t !== "ecran") || aula.clases) && (t !== "impresora" || aula.impresora) && (t !== "audio" || aula.audio),
   );
 }
 
