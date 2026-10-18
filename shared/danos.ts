@@ -63,3 +63,14 @@ export interface Dano {
   actualizado_por: string | null;
   fotos: number;
 }
+
+// Resumen de la pestaña Daños: lo abierto ahora y lo de los últimos días
+export interface MetricasDanos {
+  dias: number;
+  pendientes: number;
+  en_proceso: number;
+  abierto_mas_antiguo: string | null; // reportado_en del daño abierto más antiguo
+  registrados: number;
+  resueltos: number;
+  prom_atencion_min: number | null; // de registrado a resuelto, en los resueltos del periodo
+}

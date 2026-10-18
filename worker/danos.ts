@@ -1,7 +1,7 @@
 // API de Daños y mantenimiento (ver shared/danos.ts).
 // Quién ve y quién atiende cada grupo está en shared/danos.ts. El docente solo puede reportar desde el QR.
 import { ATIENDE_DANO, ETIQUETA_ATIENDE, ETIQUETA_ESTADO_DANO, gruposQueVe, LISTA_TIPOS_DANO, puedeEditarDano, TIPOS_DANO } from "../shared/danos";
-import type { Dano, EstadoDano, GrupoDano, TipoDano } from "../shared/danos";
+import type { Dano, EstadoDano, GrupoDano, MetricasDanos, TipoDano } from "../shared/danos";
 import type { Sesion } from "../shared/tipos";
 import type { Env } from "./index";
 
@@ -37,6 +37,28 @@ export async function enrutarDanos(request: Request, url: URL, env: Env, sesion:
       .bind(JSON.stringify(grupos))
       .all<Dano>();
     return json(results);
+  }
+
+  // Resumen para la cabecera de la pestaña: respeta el filtro de grupo
+  if (pathname === "/api/danos/metricas" && metodo === "GET") {
+    const dias = Math.min(Math.max(Number(url.searchParams.get("dias")) || 30, 1), 365);
+    const pedido = url.searchParams.get("grupo");
+    const grupos = visibles.filter((g) => !pedido || g === pedido);
+    const desde = `-${dias} days`;
+    const metricas = await env.DB.prepare(
+      `SELECT ?3 AS dias,
+         COALESCE(SUM(estado = 'pendiente'), 0) AS pendientes,
+         COALESCE(SUM(estado = 'en_proceso'), 0) AS en_proceso,
+         MIN(CASE WHEN estado <> 'resuelto' THEN reportado_en END) AS abierto_mas_antiguo,
+         COALESCE(SUM(reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?2)), 0) AS registrados,
+         COALESCE(SUM(estado = 'resuelto' AND resuelto_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?2)), 0) AS resueltos,
+         AVG(CASE WHEN estado = 'resuelto' AND resuelto_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?2)
+             THEN (julianday(resuelto_en) - julianday(reportado_en)) * 1440 END) AS prom_atencion_min
+       FROM dano WHERE grupo IN (SELECT value FROM json_each(?1))`,
+    )
+      .bind(JSON.stringify(grupos), desde, dias)
+      .first<MetricasDanos>();
+    return json(metricas);
   }
 
   if (pathname === "/api/danos" && metodo === "POST") {
