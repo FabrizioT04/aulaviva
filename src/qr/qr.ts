@@ -103,7 +103,7 @@ function cabecera(aula: EstadoAulaQr["aula"]): string {
         </div>
         <div class="cubo-escena" aria-hidden="true"><div class="cubo ${aula.semaforo}">${esc(aula.codigo)}</div></div>
       </div>
-      <a class="cambiar-aula" href="/docente">${iconoSvg("volver")}¿No es tu aula? Cambiar de aula</a>
+      <a class="cambiar-aula" href="/docente">${iconoSvg("ubicacion")}¿No es tu aula? Cambiar de aula</a>
     </header>`;
 }
 
@@ -498,7 +498,6 @@ function pintarDano(estado: EstadoAulaQr) {
   app.innerHTML = `
     ${cabecera(aula)}
     <form id="form-dano">
-      <button type="button" class="volver-ti" id="volver">${iconoSvg("volver")}Volver a fallas para TI</button>
       <div class="borrador-recuperado" id="borrador-dano" role="status" hidden></div>
       <h2>¿Qué tipo de daño es?</h2>
       <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
@@ -526,6 +525,12 @@ function pintarDano(estado: EstadoAulaQr) {
       <p class="suave" id="destino-dano"></p>
       <p class="error" id="error-dano" role="alert"></p>
     </form>
+    <!-- El cambio entre "falla para TI" y "algo dañado" queda abajo en las dos pantallas, para no sumar otra flecha arriba -->
+    <button type="button" class="enlace-dano" id="volver">${iconoSvg("pc")}<span>¿Es una falla para TI? ${fallasDe(aula)
+      .filter((t) => t !== "otro")
+      .slice(0, 3)
+      .map((t, i) => (i ? etiquetaFalla(t, aula.equipo).toLowerCase() : etiquetaFalla(t, aula.equipo)))
+      .join(", ")}…</span></button>
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
