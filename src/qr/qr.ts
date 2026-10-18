@@ -495,11 +495,11 @@ function pintarDano(estado: EstadoAulaQr) {
     <form id="form-dano">
       <button type="button" class="volver-ti" id="volver">${iconoSvg("volver")}Volver a fallas para TI</button>
       <div class="borrador-recuperado" id="borrador-dano" role="status" hidden></div>
-      <h2>¿Qué está dañado?</h2>
+      <h2>¿Qué tipo de daño es?</h2>
       <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
         .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${GRUPO_DANO[g]}</button>`)
         .join("")}</div>
-      <label class="campo-dano" id="campo-tipo-dano" hidden>¿Qué tiene?<select id="tipo-dano"></select></label>
+      <label class="campo-dano" id="campo-tipo-dano" hidden>¿Qué está dañado?<select id="tipo-dano"></select></label>
       <div class="campos-chromebook solo-tecnologia" hidden>
         <label>Sección del estudiante${campoSeccion}</label>
       </div>
