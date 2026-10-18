@@ -42,6 +42,9 @@ export const ETIQUETA_ESTADO_DANO: Record<EstadoDano, string> = {
   en_proceso: "En proceso",
   resuelto: "Resuelto",
 };
+// Secciones de un aula: "ML/10B" son dos. La del estudiante debe ser una de ellas
+export const seccionesDe = (seccion: string | null | undefined): string[] =>
+  (seccion ?? "").split("/").map((s) => s.trim()).filter(Boolean);
 export const ESTADOS_DANO = Object.keys(ETIQUETA_ESTADO_DANO) as EstadoDano[];
 
 export interface Dano {

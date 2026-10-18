@@ -5,7 +5,7 @@ import { etiquetaFalla, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipo
 import { sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import { comprimir } from "../comprimir";
-import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, GRUPO_DANO, TIPOS_DANO, tiposDe } from "../../shared/danos";
+import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, GRUPO_DANO, seccionesDe, TIPOS_DANO, tiposDe } from "../../shared/danos";
 import type { GrupoDano, TipoDano } from "../../shared/danos";
 import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
@@ -481,6 +481,14 @@ function pintarDano(estado: EstadoAulaQr) {
   const fotos: Blob[] = [];
   const MAX_FOTOS = 3;
   const ICONO = { tecnologia: "chromebook", local: "edificio" } as const;
+  // La sección sale del aula y no se escribe a mano. Si el aula es de dos secciones (ej. ML/10B), se elige una
+  const secciones = seccionesDe(aula.seccion);
+  const campoSeccion =
+    secciones.length > 1
+      ? `<select id="seccion">${secciones.map((s) => `<option>${esc(s)}</option>`).join("")}</select>`
+      : secciones.length === 1
+        ? `<input id="seccion" value="${esc(secciones[0])}" readonly /><span class="suave">Es la sección de esta aula.</span>`
+        : `<input id="seccion" maxlength="20" />`;
 
   app.innerHTML = `
     ${cabecera(aula)}
@@ -491,10 +499,10 @@ function pintarDano(estado: EstadoAulaQr) {
       <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
         .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${GRUPO_DANO[g]}</button>`)
         .join("")}</div>
-      <div class="chips-dano" id="tipos-dano" role="group" aria-label="Tipo de daño" hidden></div>
+      <label class="campo-dano" id="campo-tipo-dano" hidden>¿Qué tiene?<select id="tipo-dano"></select></label>
       <div class="campos-chromebook" id="campos-chromebook" hidden>
         <label>Código del equipo (opcional)<input id="equipo" maxlength="40" placeholder="Si se ve en la etiqueta, ej. CB-ML-12" /></label>
-        <label>Sección del estudiante<input id="seccion" maxlength="20" value="${esc(aula.seccion ?? "")}" /></label>
+        <label>Sección del estudiante${campoSeccion}</label>
         <label>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI y ${EQUIPO_DANOS}.</span></label>
       </div>
       <label class="campo-dano"><span id="etiqueta-detalle-dano">Detalle (opcional)</span><textarea id="detalle-dano" rows="2" maxlength="500"></textarea></label>
@@ -513,15 +521,20 @@ function pintarDano(estado: EstadoAulaQr) {
   const enviar = $<HTMLButtonElement>("enviar-dano");
   const error = $("error-dano");
   const detalle = $<HTMLTextAreaElement>("detalle-dano");
-  const tipos = $("tipos-dano");
+  const tipos = $<HTMLSelectElement>("tipo-dano");
 
   $("volver").addEventListener("click", () => pintar(estado));
 
+  // Lista desplegable con los tipos del grupo elegido: ocupa una línea en vez de siete botones
   function pintarTipos() {
-    tipos.hidden = false;
-    tipos.innerHTML = tiposDe(grupo)
-      .map((t) => `<button type="button" data-tipo-dano="${t}" aria-pressed="${t === tipo}"${t === tipo ? ' class="activo"' : ""}>${TIPOS_DANO[t].etiqueta}</button>`)
-      .join("");
+    $("campo-tipo-dano").hidden = false;
+    tipos.innerHTML = `<option value="">Elige una opción</option>${tiposDe(grupo)
+      .map((t) => `<option value="${t}">${TIPOS_DANO[t].etiqueta}</option>`)
+      .join("")}`;
+    tipos.value = tipo ?? "";
+    pintarEstado();
+  }
+  function pintarEstado() {
     $("campos-chromebook").hidden = grupo !== "tecnologia";
     const otro = Boolean(tipo?.endsWith("_otro"));
     $("etiqueta-detalle-dano").textContent = otro ? "Describe el daño" : "Detalle (opcional)";
@@ -544,11 +557,9 @@ function pintarDano(estado: EstadoAulaQr) {
     pintarTipos();
     guardarDano();
   });
-  tipos.addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-tipo-dano]");
-    if (!b) return;
-    tipo = b.dataset.tipoDano as TipoDano;
-    pintarTipos();
+  tipos.addEventListener("change", () => {
+    tipo = (tipos.value || null) as TipoDano | null;
+    pintarEstado();
     guardarDano();
   });
 
@@ -569,6 +580,7 @@ function pintarDano(estado: EstadoAulaQr) {
     else guardarBorrador<BorradorDano>(CLAVE_BORRADOR_DANO, datos);
   }
   for (const id of ["equipo", "seccion", "estudiante", "detalle-dano"]) $(id).addEventListener("input", guardarDano);
+  $("seccion").addEventListener("change", guardarDano);
 
   const archivo = $<HTMLInputElement>("archivo-dano");
   const vista = $("vista-dano");
@@ -588,9 +600,14 @@ function pintarDano(estado: EstadoAulaQr) {
   if (previo) {
     const b = previo.datos;
     if (b.grupo) $("grupos").querySelector<HTMLButtonElement>(`[data-grupo="${b.grupo}"]`)?.click();
-    if (b.tipo && TIPOS_DANO[b.tipo]?.grupo === grupo) tipos.querySelector<HTMLButtonElement>(`[data-tipo-dano="${b.tipo}"]`)?.click();
+    if (b.tipo && TIPOS_DANO[b.tipo]?.grupo === grupo) {
+      tipo = b.tipo;
+      tipos.value = b.tipo;
+      pintarEstado();
+    }
     $<HTMLInputElement>("equipo").value = b.equipo ?? "";
-    $<HTMLInputElement>("seccion").value = b.seccion ?? $<HTMLInputElement>("seccion").value;
+    // La sección guardada solo vale si es del aula (o si el aula no tiene sección)
+    if (b.seccion && (!secciones.length || secciones.includes(b.seccion))) $<HTMLInputElement>("seccion").value = b.seccion;
     $<HTMLInputElement>("estudiante").value = b.estudiante ?? "";
     detalle.value = b.detalle ?? "";
     guardarDano();
