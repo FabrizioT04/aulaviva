@@ -26,6 +26,7 @@ self.addEventListener("push", (e) => {
         vibrate: aviso.urgente ? [200, 100, 200, 100, 200] : [200],
       }),
       avisarAlPanel(aviso),
+      marcarPendientes(aviso.pendientes),
     ]),
   );
 });
@@ -37,6 +38,18 @@ async function avisarAlPanel(aviso) {
   const paneles = abiertas.filter((c) => new URL(c.url).origin === self.location.origin && !/^\/(r\/|docente)/.test(new URL(c.url).pathname));
   const panel = paneles.find((c) => c.focused) ?? paneles.find((c) => c.visibilityState === "visible") ?? paneles[0];
   panel?.postMessage({ tipo: "aviso", urgente: Boolean(aviso.urgente) });
+}
+
+// Número de reportes sin resolver en el ícono de la app instalada, como los mensajes sin leer de WhatsApp.
+// Con el panel abierto lo mantiene al día src/usePendientes.ts
+async function marcarPendientes(n) {
+  if (typeof n !== "number" || !("setAppBadge" in self.navigator)) return;
+  try {
+    if (n > 0) await self.navigator.setAppBadge(n);
+    else await self.navigator.clearAppBadge();
+  } catch {
+    // sin permiso para mostrar el número
+  }
 }
 
 // Al tocar la notificación: abre el aula en el panel, reutilizando una pestaña abierta si la hay
