@@ -35,7 +35,7 @@ const ESTADOS: EstadoReporte[] = ["abierto", "en_atencion", "escalado", "resuelt
 // El semáforo se calcula a partir de los reportes no resueltos:
 // rojo = alguno bloquea la clase, amarillo = falla sin bloqueo, verde = operativa.
 const SQL_AULAS = `
-  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion, a.equipo, a.clases, a.impresora,
+  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion, a.equipo, a.clases, a.impresora, a.audio,
          COUNT(r.id) AS reportes_abiertos,
          CASE
            WHEN SUM(r.bloquea_clase) > 0 THEN 'rojo'
