@@ -5,7 +5,7 @@ import Icono from "./Icono";
 import Logo from "./Logo";
 import Notificaciones from "./Notificaciones";
 import SelectorTema from "./SelectorTema";
-import { usePendientes } from "./usePendientes";
+import { usePendientes, type Pendientes } from "./usePendientes";
 import Acceso from "./pages/Acceso";
 import Danos from "./pages/Danos";
 import DetalleAula from "./pages/DetalleAula";
@@ -61,6 +61,13 @@ const AREA_USUARIO: Record<string, string> = {
   coa: "COA",
 };
 
+// El número de casos sin resolver que lleva cada pestaña del menú
+function cuentaDe(pantalla: Ruta["pantalla"], pendientes: Pendientes): number {
+  if (pantalla === "dashboard") return pendientes.reportes;
+  if (pantalla === "danos") return pendientes.danos;
+  return 0;
+}
+
 function rutaActual(): Ruta {
   const p = location.pathname;
   const aula = p.match(/^\/aula\/(\d+)/);
@@ -113,8 +120,7 @@ export default function App() {
     verificar();
   }, [verificar]);
 
-  // Solo TI: COA no atiende los reportes
-  const pendientes = usePendientes(estado.tipo === "ok" && estado.sesion.rol === "ti", salir);
+  const pendientes = usePendientes(estado.tipo === "ok" ? estado.sesion.rol : null, salir);
 
   if (estado.tipo === "cargando")
     return (
@@ -183,9 +189,9 @@ export default function App() {
                 ) : (
                   <span>{p.etiqueta}</span>
                 )}
-                {p.pantalla === "dashboard" && pendientes > 0 && (
-                  <span className="cuenta-nav" title={`${pendientes} sin resolver`}>
-                    {pendientes > 99 ? "99+" : pendientes}
+                {cuentaDe(p.pantalla, pendientes) > 0 && (
+                  <span className="cuenta-nav" title={`${cuentaDe(p.pantalla, pendientes)} sin resolver`}>
+                    {cuentaDe(p.pantalla, pendientes) > 99 ? "99+" : cuentaDe(p.pantalla, pendientes)}
                     <span className="solo-lector"> sin resolver</span>
                   </span>
                 )}
