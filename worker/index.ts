@@ -742,7 +742,7 @@ interface AvisoPush {
   url: string;
   tag: string;
   urgente?: boolean;
-  pendientes?: number; // reportes sin resolver, para el número en el ícono de la app (public/sw.js)
+  pendientes?: number; // reportes y daños tecnológicos sin resolver, para el número en el ícono de la app (public/sw.js)
 }
 
 // Daño de un equipo tecnológico reportado desde el QR: le llega a TI como push
@@ -770,7 +770,11 @@ async function notificarTi(env: Env, origen: string, aviso: AvisoPush) {
   if (!claves) return;
   const [subs, pendientes] = await env.DB.batch([
     env.DB.prepare(`SELECT email, endpoint, p256dh, auth FROM suscripcion_push`),
-    env.DB.prepare(`SELECT COUNT(*) AS n FROM reporte WHERE estado <> 'resuelto'`),
+    // Lo mismo que cuenta src/usePendientes.ts para TI: reportes y daños de equipos tecnológicos sin resolver
+    env.DB.prepare(
+      `SELECT (SELECT COUNT(*) FROM reporte WHERE estado <> 'resuelto')
+            + (SELECT COUNT(*) FROM dano WHERE grupo = 'tecnologia' AND estado <> 'resuelto') AS n`,
+    ),
   ]);
   const destinos = (subs.results as (SuscripcionPush & { email: string })[]).filter((s) => sigueEnTi(s.email, env));
   const n = (pendientes.results[0] as { n: number } | undefined)?.n;

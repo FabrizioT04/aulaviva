@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ATIENDE_DANO, type GrupoDano, type MetricasDanos } from "../shared/danos";
 import { api, NoAutorizado } from "./api";
 import { useEnVivo } from "./useEnVivo";
 
-// Casos sin resolver, como los mensajes sin leer de WhatsApp: el número sale en el título y el ícono
-// de la pestaña y, con el panel instalado como app, en su ícono de la barra de tareas (Windows y Mac).
-// Cuenta lo mismo que "Reportes abiertos" del dashboard: abiertos, en atención y escalados.
+// Casos sin resolver, como los mensajes sin leer de WhatsApp: cada pestaña del menú muestra los suyos, y el
+// total sale en el título y el ícono de la pestaña y, con el panel instalado como app, en su ícono de la
+// barra de tareas (Windows y Mac).
+// - Reportes, solo TI: lo mismo que "Reportes abiertos" del dashboard (abiertos, en atención y escalados).
+// - Daños: pendientes y en proceso del grupo que atiende cada uno (TI, equipos tecnológicos; COA, el local).
+export interface Pendientes {
+  reportes: number;
+  danos: number;
+}
+
+const NINGUNO: Pendientes = { reportes: 0, danos: 0 };
 
 const TITULO = document.title;
 const ICONO = "/icono.svg";
@@ -33,18 +42,24 @@ function mostrar(n: number) {
   }
 }
 
-export function usePendientes(activo: boolean, onNoAutorizado: () => void): number {
-  const [pendientes, setPendientes] = useState(0);
+// rol: null antes de iniciar sesión
+export function usePendientes(rol: string | null, onNoAutorizado: () => void): Pendientes {
+  const [pendientes, setPendientes] = useState(NINGUNO);
   const espera = useRef<number>(undefined);
+  const activo = rol !== null;
 
   const contar = useCallback(() => {
-    if (!activo) return;
-    api<unknown[]>("/api/reportes?estado=abiertos")
-      .then((r) => setPendientes(r.length))
+    if (!rol) return;
+    const grupo = (Object.keys(ATIENDE_DANO) as GrupoDano[]).find((g) => ATIENDE_DANO[g] === rol);
+    Promise.all([
+      rol === "ti" ? api<unknown[]>("/api/reportes?estado=abiertos").then((r) => r.length) : 0,
+      grupo ? api<MetricasDanos>(`/api/danos/metricas?dias=1&grupo=${grupo}`).then((m) => m.pendientes + m.en_proceso) : 0,
+    ])
+      .then(([reportes, danos]) => setPendientes({ reportes, danos }))
       .catch((e) => {
         if (e instanceof NoAutorizado) onNoAutorizado();
       });
-  }, [activo, onNoAutorizado]);
+  }, [rol, onNoAutorizado]);
 
   useEffect(contar, [contar]);
 
@@ -54,14 +69,15 @@ export function usePendientes(activo: boolean, onNoAutorizado: () => void): numb
     espera.current = window.setTimeout(contar, 400);
   }, activo);
 
+  const total = activo ? pendientes.reportes + pendientes.danos : 0;
   useEffect(() => {
-    mostrar(activo ? pendientes : 0);
-  }, [activo, pendientes]);
+    mostrar(total);
+  }, [total]);
 
   useEffect(() => () => {
     clearTimeout(espera.current);
     mostrar(0);
   }, []);
 
-  return activo ? pendientes : 0;
+  return activo ? pendientes : NINGUNO;
 }
