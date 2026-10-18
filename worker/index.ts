@@ -492,13 +492,13 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
   if (!aula) return json({ error: "Este QR no corresponde a ninguna aula activa" }, 404);
 
   if (!coincide[2] && request.method === "GET") {
-    const [abiertos, promedio, guias] = await env.DB.batch([
+    const [abiertos, esperas, guias] = await env.DB.batch([
       env.DB.prepare(
         `SELECT id, tipo_falla, bloquea_clase, estado, reportado_en FROM reporte
          WHERE aula_id = ? AND estado <> 'resuelto' ORDER BY reportado_en`,
       ).bind(aula.id),
       env.DB.prepare(
-        `SELECT ROUND(AVG((julianday(atendido_en) - julianday(reportado_en)) * 1440), 1) AS min
+        `SELECT (julianday(atendido_en) - julianday(reportado_en)) * 1440 AS min
          FROM reporte
          WHERE bloquea_clase = 1 AND atendido_en IS NOT NULL
            AND reportado_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-90 days')`,
@@ -512,7 +512,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     const estado: EstadoAulaQr = {
       aula,
       abiertos: abiertos.results as EstadoAulaQr["abiertos"],
-      prom_atencion_urgente_min: (promedio.results[0] as { min: number | null }).min,
+      espera_urgente_min: mediana((esperas.results as { min: number }[]).map((r) => r.min)),
       email: sesion.email,
       guias: (guias.results as (Omit<GuiaDocente, "pasos"> & { pasos_docente: string })[]).map(({ pasos_docente, ...g }) => ({
         ...g,
@@ -870,6 +870,16 @@ function fecha(valor: unknown): string | null {
   const ahora = Date.now();
   if (Number.isNaN(ms) || ms > ahora + 5 * 60_000 || ms < ahora - 366 * 86_400_000) return null;
   return new Date(Math.min(ms, ahora)).toISOString();
+}
+
+// Lo que el docente puede esperar: la mediana, para que un reporte atendido horas después no la infle.
+// Con menos de 5 urgentes atendidos aún no es un dato confiable y no se muestra
+const MIN_PARA_ESPERA = 5;
+function mediana(valores: number[]): number | null {
+  if (valores.length < MIN_PARA_ESPERA) return null;
+  const orden = [...valores].sort((a, b) => a - b);
+  const medio = Math.floor(orden.length / 2);
+  return orden.length % 2 ? orden[medio] : (orden[medio - 1] + orden[medio]) / 2;
 }
 
 function json(datos: unknown, status = 200) {

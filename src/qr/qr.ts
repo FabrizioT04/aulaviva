@@ -449,7 +449,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       }
     }
 
-    const espera = bloquea ? minutos(estado.prom_atencion_urgente_min) : null;
+    const espera = bloquea ? minutos(estado.espera_urgente_min) : null;
     const confirmacion = `<section class="tarjeta exito">
         <h2><span class="check">${iconoSvg("check")}</span>Listo, ya avisamos a TI</h2>
         ${id ? `<p class="numero-reporte">Reporte N.º <strong>${id}</strong></p>` : ""}
