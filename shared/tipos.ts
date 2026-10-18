@@ -27,10 +27,12 @@ export function fallasDe(aula: Pick<AulaConEstado, "clases" | "impresora" | "aud
   );
 }
 
-// En los pasos para el docente, {red} es la red Wi-Fi del ambiente: la de docentes en las aulas,
-// y la propia en el Welcome Lobby y la Sala de docentes
-export function conRed(texto: string, redWifi: string | null): string {
-  return texto.replaceAll("{red}", redWifi ? `la red "${redWifi}"` : "la red de docentes del colegio");
+// Texto de una guía como lo lee el docente en ese ambiente: {red} es su red Wi-Fi ("aula_innova" en las aulas,
+// la propia en el Welcome Lobby y la Sala de docentes), y donde hay All in One la "laptop" es la "computadora"
+export function paraAmbiente(texto: string, aula: Pick<AulaConEstado, "red_wifi" | "equipo">): string {
+  const conRed = texto.replaceAll("{red}", aula.red_wifi ? `la red "${aula.red_wifi}"` : "la red de docentes del colegio");
+  if (aula.equipo !== "aio") return conRed;
+  return conRed.replace(/\b(l)aptop(s?)\b/gi, (_, l: string, s: string) => `${l === "L" ? "C" : "c"}omputadora${s}`);
 }
 
 // Nombre de la falla como lo dice el docente en ese ambiente
@@ -53,7 +55,7 @@ export interface AulaConEstado {
   clases: number; // 1 si se dictan clases (tiene proyector); 0 en el Welcome Lobby y la Sala de docentes
   impresora: number; // 1 si tiene impresora de red
   audio: number; // 1 si tiene parlantes
-  red_wifi: string | null; // red Wi-Fi propia del ambiente; vacío en las aulas (red de docentes)
+  red_wifi: string | null; // red Wi-Fi del ambiente: "aula_innova" en las aulas, la propia en el WL y la SD
   semaforo: Semaforo;
   reportes_abiertos: number;
 }
