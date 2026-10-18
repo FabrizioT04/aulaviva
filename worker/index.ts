@@ -1,6 +1,6 @@
 import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
-import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, TIPOS_FALLA } from "../shared/tipos";
+import { conRed, ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
@@ -35,7 +35,7 @@ const ESTADOS: EstadoReporte[] = ["abierto", "en_atencion", "escalado", "resuelt
 // El semáforo se calcula a partir de los reportes no resueltos:
 // rojo = alguno bloquea la clase, amarillo = falla sin bloqueo, verde = operativa.
 const SQL_AULAS = `
-  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion, a.equipo, a.clases, a.impresora, a.audio,
+  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion, a.equipo, a.clases, a.impresora, a.audio, a.red_wifi,
          COUNT(r.id) AS reportes_abiertos,
          CASE
            WHEN SUM(r.bloquea_clase) > 0 THEN 'rojo'
@@ -516,7 +516,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
       email: sesion.email,
       guias: (guias.results as (Omit<GuiaDocente, "pasos"> & { pasos_docente: string })[]).map(({ pasos_docente, ...g }) => ({
         ...g,
-        pasos: pasos_docente.split("\n").map((p) => p.trim()).filter(Boolean),
+        pasos: pasos_docente.split("\n").map((p) => conRed(p.trim(), aula.red_wifi)).filter(Boolean),
       })),
     };
     return json(estado);

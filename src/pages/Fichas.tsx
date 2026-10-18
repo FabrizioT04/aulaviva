@@ -192,7 +192,7 @@ export default function Fichas({ onNoAutorizado, soloLectura }: Props) {
                       <h4 className="nivel docente">El docente puede intentarlo</h4>
                       <ol>
                         {pasos(f.pasos_docente).map((p, i) => (
-                          <li key={i}>{p}</li>
+                          <li key={i}>{p.replaceAll("{red}", "la red del ambiente")}</li>
                         ))}
                       </ol>
                     </>
@@ -299,7 +299,8 @@ function FormFicha({ inicial, onGuardar, onCancelar }: FormProps) {
         />
         <small className="nota-campo">
           El docente ve estos pasos en el QR al elegir esta falla, antes de avisar a TI. Solo pasos seguros: nada de abrir
-          equipos, tocar la instalación eléctrica ni cambiar configuraciones de red.
+          equipos, tocar la instalación eléctrica ni cambiar configuraciones de red. Escribe {"{red}"} donde va la red Wi-Fi: el QR
+          pone la de cada ambiente (la de docentes en las aulas y la propia en el WL y la SD).
         </small>
       </label>
       <label>
