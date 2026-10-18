@@ -27,6 +27,12 @@ export function fallasDe(aula: Pick<AulaConEstado, "clases" | "impresora" | "aud
   );
 }
 
+// En los pasos para el docente, {red} es la red Wi-Fi del ambiente: la de docentes en las aulas,
+// y la propia en el Welcome Lobby y la Sala de docentes
+export function conRed(texto: string, redWifi: string | null): string {
+  return texto.replaceAll("{red}", redWifi ? `la red "${redWifi}"` : "la red de docentes del colegio");
+}
+
 // Nombre de la falla como lo dice el docente en ese ambiente
 export function etiquetaFalla(tipo: TipoFalla, equipo?: EquipoAula): string {
   if (tipo === "pc" && equipo) return equipo === "aio" ? "Computadora" : "Laptop";
@@ -47,6 +53,7 @@ export interface AulaConEstado {
   clases: number; // 1 si se dictan clases (tiene proyector); 0 en el Welcome Lobby y la Sala de docentes
   impresora: number; // 1 si tiene impresora de red
   audio: number; // 1 si tiene parlantes
+  red_wifi: string | null; // red Wi-Fi propia del ambiente; vacío en las aulas (red de docentes)
   semaforo: Semaforo;
   reportes_abiertos: number;
 }

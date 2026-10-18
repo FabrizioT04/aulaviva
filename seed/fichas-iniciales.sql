@@ -10,7 +10,7 @@ SELECT 'internet',
     'No carga ninguna página o sale "Sin conexión"',
     'WiFi apagado en la laptop, conectada a otra red, router del aula sin energía',
     'Abre el menú de arriba a la derecha (donde están la red, el volumen y la batería) y revisa que el Wi-Fi esté activado
-En ese menú, entra en Wi-Fi y vuelve a conectarte a la red de docentes del colegio
+En ese menú, entra en Wi-Fi y vuelve a conectarte a {red}
 Reinicia la laptop',
     'Revisar el router o access point del aula
 Verificar en la consola si el equipo tiene IP asignada
