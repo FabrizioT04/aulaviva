@@ -4,6 +4,7 @@ import { ATIENDE_DANO, ETIQUETA_ATIENDE, ETIQUETA_ESTADO_DANO, gruposQueVe, LIST
 import type { Dano, EstadoDano, GrupoDano, MetricasDanos, TipoDano } from "../shared/danos";
 import type { Sesion } from "../shared/tipos";
 import type { Env } from "./index";
+import { sede } from "./sede-en-vivo";
 
 const SQL_DANOS = `
   SELECT d.*, a.codigo AS aula_codigo, a.nombre AS aula_nombre,
@@ -91,6 +92,7 @@ export async function enrutarDanos(request: Request, url: URL, env: Env, sesion:
     )
       .bind(estado, sesion.email, texto(datos?.nota_cierre), id)
       .run();
+    await avisarDanos(env);
     return json({ ok: true });
   }
 
@@ -136,6 +138,7 @@ export async function crearDano(env: Env, aulaId: number, datos: Record<string, 
     )
     .first<{ id: number }>();
   if (creado && tecnologia) alCrear?.({ id: creado.id, aulaId, tipo, email });
+  await avisarDanos(env);
   return json(creado, 201);
 }
 
@@ -161,7 +164,13 @@ export async function guardarFoto(request: Request, env: Env, danoId: number): P
     await env.FOTOS.delete(clave);
     return json({ error: `Ya tiene ${MAX_FOTOS} fotos` }, 409);
   }
+  await avisarDanos(env);
   return json({ ok: true }, 201);
+}
+
+// La pestaña Daños abierta recarga su lista y su resumen
+async function avisarDanos(env: Env) {
+  await sede(env).difundir({ tipo: "danos" });
 }
 
 function texto(valor: unknown): string | null {

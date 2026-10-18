@@ -1,13 +1,14 @@
 import { type CSSProperties, useCallback, useEffect, useState } from "react";
-import type { AulaConEstado, EventoEnVivo, Metricas, Reporte } from "../../shared/tipos";
+import type { AulaConEstado, Metricas, Reporte } from "../../shared/tipos";
 import type { Ruta } from "../App";
-import { api, NoAutorizado, urlEnVivo } from "../api";
+import { api, NoAutorizado } from "../api";
 import Contador from "../Contador";
 import FormEscalar from "../FormEscalar";
 import FormResolver from "../FormResolver";
 import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
 import { canal, descripcionAula, duracion, ETIQUETA_FALLA, minutosDesde } from "../formato";
+import { useEnVivo } from "../useEnVivo";
 
 interface Props {
   onNoAutorizado: () => void;
@@ -18,7 +19,6 @@ interface Props {
 export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
   const [abiertos, setAbiertos] = useState<Reporte[]>([]);
-  const [conectado, setConectado] = useState(false);
   // Reporte con un formulario abierto: resolver o escalar
   const [abierto, setAbierto] = useState<{ id: number; accion: "resolver" | "escalar" } | null>(null);
   const [atencionProm, setAtencionProm] = useState<number | null>(null);
@@ -34,7 +34,7 @@ export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : null));
   }, [onNoAutorizado]);
 
-  useEffect(() => {
+  const cargarTodo = useCallback(() => {
     api<AulaConEstado[]>("/api/aulas")
       .then(setAulas)
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : null));
@@ -44,37 +44,20 @@ export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {
       .catch(() => null);
   }, [cargarReportes, onNoAutorizado]);
 
-  // Conexión en vivo con el Durable Object; se reconecta si se cae
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reintento: ReturnType<typeof setTimeout>;
-    let cerrado = false;
+  useEffect(cargarTodo, [cargarTodo]);
 
-    function conectar() {
-      ws = new WebSocket(urlEnVivo());
-      ws.onopen = () => setConectado(true);
-      ws.onmessage = (e) => {
-        if (e.data === "pong") return;
-        const evento = JSON.parse(e.data) as EventoEnVivo;
-        setAulas((prev) => prev.map((a) => (a.id === evento.aula.id ? evento.aula : a)));
-        cargarReportes();
-      };
-      ws.onclose = () => {
-        setConectado(false);
-        if (!cerrado) reintento = setTimeout(conectar, 3000);
-      };
-    }
-    conectar();
-    return () => {
-      cerrado = true;
-      clearTimeout(reintento);
-      ws?.close();
-    };
-  }, [cargarReportes]);
+  // Cada cambio de un aula llega al instante; al reconectar o volver a la pestaña se recarga todo
+  const conectado = useEnVivo((evento) => {
+    if (!evento) return cargarTodo();
+    if (evento.tipo !== "cambio") return;
+    setAulas((prev) => prev.map((a) => (a.id === evento.aula.id ? evento.aula : a)));
+    cargarReportes();
+  });
 
   async function atender(reporte: Reporte) {
     try {
       await api(`/api/reportes/${reporte.id}`, { method: "PATCH", body: JSON.stringify({ estado: "en_atencion" }) });
+      cargarTodo();
     } catch (e) {
       if (e instanceof NoAutorizado) onNoAutorizado();
     }
@@ -87,6 +70,7 @@ export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {
         body: JSON.stringify({ estado: "resuelto", causa, notas_resolucion: hice }),
       });
       setAbierto(null);
+      cargarTodo();
     } catch (e) {
       if (e instanceof NoAutorizado) return onNoAutorizado();
       throw e;
@@ -100,6 +84,7 @@ export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {
         body: JSON.stringify({ estado: "escalado", ticket_glpi: ticket, observaciones }),
       });
       setAbierto(null);
+      cargarTodo();
     } catch (e) {
       if (e instanceof NoAutorizado) return onNoAutorizado();
       throw e;

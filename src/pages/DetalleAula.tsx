@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Ruta } from "../App";
 import type { DetalleAula as Detalle } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import Icono from "../Icono";
+import { useEnVivo } from "../useEnVivo";
 import FotosReporte from "../FotosReporte";
 import { descripcionAula, duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, fechaCorta, minutosEntre } from "../formato";
 
@@ -32,12 +33,19 @@ export default function DetalleAula({ id, onNoAutorizado, ir }: Props) {
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    setDetalle(null);
+  const cargar = useCallback(() => {
     api<Detalle>(`/api/aulas/${id}`)
       .then(setDetalle)
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : setError(true)));
   }, [id, onNoAutorizado]);
+
+  useEffect(() => {
+    setDetalle(null);
+    cargar();
+  }, [cargar]);
+  useEnVivo((evento) => {
+    if (!evento || (evento.tipo === "cambio" && evento.aula.id === id)) cargar();
+  });
 
   if (error) return <p className="vacio">No se encontró el aula.</p>;
   if (!detalle) return <p className="vacio">Cargando…</p>;
