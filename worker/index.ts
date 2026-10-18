@@ -1,7 +1,7 @@
-import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO } from "../shared/danos";
+import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -474,12 +474,49 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
   return json({ error: "Ruta no encontrada" }, 404);
 }
 
+// Reportes y daños recientes del docente: los abiertos y los resueltos de los últimos 7 días
+const ESTADO_DOCENTE: Record<string, EstadoMiReporte> = {
+  abierto: "recibido",
+  pendiente: "recibido",
+  en_atencion: "en_atencion",
+  en_proceso: "en_atencion",
+  escalado: "escalado",
+  resuelto: "resuelto",
+};
+
+async function misReportes(env: Env, email: string, aulaId?: number): Promise<MiReporte[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT m.*, a.codigo, a.nombre, a.equipo FROM (
+       SELECT 'reporte' AS clase, r.id, r.tipo_falla AS tipo, r.estado, r.reportado_en, r.resuelto_en, r.aula_id
+       FROM reporte r JOIN profesor p ON p.id = r.profesor_id WHERE p.email = ?1
+       UNION ALL
+       SELECT 'dano', d.id, d.tipo, d.estado, d.reportado_en, d.resuelto_en, d.aula_id FROM dano d WHERE d.reportado_por = ?1
+     ) m JOIN aula a ON a.id = m.aula_id
+     WHERE (m.estado <> 'resuelto' OR m.resuelto_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-7 days'))
+       AND (?2 IS NULL OR m.aula_id = ?2)
+     ORDER BY m.reportado_en DESC LIMIT 8`,
+  )
+    .bind(email, aulaId ?? null)
+    .all<{ clase: "reporte" | "dano"; id: number; tipo: string; estado: string; reportado_en: string; resuelto_en: string | null; codigo: string; nombre: string; equipo: AulaConEstado["equipo"] }>();
+  return results.map((m) => ({
+    clase: m.clase,
+    id: m.id,
+    tipo: m.tipo,
+    titulo: m.clase === "reporte" ? etiquetaFalla(m.tipo as TipoFalla, m.equipo) : (TIPOS_DANO[m.tipo as TipoDano]?.etiqueta ?? "Daño"),
+    aula_codigo: m.codigo,
+    aula_nombre: m.nombre,
+    estado: ESTADO_DOCENTE[m.estado] ?? "recibido",
+    reportado_en: m.reportado_en,
+    resuelto_en: m.resuelto_en,
+  }));
+}
+
 // Rutas del QR: las usa el docente desde su celular (y TI para probar)
 async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, ctx: ExecutionContext): Promise<Response> {
   // Lista de aulas para el inicio del docente, por si no puede escanear el QR
   if (url.pathname === "/api/qr" && request.method === "GET") {
     const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.piso, a.codigo`).all<AulaConEstado>();
-    const respuesta: AulasDocente = { aulas: results, email: sesion.email };
+    const respuesta: AulasDocente = { aulas: results, email: sesion.email, mios: await misReportes(env, sesion.email) };
     return json(respuesta);
   }
   const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion|\/danos(?:\/(\d+)\/foto)?)?$/);
@@ -511,6 +548,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     ]);
     const estado: EstadoAulaQr = {
       aula,
+      mios: await misReportes(env, sesion.email, aula.id),
       abiertos: abiertos.results as EstadoAulaQr["abiertos"],
       espera_urgente_min: mediana((esperas.results as { min: number }[]).map((r) => r.min)),
       email: sesion.email,

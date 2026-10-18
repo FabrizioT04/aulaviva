@@ -8,11 +8,11 @@ import { comprimir } from "../comprimir";
 import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, GRUPO_DANO, seccionesDe, TIPOS_DANO, tiposDe } from "../../shared/danos";
 import type { GrupoDano, TipoDano } from "../../shared/danos";
 import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
-import { activarBotonTema, botonTema, esc, MARCA } from "./comun";
+import { activarBotonTema, botonTema, esc, ESTADO_DOCENTE, filaMiReporte, MARCA } from "./comun";
 import "./qr.css";
 import "./qr-efectos.css";
 
-const ESTADO: Record<string, string> = { abierto: "En cola", en_atencion: "En atención", escalado: "Escalado" };
+const ESTADO: Record<string, string> = { abierto: ESTADO_DOCENTE.recibido, en_atencion: ESTADO_DOCENTE.en_atencion, escalado: ESTADO_DOCENTE.escalado };
 // Lo que el docente ve del aula: "Operativa" confundía si algo fallaba y aún nadie lo había reportado
 const SEMAFORO: Record<string, string> = {
   verde: "Sin reportes",
@@ -109,7 +109,8 @@ function cabecera(aula: EstadoAulaQr["aula"]): string {
 
 function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
   const avisoPrevio = aviso;
-  const { aula, abiertos, email } = estado;
+  const { aula, abiertos, email, mios } = estado;
+  const misIds = new Set(mios.filter((m) => m.clase === "reporte").map((m) => m.id));
   // "Laptop" en las aulas, "Computadora" donde hay All in One
   const ETIQUETA = Object.fromEntries(TIPOS_FALLA.map((t) => [t, etiquetaFalla(t, aula.equipo)])) as Record<TipoFalla, string>;
   // Solo lo que hay en este ambiente: sin proyector donde no hay clases, impresora solo donde la hay
@@ -125,16 +126,27 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
         <ul class="abiertos">${abiertos
           .map(
             (r) =>
-              `<li data-tipo="${r.tipo_falla}"><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="insignia">Urgente</em>' : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
+              `<li data-tipo="${r.tipo_falla}"><span class="tipo-icono ${r.tipo_falla}">${iconoSvg(r.tipo_falla)}</span><span class="abierto-texto"><strong>${ETIQUETA[r.tipo_falla]}</strong>${r.bloquea_clase ? ' <em class="insignia">Urgente</em>' : ""}${misIds.has(r.id) ? "<small>Lo reportaste tú</small>" : ""}</span><span class="estado-reporte ${r.estado}">${ESTADO[r.estado] ?? ""}</span></li>`,
           )
           .join("")}</ul>
         ${enviado ? "" : '<p class="suave">TI ya fue avisado. Solo reporta si es otra falla.</p>'}
       </section>`
     : "";
 
+  // Lo que el docente reportó aquí y TI ya resolvió: así sabe que se atendió sin preguntar
+  const DOS_DIAS = 2 * 24 * 60 * 60_000;
+  const resueltos = mios.filter((m) => m.estado === "resuelto" && m.resuelto_en && Date.now() - new Date(m.resuelto_en).getTime() < DOS_DIAS);
+  const misResueltos = resueltos.length
+    ? `<section class="tarjeta mis-resueltos">
+        <h2>Tus reportes resueltos</h2>
+        <ul class="abiertos">${resueltos.map((m) => filaMiReporte(m, false)).join("")}</ul>
+      </section>`
+    : "";
+
   app.innerHTML = `
     ${cabecera(aula)}
     ${aviso}
+    ${misResueltos}
     ${reportados}
     <form id="form"${enviado ? " hidden" : ""}>
       <div class="borrador-recuperado" id="borrador" role="status" hidden></div>
