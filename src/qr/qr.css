@@ -143,7 +143,7 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .cambiar-aula .icono { width: 18px; height: 18px; }
 .opciones-dano button { min-height: 96px; }
 #campo-tipo-dano { margin: -6px 0 16px; }
-#campo-tipo-dano[hidden], .campos-chromebook[hidden] { display: none; }
+#campo-tipo-dano[hidden], .campos-chromebook[hidden], .campos-chromebook label[hidden] { display: none; }
 .campos-chromebook { display: grid; gap: 12px; margin-bottom: 14px; }
 .campos-chromebook label, .campo-dano { display: grid; gap: 6px; font-weight: 700; font-size: 0.95rem; }
 .campos-chromebook input, .campo-dano select, .campos-chromebook select { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
