@@ -15,6 +15,10 @@ main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 40px; }
 .barra button.activo { background: var(--primario-suave); color: var(--primario); }
 .barra .icono { width: 20px; height: 20px; }
 .barra .etiqueta-corta { display: none; }
+.barra button { position: relative; }
+/* Casos sin resolver, como los mensajes sin leer de WhatsApp */
+.cuenta-nav { margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--rojo); color: #fff; font-size: 0.75rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .usuario { display: none; }
 
 @media (min-width: 900px) {
@@ -37,6 +41,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 40px; }
   .barra .icono { width: 23px; height: 23px; }
   .barra .etiqueta-larga { display: none; }
   .barra .etiqueta-corta { display: inline; }
+  .cuenta-nav { position: absolute; top: 2px; left: calc(50% + 4px); margin: 0; min-width: 18px; height: 18px; padding: 0 5px; font-size: 0.68rem; box-shadow: 0 0 0 2px var(--superficie); }
   .barra .solo-pc { display: none; }
   .logo-marca { width: 34px; height: 34px; border-radius: 10px; }
   main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }

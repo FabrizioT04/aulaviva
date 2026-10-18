@@ -742,6 +742,7 @@ interface AvisoPush {
   url: string;
   tag: string;
   urgente?: boolean;
+  pendientes?: number; // reportes sin resolver, para el número en el ícono de la app (public/sw.js)
 }
 
 // Daño de un equipo tecnológico reportado desde el QR: le llega a TI como push
@@ -767,10 +768,13 @@ function avisarDanoTi(env: Env, origen: string, ctx: ExecutionContext): AlCrearD
 async function notificarTi(env: Env, origen: string, aviso: AvisoPush) {
   const claves = clavesVapid(env, origen);
   if (!claves) return;
-  const { results } = await env.DB.prepare(`SELECT email, endpoint, p256dh, auth FROM suscripcion_push`).all<
-    SuscripcionPush & { email: string }
-  >();
-  await enviarATodos(env, results.filter((s) => sigueEnTi(s.email, env)), claves, aviso);
+  const [subs, pendientes] = await env.DB.batch([
+    env.DB.prepare(`SELECT email, endpoint, p256dh, auth FROM suscripcion_push`),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM reporte WHERE estado <> 'resuelto'`),
+  ]);
+  const destinos = (subs.results as (SuscripcionPush & { email: string })[]).filter((s) => sigueEnTi(s.email, env));
+  const n = (pendientes.results[0] as { n: number } | undefined)?.n;
+  await enviarATodos(env, destinos, claves, { ...aviso, pendientes: n });
 }
 
 async function enviarATodos(env: Env, subs: SuscripcionPush[], claves: ClavesVapid, aviso: AvisoPush): Promise<number> {
