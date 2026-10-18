@@ -47,6 +47,26 @@ export const seccionesDe = (seccion: string | null | undefined): string[] =>
   (seccion ?? "").split("/").map((s) => s.trim()).filter(Boolean);
 export const ESTADOS_DANO = Object.keys(ETIQUETA_ESTADO_DANO) as EstadoDano[];
 
+// Lo que hay en cada ambiente: las Chromebooks solo están en los MediaLab (sección ML), y proyector o
+// parlantes solo donde hay clases o audio (ver fallasDe en shared/tipos.ts)
+type AmbienteDano = { seccion: string | null; clases: number | boolean; audio: number | boolean; equipo: "laptop" | "aio" };
+export const tieneChromebooks = (aula: Pick<AmbienteDano, "seccion">) => seccionesDe(aula.seccion).some((s) => s.toUpperCase() === "ML");
+
+export function tiposDanoDe(grupo: GrupoDano, aula: AmbienteDano): TipoDano[] {
+  return tiposDe(grupo).filter((t) => {
+    if (t.startsWith("chromebook_")) return tieneChromebooks(aula);
+    if (t === "proyector") return Boolean(aula.clases || aula.audio);
+    return true;
+  });
+}
+
+// "Chromebook u otro equipo" solo en los ML; en el resto, lo que sí hay
+export function grupoDanoDe(grupo: GrupoDano, aula: AmbienteDano): string {
+  if (grupo !== "tecnologia" || tieneChromebooks(aula)) return GRUPO_DANO[grupo];
+  const equipo = aula.equipo === "aio" ? "Computadora" : "Laptop";
+  return aula.clases || aula.audio ? `${equipo}, proyector u otro equipo` : `${equipo} u otro equipo`;
+}
+
 export interface Dano {
   id: number;
   aula_id: number;
