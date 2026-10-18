@@ -1,3 +1,4 @@
+import type { Dano } from "./danos";
 // Tipos de falla. Los cuatro primeros se muestran siempre; los demás, al tocar "Ver más".
 // Para agregar uno: este arreglo, su etiqueta, su lugar en ORDEN_FALLAS, su ícono en shared/iconos.ts y su color en estilos.css.
 // La base de datos no restringe el tipo (ver 0019_ecran.sql): lo valida el Worker.
@@ -141,6 +142,15 @@ export type EntradaReporte = (typeof ENTRADAS)[number];
 // Por dónde le llegó a TI lo que registra desde el panel
 export const ENTRADAS_TI = ["whatsapp", "presencial", "otro"] as const;
 export type EntradaTi = (typeof ENTRADAS_TI)[number];
+
+// Historial: un mes (o todo, con mes en null) con sus reportes, sus daños y el resumen del Observatorio
+export interface Historial {
+  mes: string | null;
+  meses: { mes: string; fallas: number; danos: number }[];
+  resumen: Metricas["resumen"];
+  reportes: Reporte[];
+  danos: Dano[];
+}
 
 export interface Metricas {
   dias: number;
