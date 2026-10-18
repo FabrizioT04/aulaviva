@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import Icono from "./Icono";
+import { guardarSonido, prepararSonido, sonar, sonidoActivado } from "./sonido";
 
 // Botón para que TI reciba una notificación push con cada reporte nuevo, aunque el panel esté cerrado.
 // El navegador guarda la suscripción; el Worker la usa para avisar (ver worker/push.ts y public/sw.js).
@@ -42,6 +43,9 @@ export default function Notificaciones() {
   const [mensaje, setMensaje] = useState("");
   const clave = useRef<string | null>(null);
   const temporizador = useRef<number>(undefined);
+  const [menu, setMenu] = useState(false);
+  const [sonido, setSonido] = useState(sonidoActivado);
+  const contenedor = useRef<HTMLDivElement>(null);
 
   function avisar(texto: string) {
     setMensaje(texto);
@@ -75,6 +79,62 @@ export default function Notificaciones() {
     };
   }, []);
 
+  // El service worker avisa a esta pestaña cuando llega una notificación: suena el tono de AulaViva
+  useEffect(() => {
+    if (!soportado()) return;
+    const alMensaje = (e: MessageEvent) => {
+      if (e.data?.tipo === "aviso") sonar(Boolean(e.data.urgente));
+    };
+    navigator.serviceWorker.addEventListener("message", alMensaje);
+    navigator.serviceWorker.startMessages();
+    // El audio se habilita con la primera interacción en la página
+    document.addEventListener("pointerdown", prepararSonido, { once: true });
+    document.addEventListener("keydown", prepararSonido, { once: true });
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", alMensaje);
+      document.removeEventListener("pointerdown", prepararSonido);
+      document.removeEventListener("keydown", prepararSonido);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!menu) return;
+    const fuera = (e: PointerEvent) => {
+      if (!contenedor.current?.contains(e.target as Node)) setMenu(false);
+    };
+    const escape = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    document.addEventListener("pointerdown", fuera);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", fuera);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [menu]);
+
+  async function probar() {
+    setMenu(false);
+    try {
+      const registro = await navigator.serviceWorker.ready;
+      const sub = await registro.pushManager.getSubscription();
+      if (!sub) return setEstado("inactivo");
+      await guardar(sub);
+      await api("/api/push/prueba", { method: "POST", body: JSON.stringify({ endpoint: sub.endpoint }) });
+      avisar(
+        "Enviamos una prueba a este equipo. Si no aparece en unos segundos, revisa que el sistema permita las notificaciones del navegador " +
+          "(Ubuntu: Configuración > Notificaciones, con No molestar apagado; Windows: Configuración > Sistema > Notificaciones) y que el navegador siga abierto.",
+      );
+    } catch {
+      avisar("No se pudo enviar la prueba. Revisa tu conexión.");
+    }
+  }
+
+  function cambiarSonido() {
+    const nuevo = !sonido;
+    setSonido(nuevo);
+    guardarSonido(nuevo);
+    if (nuevo) sonar(false, true);
+  }
+
   async function activar() {
     setEstado("trabajando");
     try {
@@ -97,6 +157,7 @@ export default function Notificaciones() {
   }
 
   async function desactivar() {
+    setMenu(false);
     setEstado("trabajando");
     try {
       const registro = await navigator.serviceWorker.ready;
@@ -114,7 +175,7 @@ export default function Notificaciones() {
 
   function tocar() {
     if (estado === "inactivo") return activar();
-    if (estado === "activo") return desactivar();
+    if (estado === "activo") return setMenu(!menu);
     if (estado === "bloqueado") {
       return avisar("Las notificaciones están bloqueadas. Permítelas para este sitio en el candado de la barra de direcciones y recarga.");
     }
@@ -129,14 +190,14 @@ export default function Notificaciones() {
   }
 
   const titulo =
-    estado === "activo" ? "Recibes un aviso con cada reporte nuevo. Toca para desactivarlos." : "Recibe un aviso con cada reporte nuevo, aunque el panel esté cerrado.";
+    estado === "activo" ? "Recibes un aviso con cada reporte nuevo. Toca para probarlo o cambiar el sonido." : "Recibe un aviso con cada reporte nuevo, aunque el panel esté cerrado.";
 
   return (
-    <>
+    <div className="avisos" ref={contenedor}>
       <button
         type="button"
         className={`boton-avisos ${estado}`}
-        aria-pressed={estado === "activo"}
+        aria-expanded={estado === "activo" ? menu : undefined}
         title={titulo}
         disabled={estado === "cargando" || estado === "trabajando"}
         onClick={tocar}
@@ -145,11 +206,26 @@ export default function Notificaciones() {
         <span className="etiqueta-avisos">{ETIQUETA[estado]}</span>
         <i aria-hidden="true" />
       </button>
+      {menu && (
+        <div className="menu-avisos" role="menu">
+          <p>Los avisos están activados en este equipo.</p>
+          <button type="button" role="menuitem" onClick={probar}>
+            Enviar una prueba a este equipo
+          </button>
+          <button type="button" role="menuitemcheckbox" aria-checked={sonido} onClick={cambiarSonido}>
+            Sonido de AulaViva: {sonido ? "activado" : "apagado"}
+          </button>
+          <small>Suena con el panel abierto en alguna pestaña. Con el navegador cerrado se usa el sonido del sistema.</small>
+          <button type="button" role="menuitem" className="peligro" onClick={desactivar}>
+            Desactivar avisos en este equipo
+          </button>
+        </div>
+      )}
       {mensaje && (
         <p className="aviso-avisos" role="status">
           {mensaje}
         </p>
       )}
-    </>
+    </div>
   );
 }

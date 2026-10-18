@@ -695,10 +695,13 @@ async function enrutarPush(request: Request, url: URL, env: Env, sesion: Sesion)
   if (!claves) return json({ error: "Faltan las claves de notificaciones en el servidor" }, 503);
 
   if (url.pathname === "/api/push/prueba" && request.method === "POST") {
+    // Con endpoint, la prueba va solo a ese equipo: sirve para saber si este navegador recibe los avisos
+    const { endpoint } = (await request.json<{ endpoint?: unknown }>().catch(() => null)) ?? {};
     const { results } = await env.DB.prepare(`SELECT endpoint, p256dh, auth FROM suscripcion_push WHERE email = ?`)
       .bind(sesion.email)
       .all<SuscripcionPush>();
-    const enviados = await enviarATodos(env, results, claves, {
+    const destino = typeof endpoint === "string" ? results.filter((s) => s.endpoint === endpoint) : results;
+    const enviados = await enviarATodos(env, destino, claves, {
       titulo: "Notificaciones activadas",
       cuerpo: "Así te avisaremos cada vez que un docente reporte una falla.",
       url: "/dashboard",

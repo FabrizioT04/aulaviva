@@ -12,18 +12,32 @@ self.addEventListener("push", (e) => {
     aviso = { cuerpo: e.data ? e.data.text() : "" };
   }
   e.waitUntil(
-    self.registration.showNotification(aviso.titulo || "Nuevo reporte en AulaViva", {
-      body: aviso.cuerpo || "",
-      tag: aviso.tag,
-      icon: "/icono-180.png",
-      badge: "/icono-180.png",
-      data: { url: aviso.url || "/dashboard" },
-      // Un reporte urgente queda en pantalla hasta que TI lo toque
-      requireInteraction: Boolean(aviso.urgente),
-      vibrate: aviso.urgente ? [200, 100, 200, 100, 200] : [200],
-    }),
+    Promise.all([
+      self.registration.showNotification(aviso.titulo || "Nuevo reporte en AulaViva", {
+        body: aviso.cuerpo || "",
+        tag: aviso.tag,
+        // Con la misma etiqueta, vuelve a sonar y a mostrarse en vez de reemplazarse en silencio
+        renotify: Boolean(aviso.tag),
+        icon: "/icono-180.png",
+        badge: "/icono-180.png",
+        data: { url: aviso.url || "/dashboard" },
+        // Un reporte urgente queda en pantalla hasta que TI lo toque
+        requireInteraction: Boolean(aviso.urgente),
+        vibrate: aviso.urgente ? [200, 100, 200, 100, 200] : [200],
+      }),
+      avisarAlPanel(aviso),
+    ]),
   );
 });
+
+// Si el panel está abierto en alguna pestaña, toca el sonido de AulaViva (ver src/sonido.ts).
+// Solo en una pestaña, la que está al frente si la hay, para que no suene repetido
+async function avisarAlPanel(aviso) {
+  const abiertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const paneles = abiertas.filter((c) => new URL(c.url).origin === self.location.origin && !/^\/(r\/|docente)/.test(new URL(c.url).pathname));
+  const panel = paneles.find((c) => c.focused) ?? paneles.find((c) => c.visibilityState === "visible") ?? paneles[0];
+  panel?.postMessage({ tipo: "aviso", urgente: Boolean(aviso.urgente) });
+}
 
 // Al tocar la notificación: abre el aula en el panel, reutilizando una pestaña abierta si la hay
 self.addEventListener("notificationclick", (e) => {
