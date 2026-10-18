@@ -1,4 +1,4 @@
-import { EQUIPO_DANOS, TIPOS_DANO } from "../shared/danos";
+import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
@@ -526,6 +526,9 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
   if (coincide[2]?.startsWith("/danos")) {
     if (!coincide[4] && request.method === "POST") {
       const datos = await request.json<Record<string, unknown>>().catch(() => null);
+      // La sección del estudiante es la del aula: no se puede escribir otra desde el QR
+      const secciones = seccionesDe(aula.seccion);
+      if (datos && secciones.length && !secciones.includes(String(datos.seccion ?? ""))) datos.seccion = secciones[0];
       return crearDano(env, aula.id, datos, sesion.email, avisarDanoTi(env, url.origin, ctx));
     }
     if (coincide[4] && request.method === "PUT") {

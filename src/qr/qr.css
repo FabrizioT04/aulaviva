@@ -142,14 +142,14 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .cambiar-aula { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-top: 12px; padding: 6px 0; color: var(--primario); font-size: 0.92rem; font-weight: 700; text-decoration: none; }
 .cambiar-aula .icono { width: 18px; height: 18px; }
 .opciones-dano button { min-height: 96px; }
-.chips-dano { display: flex; flex-wrap: wrap; gap: 8px; margin: -10px 0 18px; }
-.chips-dano[hidden], .campos-chromebook[hidden] { display: none; }
-.chips-dano button { min-height: 40px; padding: 8px 14px; font: inherit; font-size: 0.92rem; font-weight: 600; border-radius: 999px; border: 1.5px solid var(--borde); background: var(--superficie); color: var(--texto); cursor: pointer; }
-.chips-dano button.activo { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); }
+#campo-tipo-dano { margin: -6px 0 16px; }
+#campo-tipo-dano[hidden], .campos-chromebook[hidden] { display: none; }
 .campos-chromebook { display: grid; gap: 12px; margin-bottom: 14px; }
 .campos-chromebook label, .campo-dano { display: grid; gap: 6px; font-weight: 700; font-size: 0.95rem; }
-.campos-chromebook input { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
-.campos-chromebook input:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
+.campos-chromebook input, .campo-dano select, .campos-chromebook select { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
+.campos-chromebook input[readonly] { background: var(--superficie-2); color: var(--suave); cursor: not-allowed; }
+.campo-dano select, .campos-chromebook select { min-height: 48px; width: 100%; min-width: 0; text-overflow: ellipsis; }
+.campos-chromebook input:focus, .campo-dano select:focus, .campos-chromebook select:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
 .campos-chromebook .suave { font-weight: 500; font-size: 0.82rem; }
 #form-dano .enviar { margin-top: 20px; }
 #form-dano #destino-dano { text-align: center; margin: 8px 0 0; font-size: 0.88rem; }
