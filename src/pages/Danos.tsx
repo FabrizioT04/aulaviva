@@ -23,6 +23,7 @@ import Contador from "../Contador";
 import { duracion, fechaCorta, minutosDesde } from "../formato";
 import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
+import { useEnVivo } from "../useEnVivo";
 
 interface Props {
   sesion: Sesion;
@@ -56,6 +57,10 @@ export default function Danos({ sesion, onNoAutorizado }: Props) {
   }, [grupo, resueltos, onNoAutorizado]);
 
   useEffect(cargar, [cargar]);
+  // Un daño nuevo (también desde el QR) o un cambio de otra persona aparece sin recargar
+  useEnVivo((evento) => {
+    if (!evento || evento.tipo === "danos") cargar();
+  });
 
   async function cambiar(d: Dano, estado: EstadoDano, nota?: string) {
     try {

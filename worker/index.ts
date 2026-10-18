@@ -3,7 +3,7 @@ import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EventoEnVivo, Ficha, GuiaDocente, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, type AlCrearDano } from "./danos";
-import { SedeEnVivo } from "./sede-en-vivo";
+import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
 
@@ -30,7 +30,6 @@ export interface Env {
   DEV_EMAIL_DOCENTE?: string;
 }
 
-const SEDE = "smp1";
 const ESTADOS: EstadoReporte[] = ["abierto", "en_atencion", "escalado", "resuelto"];
 
 // El semáforo se calcula a partir de los reportes no resueltos:
@@ -852,10 +851,6 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
     reportes: reportes.results,
     pendientes_anteriores: (anteriores.results[0] as { n: number }).n,
   });
-}
-
-function sede(env: Env) {
-  return env.SEDE_EN_VIVO.get(env.SEDE_EN_VIVO.idFromName(SEDE));
 }
 
 function texto(valor: unknown): string | null {

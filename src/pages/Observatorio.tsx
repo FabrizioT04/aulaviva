@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Ruta } from "../App";
 import type { Metricas, Recurrente } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import Icono from "../Icono";
+import { useEnVivo } from "../useEnVivo";
 import { duracion, ETIQUETA_FALLA, fechaCorta } from "../formato";
 
 const ENTRADA: Record<string, string> = {
@@ -230,11 +231,16 @@ export default function Observatorio({ onNoAutorizado, ir }: Props) {
   const [dias, setDias] = useState(30);
   const [m, setM] = useState<Metricas | null>(null);
 
-  useEffect(() => {
+  const cargar = useCallback(() => {
     api<Metricas>(`/api/metricas?dias=${dias}`)
       .then(setM)
       .catch((e) => (e instanceof NoAutorizado ? onNoAutorizado() : null));
   }, [dias, onNoAutorizado]);
+
+  useEffect(cargar, [cargar]);
+  useEnVivo((evento) => {
+    if (!evento || evento.tipo === "cambio") cargar();
+  });
 
   return (
     <div className="observatorio">

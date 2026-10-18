@@ -96,10 +96,8 @@ export interface Ficha {
 }
 
 // Mensaje que el Durable Object envía a los dashboards abiertos
-export interface EventoEnVivo {
-  tipo: "cambio";
-  aula: AulaConEstado;
-}
+// "cambio": cambió el estado de un aula (reportes). "danos": se registró o cambió un daño.
+export type EventoEnVivo = { tipo: "cambio"; aula: AulaConEstado } | { tipo: "danos" };
 
 export interface Promedios {
   prom_atencion_min: number | null;
