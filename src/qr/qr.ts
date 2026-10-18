@@ -500,12 +500,18 @@ function pintarDano(estado: EstadoAulaQr) {
         .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${GRUPO_DANO[g]}</button>`)
         .join("")}</div>
       <label class="campo-dano" id="campo-tipo-dano" hidden>¿Qué tiene?<select id="tipo-dano"></select></label>
-      <div class="campos-chromebook" id="campos-chromebook" hidden>
-        <label>Código del equipo (opcional)<input id="equipo" maxlength="40" placeholder="Si se ve en la etiqueta, ej. CB-ML-12" /></label>
+      <div class="campos-chromebook solo-tecnologia" hidden>
         <label>Sección del estudiante${campoSeccion}</label>
-        <label>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI y ${EQUIPO_DANOS}.</span></label>
       </div>
-      <label class="campo-dano"><span id="etiqueta-detalle-dano">Detalle (opcional)</span><textarea id="detalle-dano" rows="2" maxlength="500"></textarea></label>
+      <!-- Lo opcional va plegado, como "Agregar detalle o foto" del reporte a TI, para que el formulario no se vea largo -->
+      <details class="extra" id="extra-dano">
+        <summary>${iconoSvg("registrar")}<span id="titulo-extra-dano">Agregar detalle (opcional)</span></summary>
+        <div class="campos-chromebook">
+          <label class="solo-tecnologia" hidden>Código del equipo (opcional)<input id="equipo" maxlength="40" placeholder="Si se ve en la etiqueta, ej. CB-ML-12" /></label>
+          <label class="solo-tecnologia" hidden>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI y ${EQUIPO_DANOS}.</span></label>
+          <label class="campo-dano"><span id="etiqueta-detalle-dano">Detalle (opcional)</span><textarea id="detalle-dano" rows="2" maxlength="500"></textarea></label>
+        </div>
+      </details>
       <div class="foto">
         <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
         <div class="vista-foto" id="vista-dano"></div>
@@ -521,6 +527,7 @@ function pintarDano(estado: EstadoAulaQr) {
   const enviar = $<HTMLButtonElement>("enviar-dano");
   const error = $("error-dano");
   const detalle = $<HTMLTextAreaElement>("detalle-dano");
+  const extra = $<HTMLDetailsElement>("extra-dano");
   const tipos = $<HTMLSelectElement>("tipo-dano");
 
   $("volver").addEventListener("click", () => pintar(estado));
@@ -535,9 +542,16 @@ function pintarDano(estado: EstadoAulaQr) {
     pintarEstado();
   }
   function pintarEstado() {
-    $("campos-chromebook").hidden = grupo !== "tecnologia";
+    for (const el of document.querySelectorAll<HTMLElement>(".solo-tecnologia")) el.hidden = grupo !== "tecnologia";
     const otro = Boolean(tipo?.endsWith("_otro"));
     $("etiqueta-detalle-dano").textContent = otro ? "Describe el daño" : "Detalle (opcional)";
+    $("titulo-extra-dano").textContent = otro
+      ? "Describe el daño"
+      : grupo === "tecnologia"
+        ? "Agregar código, estudiante o detalle (opcional)"
+        : "Agregar detalle (opcional)";
+    // "Otro" pide describirlo: se abre solo
+    if (otro) extra.open = true;
     detalle.placeholder = grupo === "tecnologia" ? "Ej. La pantalla tiene una rajadura en la esquina" : "Ej. El ventilador hace ruido y no gira";
     enviar.disabled = !tipo;
     enviar.textContent = "Enviar";
@@ -610,6 +624,7 @@ function pintarDano(estado: EstadoAulaQr) {
     if (b.seccion && (!secciones.length || secciones.includes(b.seccion))) $<HTMLInputElement>("seccion").value = b.seccion;
     $<HTMLInputElement>("estudiante").value = b.estudiante ?? "";
     detalle.value = b.detalle ?? "";
+    if (b.equipo || b.estudiante || b.detalle) extra.open = true;
     guardarDano();
     const aviso = $("borrador-dano");
     aviso.innerHTML = `${iconoSvg("info")}<span>Recuperamos tu aviso sin enviar. Revísalo y toca <strong>Enviar</strong>.${
@@ -644,6 +659,7 @@ function pintarDano(estado: EstadoAulaQr) {
     if (!tipo) return;
     if (tipo.endsWith("_otro") && !detalle.value.trim()) {
       error.textContent = "Cuenta en pocas palabras qué está dañado.";
+      extra.open = true;
       detalle.focus();
       return;
     }
