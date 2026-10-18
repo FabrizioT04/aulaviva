@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import Icono from "./Icono";
-import { guardarSonido, prepararSonido, sonar, sonidoActivado } from "./sonido";
+import { guardarTono, LISTA_TONOS, prepararSonido, sonar, tonoElegido, TONOS } from "./sonido";
+import type { IdTono } from "./sonido";
 
 // Botón para que TI reciba una notificación push con cada reporte nuevo, aunque el panel esté cerrado.
 // El navegador guarda la suscripción; el Worker la usa para avisar (ver worker/push.ts y public/sw.js).
@@ -44,7 +45,7 @@ export default function Notificaciones() {
   const clave = useRef<string | null>(null);
   const temporizador = useRef<number>(undefined);
   const [menu, setMenu] = useState(false);
-  const [sonido, setSonido] = useState(sonidoActivado);
+  const [tono, setTono] = useState(tonoElegido);
   const contenedor = useRef<HTMLDivElement>(null);
 
   function avisar(texto: string) {
@@ -128,11 +129,11 @@ export default function Notificaciones() {
     }
   }
 
-  function cambiarSonido() {
-    const nuevo = !sonido;
-    setSonido(nuevo);
-    guardarSonido(nuevo);
-    if (nuevo) sonar(false, true);
+  function cambiarTono(valor: string) {
+    const nuevo = valor === "no" ? null : (valor as IdTono);
+    setTono(nuevo);
+    guardarTono(nuevo);
+    sonar(false, nuevo);
   }
 
   async function activar() {
@@ -212,9 +213,20 @@ export default function Notificaciones() {
           <button type="button" role="menuitem" onClick={probar}>
             Enviar una prueba a este equipo
           </button>
-          <button type="button" role="menuitemcheckbox" aria-checked={sonido} onClick={cambiarSonido}>
-            Sonido de AulaViva: {sonido ? "activado" : "apagado"}
-          </button>
+          <div className="tono-avisos">
+            <label htmlFor="tono-avisos">Sonido de AulaViva</label>
+            <select id="tono-avisos" value={tono ?? "no"} onChange={(e) => cambiarTono(e.target.value)}>
+              {LISTA_TONOS.map((id) => (
+                <option key={id} value={id}>
+                  {TONOS[id].nombre}
+                </option>
+              ))}
+              <option value="no">Sin sonido</option>
+            </select>
+            <button type="button" disabled={!tono} onClick={() => sonar(false, tono)} title="Escuchar el tono" aria-label="Escuchar el tono">
+              <Icono nombre="campana" />
+            </button>
+          </div>
           <small>Suena con el panel abierto en alguna pestaña. Con el navegador cerrado se usa el sonido del sistema.</small>
           <button type="button" role="menuitem" className="peligro" onClick={desactivar}>
             Desactivar avisos en este equipo
