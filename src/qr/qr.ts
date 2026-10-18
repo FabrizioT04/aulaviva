@@ -2,7 +2,7 @@
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
 import { etiquetaFalla, fallasDe, TIPOS_FALLA } from "../../shared/tipos";
-import { sugerirTipo } from "../../shared/sugerencia";
+import { fallaEnDano, sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
 import { comprimir } from "../comprimir";
 import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, grupoDanoDe, seccionesDe, tieneChromebooks, TIPOS_DANO, tiposDanoDe } from "../../shared/danos";
@@ -107,7 +107,24 @@ function cabecera(aula: EstadoAulaQr["aula"]): string {
     </header>`;
 }
 
-function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
+// Lo que el docente escribió como daño y resultó ser una falla: pasa al reporte a TI con el detalle y las fotos
+interface Traspaso {
+  tipo: TipoFalla;
+  detalle: string;
+  fotos: Blob[];
+}
+
+// Falla o daño: la regla se repite en las dos pantallas. Falla, un equipo que no funciona; daño, algo roto o golpeado
+const ARTICULO: Partial<Record<TipoFalla, string>> = { internet: "el", proyector: "el", impresora: "la", audio: "el", ecran: "el" };
+function equiposQueFallan(aula: EstadoAulaQr["aula"]): string {
+  const nombres = fallasDe(aula)
+    .filter((t) => t !== "otro" && t !== "perifericos")
+    .slice(0, 3)
+    .map((t) => (t === "pc" ? `la ${etiquetaFalla(t, aula.equipo).toLowerCase()}` : `${ARTICULO[t]} ${etiquetaFalla(t).toLowerCase()}`));
+  return nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} o ${nombres.at(-1)}` : (nombres[0] ?? "un equipo");
+}
+
+function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Traspaso) {
   const avisoPrevio = aviso;
   const { aula, abiertos, email, mios } = estado;
   const misIds = new Set(mios.filter((m) => m.clase === "reporte").map((m) => m.id));
@@ -151,6 +168,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     <form id="form"${enviado ? " hidden" : ""}>
       <div class="borrador-recuperado" id="borrador" role="status" hidden></div>
       <h2>¿Qué está fallando?</h2>
+      <p class="regla">Un equipo que no funciona: no prende, ${fallas.includes("proyector") ? "no proyecta" : "no imprime"}, no hay internet.</p>
       <div class="opciones" id="tipos">${fallas.map((v) => `<button type="button" data-tipo="${v}" aria-pressed="false"${principales.includes(v) ? "" : " hidden"}><span class="ic">${iconoSvg(v)}</span>${ETIQUETA[v]}</button>`).join("")}</div>
       <button type="button" class="mas-tipos" id="mas-tipos"${fallas.length > principales.length ? "" : " hidden"}>Ver más: ${fallas.filter((v) => !principales.includes(v)).map((v) => ETIQUETA[v]).join(", ")}${iconoSvg("abajo")}</button>
       <div class="aviso-duplicado" id="aviso-duplicado" role="status" hidden></div>
@@ -172,7 +190,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
       <p class="aviso-elegir suave" id="aviso-elegir">Primero elige qué está fallando.</p>
       <p class="error" id="error" role="alert"></p>
     </form>
-    <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo dañado? ${tieneChromebooks(aula) ? "Chromebook" : etiquetaFalla("pc", aula.equipo)}, carpetas, ventilador, pared…</span></button>
+    <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo roto o golpeado? ${tieneChromebooks(aula) ? "Chromebook" : `${etiquetaFalla("pc", aula.equipo)} con la pantalla rota`}, carpetas, ventilador, luz…</span></button>
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
   // Dos botones en vez de la pregunta "¿Te impide dar la clase?": el docente avisa en dos toques
@@ -392,7 +410,23 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false) {
     scrollTo(0, 0);
   });
 
-  const previo = enviado ? null : leerBorrador<BorradorQr>(CLAVE_BORRADOR, VIGENCIA_BORRADOR_MIN);
+  if (traspaso) {
+    const opcion = document.querySelector<HTMLButtonElement>(`#tipos [data-tipo="${traspaso.tipo}"]`);
+    if (opcion) {
+      if (opcion.hidden) masTipos.click();
+      opcion.click();
+    }
+    detalleCampo.value = traspaso.detalle;
+    extra.open = true;
+    fotos.push(...traspaso.fotos);
+    pintarFotos();
+    sugerir();
+    const aviso = document.getElementById("borrador")!;
+    aviso.innerHTML = `${iconoSvg("info")}<span>Lo pasamos a una falla para TI con lo que escribiste. Revísalo y toca <strong>Avisar a TI</strong>.</span>`;
+    aviso.hidden = false;
+  }
+
+  const previo = enviado || traspaso ? null : leerBorrador<BorradorQr>(CLAVE_BORRADOR, VIGENCIA_BORRADOR_MIN);
   if (previo) {
     const { tipo: t, detalle, fotos: n } = previo.datos;
     const opcion = t ? document.querySelector<HTMLButtonElement>(`#tipos [data-tipo="${t}"]`) : null;
@@ -514,6 +548,7 @@ function pintarDano(estado: EstadoAulaQr) {
     <form id="form-dano">
       <div class="borrador-recuperado" id="borrador-dano" role="status" hidden></div>
       <h2>¿Qué tipo de daño es?</h2>
+      <p class="regla">Algo roto o golpeado, o un desperfecto del aula. Si ${equiposQueFallan(aula)} no funciona, es una falla para TI.</p>
       <div class="opciones opciones-dano" id="grupos">${(["tecnologia", "local"] as const)
         .map((g) => `<button type="button" data-grupo="${g}" aria-pressed="false"><span class="ic">${iconoSvg(ICONO[g])}</span>${grupoDanoDe(g, aula)}</button>`)
         .join("")}</div>
@@ -528,6 +563,7 @@ function pintarDano(estado: EstadoAulaQr) {
           <label class="solo-tecnologia" hidden>Código del equipo (opcional)<input id="equipo" maxlength="40" placeholder="Si se ve en la etiqueta, ej. CB-ML-12" /></label>
           <label class="solo-tecnologia" hidden>Estudiante (opcional)<input id="estudiante" maxlength="80" /><span class="suave">Solo lo ven TI y ${EQUIPO_DANOS}.</span></label>
           <label class="campo-dano"><span id="etiqueta-detalle-dano">Detalle (opcional)</span><textarea id="detalle-dano" rows="2" maxlength="500"></textarea></label>
+          <p class="sugerencia" id="sugerencia-dano" role="status" hidden></p>
         </div>
       </details>
       <div class="foto">
@@ -540,7 +576,7 @@ function pintarDano(estado: EstadoAulaQr) {
       <p class="error" id="error-dano" role="alert"></p>
     </form>
     <!-- El cambio entre "falla para TI" y "algo dañado" queda abajo en las dos pantallas, para no sumar otra flecha arriba -->
-    <button type="button" class="enlace-dano" id="volver">${iconoSvg("pc")}<span>¿Es una falla para TI? ${fallasDe(aula)
+    <button type="button" class="enlace-dano" id="volver">${iconoSvg("pc")}<span>¿Un equipo no funciona? ${fallasDe(aula)
       .filter((t) => t !== "otro")
       .slice(0, 3)
       .map((t, i) => (i ? etiquetaFalla(t, aula.equipo).toLowerCase() : etiquetaFalla(t, aula.equipo)))
@@ -555,6 +591,24 @@ function pintarDano(estado: EstadoAulaQr) {
   const tipos = $<HTMLSelectElement>("tipo-dano");
 
   $("volver").addEventListener("click", () => pintar(estado));
+
+  // "La laptop no prende" escrito como daño es una falla: se sugiere pasarlo a TI, que lo atiende con su semáforo
+  const FALLA_DEL_EQUIPO: Partial<Record<TipoDano, TipoFalla>> = { laptop: "pc", proyector: "proyector" };
+  const sugerencia = $("sugerencia-dano");
+  let fallaSugerida: TipoFalla | null = null;
+  function sugerirFalla() {
+    const leida = grupo === "tecnologia" ? fallaEnDano(detalle.value, (tipo && FALLA_DEL_EQUIPO[tipo]) || "otro") : null;
+    fallaSugerida = leida && fallasDe(aula).includes(leida) ? leida : leida && "otro";
+    sugerencia.hidden = !fallaSugerida;
+    if (!fallaSugerida) return;
+    sugerencia.innerHTML = `Si el equipo no funciona, es una falla para TI: así lo atienden antes. <button type="button" id="pasar-a-falla">Avisar como falla</button>`;
+  }
+  sugerencia.addEventListener("click", (e) => {
+    if (!fallaSugerida || !(e.target as HTMLElement).closest("#pasar-a-falla")) return;
+    borrarBorrador(CLAVE_BORRADOR_DANO);
+    pintar(estado, "", false, { tipo: fallaSugerida, detalle: detalle.value, fotos: [...fotos] });
+    scrollTo(0, 0);
+  });
 
   // Lista desplegable con los tipos del grupo elegido: ocupa una línea en vez de siete botones
   function pintarTipos() {
@@ -579,6 +633,7 @@ function pintarDano(estado: EstadoAulaQr) {
     detalle.placeholder = grupo === "tecnologia" ? "Ej. La pantalla tiene una rajadura en la esquina" : "Ej. El ventilador hace ruido y no gira";
     enviar.disabled = !tipo;
     enviar.textContent = "Enviar";
+    sugerirFalla();
     $("destino-dano").textContent = `Le llega a ${DESTINO_DANO[grupo]}.`;
   }
 
@@ -618,6 +673,7 @@ function pintarDano(estado: EstadoAulaQr) {
     else guardarBorrador<BorradorDano>(CLAVE_BORRADOR_DANO, datos);
   }
   for (const id of ["equipo", "seccion", "estudiante", "detalle-dano"]) $(id).addEventListener("input", guardarDano);
+  detalle.addEventListener("input", sugerirFalla);
   $("seccion").addEventListener("change", guardarDano);
 
   const archivo = $<HTMLInputElement>("archivo-dano");

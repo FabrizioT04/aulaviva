@@ -58,6 +58,8 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .aviso-duplicado { margin-top: 14px; padding: 14px 16px; border-radius: 16px; background: var(--primario-suave); color: var(--texto); }
 .sugerencia { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--primario-suave); color: var(--texto); font-size: 0.95rem; line-height: 1.4; }
 .sugerencia[hidden] { display: none; }
+/* Falla o daño: una línea bajo el título de cada pantalla dice cuál es cuál */
+.regla { margin: -6px 0 14px; color: var(--suave); font-size: 0.9rem; line-height: 1.4; }
 .borrador-recuperado { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 16px; padding: 12px 14px; border-radius: 16px; background: var(--primario-suave); color: var(--texto); font-size: 0.95rem; line-height: 1.4; }
 .borrador-recuperado[hidden] { display: none; }
 .borrador-recuperado svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--primario); }
