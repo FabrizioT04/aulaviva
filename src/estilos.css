@@ -393,6 +393,9 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { min-height: 34px; padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; }
 .chip.activo { background: var(--primario); border-color: var(--primario); color: var(--primario-texto); }
+/* Daños sin resolver de cada grupo, como en el menú */
+.chip:has(.cuenta-chip) { display: inline-flex; align-items: center; gap: 8px; padding-right: 6px; }
+.cuenta-chip { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--rojo); color: #fff; font-size: 0.72rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .conteo-fichas { margin: 0; font-size: 0.85rem; color: var(--suave); }
 .llamar-ti { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: var(--amarillo-suave); }
 .form-ficha .acciones { justify-content: flex-end; }
