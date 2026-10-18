@@ -2,7 +2,7 @@ import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
-import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, type AlCrearDano } from "./danos";
+import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
@@ -206,6 +206,8 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       autosolucion: autosolucion.results[0],
     });
   }
+
+  if (pathname === "/api/historial" && metodo === "GET") return await historial(url, env);
 
   if (pathname === "/api/reportes" && metodo === "GET") {
     const abiertos = url.searchParams.get("estado") === "abiertos";
@@ -909,6 +911,52 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
     reportes: reportes.results,
     pendientes_anteriores: (anteriores.results[0] as { n: number }).n,
   });
+}
+
+// Historial: todos los reportes y daños de un mes (de Lima), con el resumen del Observatorio de ese mes.
+// ?mes=2026-10; ?mes=todo trae todo lo guardado. Por defecto, el mes actual
+const MAX_HISTORIAL = 5000;
+async function historial(url: URL, env: Env): Promise<Response> {
+  const pedido = url.searchParams.get("mes");
+  const todo = pedido === "todo";
+  const hoyLima = new Date(Date.now() - 5 * 3_600_000);
+  const actual = hoyLima.toISOString().slice(0, 7);
+  const mes = todo ? null : /^\d{4}-(0[1-9]|1[0-2])$/.test(pedido ?? "") ? pedido! : actual;
+  // El mes en Lima (UTC-5) expresado en UTC: del día 1 a las 5:00 al día 1 del mes siguiente a las 5:00
+  let inicio = "0000";
+  let fin = "9999";
+  if (mes) {
+    const [a, m] = mes.split("-").map(Number);
+    inicio = new Date(Date.UTC(a, m - 1, 1, 5)).toISOString();
+    fin = new Date(Date.UTC(a, m, 1, 5)).toISOString();
+  }
+  const [meses, resumen, reportes, danos] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos FROM (
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos FROM reporte
+         UNION ALL
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours'), 0, 1 FROM dano)
+       GROUP BY mes ORDER BY mes DESC`,
+    ),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(estado <> 'resuelto') AS abiertos,
+              SUM(bloquea_clase) AS bloqueantes,
+              SUM(escalado_en IS NOT NULL) AS escalados,
+              ${SQL_PROMEDIOS}
+       FROM reporte WHERE reportado_en >= ?1 AND reportado_en < ?2`,
+    ).bind(inicio, fin),
+    env.DB.prepare(
+      `${SQL_REPORTES} WHERE r.reportado_en >= ?1 AND r.reportado_en < ?2 ORDER BY r.reportado_en DESC LIMIT ${MAX_HISTORIAL}`,
+    ).bind(inicio, fin),
+    env.DB.prepare(
+      `${SQL_DANOS} WHERE d.reportado_en >= ?1 AND d.reportado_en < ?2 ORDER BY d.reportado_en DESC LIMIT ${MAX_HISTORIAL}`,
+    ).bind(inicio, fin),
+  ]);
+  const listaMeses = meses.results as { mes: string; fallas: number; danos: number }[];
+  // El mes actual siempre aparece, aunque todavía no tenga nada
+  if (!listaMeses.some((m) => m.mes === actual)) listaMeses.unshift({ mes: actual, fallas: 0, danos: 0 });
+  return json({ mes, meses: listaMeses, resumen: resumen.results[0], reportes: reportes.results, danos: danos.results });
 }
 
 function texto(valor: unknown): string | null {

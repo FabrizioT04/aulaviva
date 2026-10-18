@@ -6,7 +6,7 @@ import type { Sesion } from "../shared/tipos";
 import type { Env } from "./index";
 import { sede } from "./sede-en-vivo";
 
-const SQL_DANOS = `
+export const SQL_DANOS = `
   SELECT d.*, a.codigo AS aula_codigo, a.nombre AS aula_nombre,
     (SELECT COUNT(*) FROM foto_dano f WHERE f.dano_id = d.id) AS fotos
   FROM dano d JOIN aula a ON a.id = d.aula_id`;

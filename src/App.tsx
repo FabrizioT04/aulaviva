@@ -10,6 +10,7 @@ import Acceso from "./pages/Acceso";
 import Danos from "./pages/Danos";
 import DetalleAula from "./pages/DetalleAula";
 import Fichas from "./pages/Fichas";
+import Historial from "./pages/Historial";
 import Dashboard from "./pages/Dashboard";
 import ImprimirQr from "./pages/ImprimirQr";
 import Observatorio from "./pages/Observatorio";
@@ -19,6 +20,7 @@ export type Ruta =
   | { pantalla: "registro" }
   | { pantalla: "dashboard" }
   | { pantalla: "observatorio" }
+  | { pantalla: "historial" }
   | { pantalla: "fichas" }
   | { pantalla: "qr" }
   | { pantalla: "danos" }
@@ -29,6 +31,7 @@ const PESTANAS: {
     | "registro"
     | "dashboard"
     | "observatorio"
+    | "historial"
     | "fichas"
     | "danos"
     | "qr";
@@ -40,6 +43,7 @@ const PESTANAS: {
   { pantalla: "registro", etiqueta: "Registrar", icono: "registrar" },
   { pantalla: "dashboard", etiqueta: "Dashboard", icono: "dashboard" },
   { pantalla: "observatorio", etiqueta: "Observatorio", icono: "observatorio" },
+  { pantalla: "historial", etiqueta: "Historial", icono: "reloj", soloPc: true },
   {
     pantalla: "fichas",
     etiqueta: "Base de conocimiento",
@@ -74,6 +78,7 @@ function rutaActual(): Ruta {
   if (aula) return { pantalla: "aula", id: Number(aula[1]) };
   if (p.startsWith("/dashboard")) return { pantalla: "dashboard" };
   if (p.startsWith("/observatorio")) return { pantalla: "observatorio" };
+  if (p.startsWith("/historial")) return { pantalla: "historial" };
   if (p.startsWith("/fichas")) return { pantalla: "fichas" };
   if (p.startsWith("/qr-aulas")) return { pantalla: "qr" };
   if (p.startsWith("/danos")) return { pantalla: "danos" };
@@ -226,6 +231,7 @@ export default function App() {
         {pantalla.pantalla === "observatorio" && (
           <Observatorio onNoAutorizado={salir} ir={ir} />
         )}
+        {pantalla.pantalla === "historial" && <Historial onNoAutorizado={salir} ir={ir} />}
         {pantalla.pantalla === "fichas" && <Fichas onNoAutorizado={salir} soloLectura={soloLectura} />}
         {pantalla.pantalla === "qr" && (
           <ImprimirQr onNoAutorizado={salir} ir={ir} />
