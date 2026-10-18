@@ -1,6 +1,7 @@
 // Borrador de un reporte a medio llenar, guardado en el navegador de quien lo escribe.
 // Si se cierra la pestaña o se sale sin querer, al volver se recupera.
 // localStorage puede no estar disponible (modo privado, almacenamiento lleno): entonces no se guarda nada.
+// La clave lleva el correo de quien escribe: si otra persona usa el mismo navegador, no ve el borrador ajeno.
 
 interface Guardado<T> {
   guardado: number;
@@ -27,6 +28,20 @@ export function guardarBorrador<T>(clave: string, datos: T): void {
     localStorage.setItem(clave, JSON.stringify({ guardado: Date.now(), datos } satisfies Guardado<T>));
   } catch {
     // Sin almacenamiento disponible: el formulario sigue funcionando, solo no se recupera
+  }
+}
+
+// Borra los borradores vencidos de cualquier persona o aula, y los de antes de que la clave llevara
+// el correo, para que no queden guardados en el equipo aunque nadie vuelva a abrir esa aula
+export function limpiarBorradores(vigenciaMin: number): void {
+  try {
+    for (const clave of Object.keys(localStorage)) {
+      if (!clave.startsWith("aulaviva:borrador")) continue;
+      if (!clave.includes("@")) localStorage.removeItem(clave);
+      else leerBorrador(clave, vigenciaMin);
+    }
+  } catch {
+    // sin almacenamiento disponible
   }
 }
 

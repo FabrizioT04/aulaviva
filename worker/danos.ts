@@ -107,7 +107,7 @@ export async function enrutarDanos(request: Request, url: URL, env: Env, sesion:
     const objeto = foto ? await env.FOTOS.get(foto.r2_key) : null;
     if (!objeto) return json({ error: "Este daño no tiene esa foto" }, 404);
     return new Response(objeto.body, {
-      headers: { "Content-Type": objeto.httpMetadata?.contentType ?? "image/jpeg", "Cache-Control": "private, max-age=3600" },
+      headers: { "Content-Type": objeto.httpMetadata?.contentType ?? "image/jpeg", "Cache-Control": "no-store" },
     });
   }
 

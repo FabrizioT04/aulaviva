@@ -218,7 +218,7 @@ export default function App() {
           <Danos sesion={sesion} onNoAutorizado={salir} />
         )}
         {pantalla.pantalla === "registro" && (
-          <Registro onNoAutorizado={salir} ir={ir} />
+          <Registro email={sesion.email} onNoAutorizado={salir} ir={ir} />
         )}
         {pantalla.pantalla === "dashboard" && (
           <Dashboard onNoAutorizado={salir} ir={ir} soloLectura={soloLectura} />

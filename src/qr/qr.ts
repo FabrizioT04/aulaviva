@@ -3,7 +3,7 @@
 import { iconoSvg } from "../../shared/iconos";
 import { etiquetaFalla, fallasDe, TIPOS_FALLA } from "../../shared/tipos";
 import { fallaEnDano, sugerirTipo } from "../../shared/sugerencia";
-import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
+import { borrarBorrador, guardarBorrador, leerBorrador, limpiarBorradores } from "../borrador";
 import { comprimir } from "../comprimir";
 import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, grupoDanoDe, seccionesDe, tieneChromebooks, TIPOS_DANO, tiposDanoDe } from "../../shared/danos";
 import type { GrupoDano, TipoDano } from "../../shared/danos";
@@ -33,7 +33,8 @@ const EJEMPLO: Record<TipoFalla, string> = {
 
 const app = document.getElementById("app")!;
 const codigo = decodeURIComponent(location.pathname.split("/")[2] ?? "");
-const CLAVE_BORRADOR = `aulaviva:borrador-qr:${codigo}`;
+// Las claves llevan el correo de quien escribe; se fijan al cargar el aula (ver borrador.ts)
+let CLAVE_BORRADOR = "";
 // Un reporte a medio llenar sirve durante la clase; pasada una hora la falla puede ser otra
 const VIGENCIA_BORRADOR_MIN = 60;
 interface BorradorQr {
@@ -42,13 +43,13 @@ interface BorradorQr {
   fotos: number;
 }
 // El aviso de daño a medio llenar se guarda aparte, con la misma vigencia
-const CLAVE_BORRADOR_DANO = `aulaviva:borrador-dano:${codigo}`;
+// El nombre del estudiante no se guarda: es un dato personal y se vuelve a escribir si hace falta
+let CLAVE_BORRADOR_DANO = "";
 interface BorradorDano {
   grupo: GrupoDano | null;
   tipo: TipoDano | null;
   equipo: string;
   seccion: string;
-  estudiante: string;
   detalle: string;
   fotos: number;
 }
@@ -79,6 +80,9 @@ async function cargar() {
     return mensaje("No se pudo abrir el aula", error ?? "Intenta escanear el QR de nuevo.");
   }
   const estado = (await res.json()) as EstadoAulaQr;
+  CLAVE_BORRADOR = `aulaviva:borrador-qr:${codigo}:${estado.email}`;
+  CLAVE_BORRADOR_DANO = `aulaviva:borrador-dano:${codigo}:${estado.email}`;
+  limpiarBorradores(VIGENCIA_BORRADOR_MIN);
   // Si dejó un aviso de daño a medio llenar, vuelve directo a ese formulario
   if (leerBorrador<BorradorDano>(CLAVE_BORRADOR_DANO, VIGENCIA_BORRADOR_MIN)) pintarDano(estado);
   else pintar(estado);
@@ -665,14 +669,13 @@ function pintarDano(estado: EstadoAulaQr) {
       tipo,
       equipo: campo("equipo"),
       seccion: campo("seccion"),
-      estudiante: campo("estudiante"),
       detalle: detalle.value,
       fotos: fotos.length,
     };
     if (!datos.grupo && !datos.detalle.trim()) borrarBorrador(CLAVE_BORRADOR_DANO);
     else guardarBorrador<BorradorDano>(CLAVE_BORRADOR_DANO, datos);
   }
-  for (const id of ["equipo", "seccion", "estudiante", "detalle-dano"]) $(id).addEventListener("input", guardarDano);
+  for (const id of ["equipo", "seccion", "detalle-dano"]) $(id).addEventListener("input", guardarDano);
   detalle.addEventListener("input", sugerirFalla);
   $("seccion").addEventListener("change", guardarDano);
 
@@ -702,9 +705,8 @@ function pintarDano(estado: EstadoAulaQr) {
     $<HTMLInputElement>("equipo").value = b.equipo ?? "";
     // La sección guardada solo vale si es del aula (o si el aula no tiene sección)
     if (b.seccion && (!secciones.length || secciones.includes(b.seccion))) $<HTMLInputElement>("seccion").value = b.seccion;
-    $<HTMLInputElement>("estudiante").value = b.estudiante ?? "";
     detalle.value = b.detalle ?? "";
-    if (b.equipo || b.estudiante || b.detalle) extra.open = true;
+    if (b.equipo || b.detalle) extra.open = true;
     guardarDano();
     const aviso = $("borrador-dano");
     aviso.innerHTML = `${iconoSvg("info")}<span>Recuperamos tu aviso sin enviar. Revísalo y toca <strong>Enviar</strong>.${
