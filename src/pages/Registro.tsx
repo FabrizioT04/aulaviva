@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fallasDe, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
-import { borrarBorrador, guardarBorrador, leerBorrador } from "../borrador";
+import { borrarBorrador, guardarBorrador, leerBorrador, limpiarBorradores } from "../borrador";
 import { sugerirTipo } from "../../shared/sugerencia";
 import type { AulaConEstado, DetalleAula, EntradaTi, EstadoReporte, Reporte, TipoFalla } from "../../shared/tipos";
 import type { Ruta } from "../App";
@@ -31,7 +31,8 @@ function ahoraLocal(): string {
 
 const aIso = (local: string) => new Date(local).toISOString();
 
-const CLAVE_BORRADOR = "aulaviva:borrador-registro";
+// La clave lleva el correo de quien registra (ver borrador.ts)
+const claveBorrador = (email: string) => `aulaviva:borrador-registro:${email}`;
 // Si no se envía en una hora, se descarta: el reporte ya no sería reciente
 const VIGENCIA_BORRADOR_MIN = 60;
 interface Borrador {
@@ -52,10 +53,14 @@ interface Borrador {
 }
 
 // Registro rápido: lo que TI llena al leer el mensaje de WhatsApp o cuando le cuentan en persona
-export default function Registro({ onNoAutorizado, ir }: { onNoAutorizado: () => void; ir: (r: Ruta) => void }) {
+export default function Registro({ email, onNoAutorizado, ir }: { email: string; onNoAutorizado: () => void; ir: (r: Ruta) => void }) {
+  const CLAVE_BORRADOR = claveBorrador(email);
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
   // Si se salió a medio registrar, se retoma donde quedó
-  const [recuperado, setRecuperado] = useState(() => leerBorrador<Borrador>(CLAVE_BORRADOR, VIGENCIA_BORRADOR_MIN));
+  const [recuperado, setRecuperado] = useState(() => {
+    limpiarBorradores(VIGENCIA_BORRADOR_MIN);
+    return leerBorrador<Borrador>(CLAVE_BORRADOR, VIGENCIA_BORRADOR_MIN);
+  });
   const b = recuperado?.datos;
   const [aulaTexto, setAulaTexto] = useState(b?.aulaTexto ?? "");
   const [origen, setOrigen] = useState<EntradaTi>(b?.origen ?? "whatsapp");

@@ -73,6 +73,9 @@ export default {
       return new Response("No encontrado", { status: 404 });
     }
 
+    const rechazo = desdeOtroSitio(request, url);
+    if (rechazo) return rechazo;
+
     try {
       const sesion = await obtenerSesion(request, url, env);
       if (url.pathname === "/api/sesion") {
@@ -372,7 +375,8 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     return new Response(objeto.body, {
       headers: {
         "Content-Type": objeto.httpMetadata?.contentType ?? "image/jpeg",
-        "Cache-Control": "private, max-age=86400",
+        // Sin copia en el navegador: si otra persona usa el mismo equipo, la foto se vuelve a pedir con su permiso
+        "Cache-Control": "no-store",
       },
     });
   }
@@ -752,7 +756,7 @@ async function enrutarPush(request: Request, url: URL, env: Env, sesion: Sesion)
 
   const datos = await request.json<Record<string, unknown>>().catch(() => null);
   const endpoint = typeof datos?.endpoint === "string" ? datos.endpoint : "";
-  if (!/^https:\/\/[^\s]{1,1000}$/.test(endpoint)) return json({ error: "Suscripción inválida" }, 400);
+  if (!/^https:\/\/[^\s]{1,1000}$/.test(endpoint) || !servicioPushConocido(endpoint)) return json({ error: "Suscripción inválida" }, 400);
 
   if (url.pathname === "/api/push" && request.method === "POST") {
     const llaves = datos?.keys as Record<string, unknown> | undefined;
@@ -932,4 +936,31 @@ function mediana(valores: number[]): number | null {
 
 function json(datos: unknown, status = 200) {
   return Response.json(datos, { status });
+}
+
+// Contra CSRF: una página de otro sitio que visite alguien de TI no puede usar su sesión de Access
+// para cambiar datos ni para abrir el WebSocket. Los navegadores mandan Origin en POST, PUT, PATCH,
+// DELETE y WebSockets; los clientes fuera del navegador no lo mandan y no llevan la cookie de Access.
+// Además, los cambios con cuerpo de formulario o texto plano (los únicos que otro sitio puede enviar
+// sin permiso del navegador) se rechazan: la API solo recibe JSON y fotos.
+// Los avisos solo salen hacia los servicios push de los navegadores (Chrome, Edge, Firefox, Safari)
+const SERVICIOS_PUSH = ["fcm.googleapis.com", "push.services.mozilla.com", "notify.windows.com", "push.apple.com"];
+function servicioPushConocido(endpoint: string): boolean {
+  const host = new URL(endpoint).hostname;
+  return SERVICIOS_PUSH.some((s) => host === s || host.endsWith(`.${s}`));
+}
+
+const TIPOS_DE_FORMULARIO = ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data"];
+function desdeOtroSitio(request: Request, url: URL): Response | null {
+  const websocket = request.headers.get("Upgrade")?.toLowerCase() === "websocket";
+  const cambia = !["GET", "HEAD", "OPTIONS"].includes(request.method);
+  if (!websocket && !cambia) return null;
+  const origen = request.headers.get("Origin");
+  const sitio = request.headers.get("Sec-Fetch-Site");
+  if ((origen && origen !== url.origin) || (!origen && sitio && sitio !== "same-origin" && sitio !== "none")) {
+    return json({ error: "Petición de otro sitio" }, 403);
+  }
+  const tipo = (request.headers.get("Content-Type") ?? "").split(";")[0].trim().toLowerCase();
+  if (cambia && TIPOS_DE_FORMULARIO.includes(tipo)) return json({ error: "Se esperaba JSON" }, 415);
+  return null;
 }

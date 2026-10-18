@@ -1,5 +1,5 @@
 # Copia este archivo como .dev.vars para desarrollo local.
-# En producción se configura con: npx wrangler secret put TOKEN_TI
+# Solo funciona en localhost; en producción se entra con Cloudflare Access
 TOKEN_TI=cambia-esta-clave
 
 # Simula a un docente para probar la página del QR en http://localhost:5173/r/204

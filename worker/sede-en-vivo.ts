@@ -19,7 +19,28 @@ export class SedeEnVivo extends DurableObject<Env> {
     const { 0: cliente, 1: servidor } = new WebSocketPair();
     // API de hibernación: el objeto no cobra tiempo mientras no hay mensajes
     this.ctx.acceptWebSocket(servidor);
+    servidor.serializeAttachment({ abierto: Date.now() } satisfies Adjunto);
+    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + REVISAR_MS);
     return new Response(null, { status: 101, webSocket: cliente });
+  }
+
+  // El permiso se revisa solo al conectar. Para que quien sale de TI o de COA (o pierde la sesión) deje
+  // de recibir avisos, cada conexión se cierra pasado un tiempo; el panel se reconecta solo y el Worker
+  // vuelve a verificar la sesión
+  async alarm() {
+    const limite = Date.now() - VIGENCIA_MS;
+    const abiertos = this.ctx.getWebSockets();
+    for (const ws of abiertos) {
+      const adjunto = ws.deserializeAttachment() as Adjunto | null;
+      if ((adjunto?.abierto ?? 0) < limite) {
+        try {
+          ws.close(4000, "Vuelve a conectarte");
+        } catch {
+          // ya estaba cerrada
+        }
+      }
+    }
+    if (this.ctx.getWebSockets().length) await this.ctx.storage.setAlarm(Date.now() + REVISAR_MS);
   }
 
   // Lo llama el Worker (RPC) después de guardar un cambio en D1
@@ -42,6 +63,12 @@ export class SedeEnVivo extends DurableObject<Env> {
     ws.close(code, reason);
   }
 }
+
+interface Adjunto {
+  abierto: number;
+}
+const VIGENCIA_MS = 30 * 60_000;
+const REVISAR_MS = 5 * 60_000;
 
 // Una sola sede por ahora
 const SEDE = "smp1";

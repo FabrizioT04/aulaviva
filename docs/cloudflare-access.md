@@ -72,7 +72,7 @@ npx wrangler secret put COA_EMAILS
 
 Si un correo está en `TI_EMAILS`, entra como TI aunque también esté en otra lista.
 
-Desde ese momento la clave `TOKEN_TI` deja de funcionar en producción: solo entra quien pasa por Access.
+La clave `TOKEN_TI` nunca funciona en producción (solo en `localhost`): solo entra quien pasa por Access. Si tenías el secreto `TOKEN_TI` guardado en Cloudflare, puedes borrarlo con `npx wrangler secret delete TOKEN_TI`.
 
 ## 6. Prueba
 

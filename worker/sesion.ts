@@ -9,7 +9,8 @@ import type { Env } from "./index";
 // (cabecera Cf-Access-Jwt-Assertion). Aquí se verifica esa firma; nunca se confía
 // solo en la cabecera de correo, porque cualquiera podría escribirla.
 //
-// Sin Access configurado (desarrollo local), TI entra con la clave TOKEN_TI.
+// Sin Access configurado (desarrollo local), TI entra con la clave TOKEN_TI, y solo en localhost:
+// si en producción faltara la configuración de Access, nadie entra.
 
 const jwksPorEquipo = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
@@ -49,6 +50,8 @@ async function sesionAccess(request: Request, env: Env): Promise<Sesion | null> 
 }
 
 async function sesionLocal(request: Request, url: URL, env: Env): Promise<Sesion | null> {
+  const esLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  if (!esLocal) return null;
   const enviado =
     request.headers.get("Authorization")?.replace(/^Bearer /, "") ??
     url.searchParams.get("token") ?? // los WebSockets del navegador no envían cabeceras
@@ -59,8 +62,7 @@ async function sesionLocal(request: Request, url: URL, env: Env): Promise<Sesion
   // Para probar la vista de COA sin Access
   if (env.TOKEN_COA && enviado && iguales(enviado, env.TOKEN_COA)) return { email: "coa@local", rol: "coa", modo: "local" };
   // Para probar la página del QR en tu computadora sin Access
-  const esLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-  if (esLocal && env.DEV_EMAIL_DOCENTE && (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/"))) {
+  if (env.DEV_EMAIL_DOCENTE && (url.pathname === "/api/qr" || url.pathname.startsWith("/api/qr/"))) {
     return { email: env.DEV_EMAIL_DOCENTE.toLowerCase(), rol: "docente", modo: "local" };
   }
   return null;
