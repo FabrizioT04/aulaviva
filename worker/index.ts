@@ -2,6 +2,7 @@ import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import { minutosMonitoreo } from "../shared/monitoreo";
 import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, monitoreoSemanal, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
@@ -994,8 +995,7 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
   if (rondas && aulasMl) {
     const labs = agruparLaboratorios(aulasMl.results as Parameters<typeof agruparLaboratorios>[0]);
     const lista = (rondas.results as FilaRonda[]).map((f) => leerRonda(f, labs));
-    const minutos = lista.reduce((s, r) => s + (new Date(r.fin!).getTime() - new Date(r.inicio).getTime()) / 60000, 0);
-    datos.monitoreo = { rondas: lista, minutos: Math.round(minutos) };
+    datos.monitoreo = { rondas: lista, minutos: minutosMonitoreo(lista) };
   }
   return json(datos);
 }

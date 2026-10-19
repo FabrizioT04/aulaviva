@@ -44,9 +44,35 @@ export function nombreLaboratorio(l: { piso: number | null; aulas: string }): st
   return `Laboratorio del ${nombrePiso(l.piso)}${l.aulas ? ` (${l.aulas})` : ""}`;
 }
 
+// Minutos reales de monitoreo: se puede estar en los dos pisos a la vez, y ese rato cuenta una sola vez
+// por persona (el tiempo de cada laboratorio sí cuenta completo). Solo rondas terminadas.
+export function minutosMonitoreo(rondas: { email: string; inicio: string; fin: string | null }[]): number {
+  const porPersona = new Map<string, [number, number][]>();
+  for (const r of rondas) {
+    if (!r.fin) continue;
+    const tramos = porPersona.get(r.email) ?? [];
+    tramos.push([new Date(r.inicio).getTime(), new Date(r.fin).getTime()]);
+    porPersona.set(r.email, tramos);
+  }
+  let total = 0;
+  for (const tramos of porPersona.values()) {
+    tramos.sort((a, b) => a[0] - b[0]);
+    let [desde, hasta] = tramos[0];
+    for (const [i, f] of tramos.slice(1)) {
+      if (i <= hasta) hasta = Math.max(hasta, f);
+      else {
+        total += hasta - desde;
+        [desde, hasta] = [i, f];
+      }
+    }
+    total += hasta - desde;
+  }
+  return Math.round(total / 60000);
+}
+
 export interface DatosMonitoreo {
   laboratorios: Laboratorio[];
-  activo: Monitoreo | null;
+  activos: Monitoreo[]; // las rondas abiertas: a lo más una por laboratorio
   recientes: Monitoreo[];
   hoy: { rondas: number; minutos: number };
   semana: { rondas: number; minutos: number; con_hallazgos: number };
