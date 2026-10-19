@@ -15,8 +15,8 @@ export type Hallazgo = keyof typeof HALLAZGOS;
 export interface Monitoreo {
   id: number;
   aula_id: number;
-  aula_nombre: string;
-  aula_seccion: string | null;
+  piso: number | null;
+  aulas: string; // las aulas del laboratorio de ese piso: "306 y 307"
   email: string; // quién hizo la ronda
   inicio: string;
   fin: string | null;
@@ -25,15 +25,27 @@ export interface Monitoreo {
   fotos: number;
 }
 
-export interface AulaMl {
-  id: number;
-  nombre: string;
-  seccion: string | null;
+// Cada piso tiene un solo laboratorio ML, aunque ocupe dos aulas (306 y 307 son uno solo)
+export interface Laboratorio {
+  aula_id: number; // la primera aula del piso: con ella se guarda la ronda
   piso: number | null;
+  aulas: string; // "306 y 307"
+}
+
+// 2 → "2do piso", 3 → "3er piso"
+export function nombrePiso(piso: number | null): string {
+  if (piso == null) return "Sin piso";
+  const sufijo = piso === 1 || piso === 3 ? "er" : piso === 2 ? "do" : "to";
+  return `${piso}${sufijo} piso`;
+}
+
+// "Laboratorio del 3er piso (306 y 307)"
+export function nombreLaboratorio(l: { piso: number | null; aulas: string }): string {
+  return `Laboratorio del ${nombrePiso(l.piso)}${l.aulas ? ` (${l.aulas})` : ""}`;
 }
 
 export interface DatosMonitoreo {
-  aulas: AulaMl[];
+  laboratorios: Laboratorio[];
   activo: Monitoreo | null;
   recientes: Monitoreo[];
   hoy: { rondas: number; minutos: number };
