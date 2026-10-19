@@ -2,7 +2,7 @@ import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
-import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
+import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, monitoreoSemanal, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -925,6 +925,8 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
     por_tipo: porTipo.results,
     reportes: reportes.results,
     pendientes_anteriores: (anteriores.results[0] as { n: number }).n,
+    // Rondas en los laboratorios ML de la semana (sección "Monitoreo de laboratorios" del correo)
+    monitoreo: await monitoreoSemanal(env, inicio, fin),
   });
 }
 
