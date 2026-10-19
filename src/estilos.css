@@ -588,3 +588,12 @@ main:has(.pagina-historial) { max-width: 1440px; }
 .ronda-linea span { color: var(--suave); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
 .insignia.hallazgo { background: var(--amarillo-suave); color: var(--amarillo); }
 .insignia.en-orden { background: var(--verde-suave); color: var(--verde); }
+
+/* Safari anterior a iOS 16.2 (iPhone 7 y 8 con iOS 15) no entiende color-mix(): sin esto,
+   esas reglas quedan sin color y, por ejemplo, el botón principal se vuelve transparente al tocarlo */
+@supports not (color: color-mix(in srgb, red, red)) {
+  button:hover, .muestra.verde { border-color: var(--borde); }
+  button:focus-visible, a:focus-visible { outline-color: var(--primario); }
+  .primario:hover { background: var(--primario); }
+  .tramo.avisaron, .muestra-estado.avisaron { background: var(--borde); }
+}

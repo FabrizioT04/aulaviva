@@ -49,6 +49,9 @@ export default defineConfig({
   environments: {
     client: {
       build: {
+        // Vite escribe las media queries como (width<=899px), que Safari solo entiende desde
+        // iOS 16.4: en un iPhone 7 (iOS 15) el panel salía con el diseño de computadora
+        cssTarget: ["safari15", "ios15", "chrome100", "edge100", "firefox100"],
         rollupOptions: {
           // El panel de TI (React) y dos páginas livianas sin React para el docente:
           // la del QR de cada aula y su inicio (escanear o elegir el aula)
