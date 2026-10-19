@@ -10,6 +10,7 @@ import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos,
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
+import { direccionHazio } from "./direccion";
 
 export { SedeEnVivo };
 
@@ -64,6 +65,8 @@ const SQL_REPORTES = `
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
+    const direccion = direccionHazio(request);
+    if (direccion) return direccion;
     const url = new URL(request.url);
 
     // Página del QR: un HTML aparte y muy liviano (sin React) para el celular del docente
@@ -75,7 +78,8 @@ export default {
       return env.ASSETS.fetch(new Request(new URL("/docente", url), request));
     }
     if (!url.pathname.startsWith("/api/")) {
-      return new Response("No encontrado", { status: 404 });
+      // También sirve HTML y recursos cuando Hazio entra mediante el service binding.
+      return env.ASSETS.fetch(request);
     }
 
     const rechazo = desdeOtroSitio(request, url);
