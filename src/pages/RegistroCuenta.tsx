@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ACCIONES_CUENTA, ACCIONES_DOCENTE, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AccionCuenta, type AtencionCuenta, type PedidoCuenta, type Persona, type Plataforma } from "../../shared/cuentas";
+import { ACCIONES_CUENTA, ACCIONES_DOCENTE, cuentaDelPedido, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AccionCuenta, type AtencionCuenta, type PedidoCuenta, type Persona, type Plataforma } from "../../shared/cuentas";
 import type { EntradaTi } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import { fechaCorta } from "../formato";
@@ -62,7 +62,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
     setAccion(p.accion);
     setPlataforma(p.plataforma);
     setPersona(p.para === "yo" ? "docente" : "estudiante");
-    setCantidad("1");
+    setCantidad(String(p.cantidad));
     setDetalle(p.para === "yo" ? `Prof. ${usuario(p.email)}` : (p.detalle ?? ""));
     setNota(p.descripcion ?? "");
     setMensaje(null);
@@ -131,7 +131,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
                   <span>{fechaCorta(p.creado_en)}</span>
                 </div>
                 <p>
-                  {p.para === "yo" ? "Su propia cuenta" : `Estudiante: ${p.detalle}`} · pide {usuario(p.email)}
+                  {cuentaDelPedido(p)} · pide {usuario(p.email)}
                 </p>
                 {p.descripcion && <p className="pista">“{p.descripcion}”</p>}
                 {pedido?.id !== p.id && (
@@ -196,7 +196,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
 
         <label>
           Sección o nombre (opcional)
-          <input value={detalle} maxLength={120} onChange={(e) => setDetalle(e.target.value)} placeholder="Ej. 5A, o Prof. Ramos" />
+          <input value={detalle} maxLength={300} onChange={(e) => setDetalle(e.target.value)} placeholder="Ej. 5A, o Prof. Ramos" />
         </label>
         <label>
           Nota (opcional)

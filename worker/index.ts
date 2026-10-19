@@ -4,7 +4,7 @@ import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FAL
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { minutosMonitoreo } from "../shared/monitoreo";
 import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, monitoreoSemanal, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
-import { ACCIONES_DOCENTE, PLATAFORMAS } from "../shared/cuentas";
+import { ACCIONES_DOCENTE, cuentaDelPedido, PLATAFORMAS } from "../shared/cuentas";
 import { crearPedido, cuentasSemanal, enrutarCuentas, pedidosDe, SQL_CUENTAS } from "./cuentas";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
@@ -541,7 +541,7 @@ async function misReportes(env: Env, email: string, aulaId?: number): Promise<Mi
     tipo: p.plataforma,
     titulo: `${PLATAFORMAS[p.plataforma] ?? p.plataforma}: ${ACCIONES_DOCENTE[p.accion] ?? p.accion}`,
     aula_codigo: "",
-    aula_nombre: p.para === "yo" ? "Tu cuenta" : (p.detalle ?? "Un estudiante"),
+    aula_nombre: p.para === "yo" ? "Tu cuenta" : `${p.cantidad > 1 ? `${p.cantidad} estudiantes · ` : ""}${p.detalle ?? ""}`,
     estado: p.estado === "resuelto" ? "resuelto" : "recibido",
     reportado_en: p.creado_en,
     resuelto_en: p.resuelto_en,
@@ -564,7 +564,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
       ctx.waitUntil(
         notificarTi(env, url.origin, {
           titulo: `Cuenta · ${PLATAFORMAS[p.plataforma] ?? p.plataforma}: ${ACCIONES_DOCENTE[p.accion] ?? p.accion}`,
-          cuerpo: [p.para === "yo" ? "Es su propia cuenta" : `Estudiante: ${p.detalle}`, p.descripcion, `Pide ${p.email.split("@")[0]}`]
+          cuerpo: [cuentaDelPedido(p), p.descripcion, `Pide ${p.email.split("@")[0]}`]
             .filter(Boolean)
             .join("\n"),
           url: "/cuentas",

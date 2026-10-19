@@ -1,12 +1,12 @@
 // API de Cuentas y plataformas (ver shared/cuentas.ts). Lo registra TI; COA lo ve desde el Historial.
 // El docente también puede pedirlo desde /docente (pedido_cuenta): TI lo atiende desde Registrar.
-import { ACCIONES_CUENTA, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AtencionCuenta, type PedidoCuenta } from "../shared/cuentas";
+import { ACCIONES_CUENTA, cuentaDelPedido, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AtencionCuenta, type PedidoCuenta } from "../shared/cuentas";
 import type { Sesion } from "../shared/tipos";
 import type { Env } from "./index";
 import { sede } from "./sede-en-vivo";
 
 export const SQL_CUENTAS = `SELECT id, accion, plataforma, persona, cantidad, detalle, nota, origen, email, creado_en, pedido_id FROM atencion_cuenta`;
-export const SQL_PEDIDOS = `SELECT id, accion, plataforma, para, detalle, descripcion, email, estado, creado_en, resuelto_en FROM pedido_cuenta`;
+export const SQL_PEDIDOS = `SELECT id, accion, plataforma, para, cantidad, detalle, descripcion, email, estado, creado_en, resuelto_en FROM pedido_cuenta`;
 const ORIGENES = ["whatsapp", "presencial", "otro"];
 // Un error al registrar se puede borrar durante el día; después ya cuenta para los reportes
 const HORAS_PARA_BORRAR = 12;
@@ -63,7 +63,7 @@ export async function enrutarCuentas(request: Request, url: URL, env: Env, sesio
       `INSERT INTO atencion_cuenta (accion, plataforma, persona, cantidad, detalle, nota, origen, email, pedido_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, accion, plataforma, persona, cantidad, detalle, nota, origen, email, creado_en, pedido_id`,
     )
-      .bind(d.accion, d.plataforma, d.persona, cantidad, texto(d.detalle, 120), texto(d.nota, 500), origen, sesion.email, pedidoId)
+      .bind(d.accion, d.plataforma, d.persona, cantidad, texto(d.detalle, 300), texto(d.nota, 500), origen, sesion.email, pedidoId)
       .first<AtencionCuenta>()
       .catch(async (e) => {
         if (pedidoId !== null) await reabrir(env, pedidoId);
@@ -102,8 +102,10 @@ export async function crearPedido(request: Request, env: Env, email: string, alC
   if (typeof d.accion !== "string" || !(d.accion in ACCIONES_CUENTA)) return json({ error: "Elige qué problema tienes" }, 400);
   if (typeof d.plataforma !== "string" || !(d.plataforma in PLATAFORMAS)) return json({ error: "Elige la plataforma" }, 400);
   if (d.para !== "yo" && d.para !== "estudiante") return json({ error: "Elige de quién es la cuenta" }, 400);
-  const detalle = d.para === "estudiante" ? texto(d.detalle, 120) : null;
-  if (d.para === "estudiante" && !detalle) return json({ error: "Escribe el nombre y la sección del estudiante" }, 400);
+  const detalle = d.para === "estudiante" ? texto(d.detalle, 300) : null;
+  if (d.para === "estudiante" && !detalle) return json({ error: "Escribe la sección y el nombre del estudiante" }, 400);
+  const cantidad = d.para === "estudiante" && d.cantidad != null ? Number(d.cantidad) : 1;
+  if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 60) return json({ error: "Los estudiantes van de 1 a 60" }, 400);
   const descripcion = texto(d.descripcion, 500);
   if (!descripcion && (d.accion === "otro" || d.plataforma === "otra")) return json({ error: "Cuéntale a TI qué pasa" }, 400);
 
@@ -120,10 +122,10 @@ export async function crearPedido(request: Request, env: Env, email: string, alC
     return json({ error: `Ya tienes ${MAX_PEDIDOS_PENDIENTES} pedidos esperando a TI. Espera a que los atiendan, o escríbele a TI.` }, 429);
 
   const pedido = await env.DB.prepare(
-    `INSERT INTO pedido_cuenta (accion, plataforma, para, detalle, descripcion, email) VALUES (?, ?, ?, ?, ?, ?)
-     RETURNING id, accion, plataforma, para, detalle, descripcion, email, estado, creado_en, resuelto_en`,
+    `INSERT INTO pedido_cuenta (accion, plataforma, para, cantidad, detalle, descripcion, email) VALUES (?, ?, ?, ?, ?, ?, ?)
+     RETURNING id, accion, plataforma, para, cantidad, detalle, descripcion, email, estado, creado_en, resuelto_en`,
   )
-    .bind(d.accion, d.plataforma, d.para, detalle, descripcion, email)
+    .bind(d.accion, d.plataforma, d.para, cantidad, detalle, descripcion, email)
     .first<PedidoCuenta>();
   if (!pedido) return json({ error: "No se pudo guardar. Intenta de nuevo." }, 500);
   await sede(env).difundir({ tipo: "cuentas" });

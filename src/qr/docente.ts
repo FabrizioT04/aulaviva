@@ -101,20 +101,26 @@ function misReportes(datos: AulasDocente | null, abierto = false): string {
     </details>`;
 }
 
-// Problema con su cuenta o la de un estudiante (Classroom, Pearson, el correo…): le llega a TI como aviso,
-// TI lo atiende y el docente lo ve resuelto en "Tus reportes". Va plegado: lo de todos los días es el aula.
-const chips = (campo: string, opciones: Record<string, string>) =>
+// Problema con la cuenta de sus estudiantes (casi siempre) o la suya: Khan Academy, Pearson, el correo…
+// Le llega a TI como aviso, TI lo atiende y el docente lo ve resuelto en "Tus reportes".
+// Va plegado: lo de todos los días es el aula.
+const chips = (campo: string, opciones: Record<string, string>, elegido?: string) =>
   `<div class="chips-cuenta" data-campo="${campo}">${Object.entries(opciones)
-    .map(([valor, etiqueta]) => `<button type="button" data-valor="${valor}" aria-pressed="false">${esc(etiqueta)}</button>`)
+    .map(([valor, etiqueta]) => `<button type="button" data-valor="${valor}" aria-pressed="${valor === elegido}">${esc(etiqueta)}</button>`)
     .join("")}</div>`;
+
+// De quién es la cuenta: "uno" y "varios" se envían como para = "estudiante"
+const DE_QUIEN = { uno: "Un estudiante", varios: "Varios estudiantes", yo: "Mía" };
 
 function formularioCuenta(): string {
   return `<form id="form-cuenta" novalidate>
+      <fieldset><legend>¿De quién es la cuenta?</legend>${chips("quien", DE_QUIEN, "uno")}</fieldset>
       <fieldset><legend>¿Qué pasa?</legend>${chips("accion", ACCIONES_DOCENTE)}</fieldset>
       <fieldset><legend>¿En qué plataforma?</legend>${chips("plataforma", PLATAFORMAS)}</fieldset>
-      <fieldset><legend>¿De quién es la cuenta?</legend>${chips("para", { yo: "Mía", estudiante: "De un estudiante" })}</fieldset>
-      <label id="campo-estudiante" hidden>Nombre y sección del estudiante
-        <input name="detalle" maxlength="120" autocomplete="off" placeholder="Ej. Ana Torres, 5A" /></label>
+      <label id="campo-cuantos" hidden>¿Cuántos estudiantes?
+        <input name="cantidad" type="number" inputmode="numeric" min="2" max="60" value="2" /></label>
+      <label id="campo-estudiante"><span id="etiqueta-estudiante">Sección y nombre del estudiante</span>
+        <textarea name="detalle" rows="2" maxlength="300" autocomplete="off" placeholder="Ej. 5A, Ana Torres"></textarea></label>
       <label><span>Cuéntale a TI <span class="opcional" id="opcional-cuenta">(opcional)</span></span>
         <textarea name="descripcion" rows="2" maxlength="500" placeholder="Ej. no le llega el código para entrar"></textarea></label>
       <p class="nota-clave">${iconoSvg("info")}<span>Nunca escribas tu clave ni la del estudiante. TI te contacta si hace falta.</span></p>
@@ -127,8 +133,8 @@ function seccionCuenta(): string {
   return `<details class="tarjeta pedido-cuenta" id="pedido-cuenta">
       <summary>
         <span class="tipo-icono cuenta">${iconoSvg("cuenta")}</span>
-        <span class="mis-reportes-titulo"><strong>¿Problema con tu cuenta o una plataforma?</strong>
-          <small>Clave del correo, Classroom, Pearson, ALEKS…</small></span>
+        <span class="mis-reportes-titulo"><strong>¿Un estudiante no puede entrar a una plataforma?</strong>
+          <small>O tu propia cuenta: correo, Classroom, Pearson, ALEKS…</small></span>
         ${iconoSvg("abajo")}
       </summary>
       <div id="cuerpo-cuenta">${formularioCuenta()}</div>
@@ -138,10 +144,13 @@ function seccionCuenta(): string {
 function activarCuenta() {
   const cuerpo = document.getElementById("cuerpo-cuenta")!;
   const form = cuerpo.querySelector<HTMLFormElement>("#form-cuenta")!;
-  const elegido: Record<string, string> = {};
+  const elegido: Record<string, string> = { quien: "uno" };
   const error = form.querySelector<HTMLElement>("#error-cuenta")!;
-  const detalle = form.querySelector<HTMLInputElement>('[name="detalle"]')!;
+  const detalle = form.querySelector<HTMLTextAreaElement>('[name="detalle"]')!;
   const descripcion = form.querySelector<HTMLTextAreaElement>('[name="descripcion"]')!;
+  const cantidad = form.querySelector<HTMLInputElement>('[name="cantidad"]')!;
+  const etiquetaEstudiante = form.querySelector<HTMLElement>("#etiqueta-estudiante")!;
+  const varios = () => elegido.quien === "varios";
   // "Otro problema" u "Otra plataforma" no dicen nada solos: ahí el detalle es obligatorio
   const pideDetalle = () => elegido.accion === "otro" || elegido.plataforma === "otra";
 
@@ -151,7 +160,10 @@ function activarCuenta() {
       if (!boton) return;
       elegido[grupo.dataset.campo!] = boton.dataset.valor!;
       for (const b of grupo.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === boton));
-      document.getElementById("campo-estudiante")!.hidden = elegido.para !== "estudiante";
+      document.getElementById("campo-estudiante")!.hidden = elegido.quien === "yo";
+      document.getElementById("campo-cuantos")!.hidden = !varios();
+      etiquetaEstudiante.textContent = varios() ? "Sección y nombres" : "Sección y nombre del estudiante";
+      detalle.placeholder = varios() ? "Ej. 4B: Luis Paredes, Ana Torres y Diego Ramos" : "Ej. 5A, Ana Torres";
       document.getElementById("opcional-cuenta")!.hidden = pideDetalle();
       error.textContent = "";
     });
@@ -161,12 +173,13 @@ function activarCuenta() {
     e.preventDefault();
     // Lo primero que falta, con el campo donde se arregla
     const primero = (campo: string) => form.querySelector<HTMLElement>(`[data-campo="${campo}"] button`);
+    const n = Number(cantidad.value);
     const falta = (
       [
         [!elegido.accion, "Elige qué pasa", primero("accion")],
         [!elegido.plataforma, "Elige la plataforma", primero("plataforma")],
-        [!elegido.para, "Elige de quién es la cuenta", primero("para")],
-        [elegido.para === "estudiante" && !detalle.value.trim(), "Escribe el nombre y la sección del estudiante", detalle],
+        [varios() && !(Number.isInteger(n) && n >= 2 && n <= 60), "Escribe cuántos estudiantes son (de 2 a 60)", cantidad],
+        [elegido.quien !== "yo" && !detalle.value.trim(), varios() ? "Escribe la sección y los nombres" : "Escribe la sección y el nombre del estudiante", detalle],
         [pideDetalle() && !descripcion.value.trim(), "Cuéntale a TI qué pasa", descripcion],
       ] as const
     ).find(([falla]) => falla);
@@ -183,7 +196,14 @@ function activarCuenta() {
       const res = await fetch("/api/qr/cuentas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...elegido, detalle: detalle.value, descripcion: descripcion.value }),
+        body: JSON.stringify({
+          accion: elegido.accion,
+          plataforma: elegido.plataforma,
+          para: elegido.quien === "yo" ? "yo" : "estudiante",
+          cantidad: varios() ? n : 1,
+          detalle: detalle.value,
+          descripcion: descripcion.value,
+        }),
       });
       const r = (await res.json().catch(() => ({}))) as { error?: string; ya_enviado?: boolean };
       if (!res.ok) throw new Error(r.error ?? "No se pudo enviar. Intenta de nuevo.");

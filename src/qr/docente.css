@@ -142,3 +142,4 @@ body.con-escaner { overflow: hidden; }
 .enviado-cuenta { display: flex; gap: 12px; align-items: flex-start; margin-top: 18px; padding: 14px 16px; border-radius: 16px; background: var(--verde-suave); }
 .enviado-cuenta strong { color: var(--verde); }
 .enviado-cuenta p { margin: 4px 0 0; font-size: 0.9rem; color: var(--texto); }
+#form-cuenta input[type="number"] { max-width: 120px; }
