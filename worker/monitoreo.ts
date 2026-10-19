@@ -1,4 +1,4 @@
-import { HALLAZGOS, type DatosMonitoreo, type Hallazgo, type Laboratorio, type Monitoreo } from "../shared/monitoreo";
+import { HALLAZGOS, minutosMonitoreo, type DatosMonitoreo, type Hallazgo, type Laboratorio, type Monitoreo } from "../shared/monitoreo";
 import type { Sesion } from "../shared/tipos";
 import { MAX_FOTO_BYTES, TIPOS_FOTO } from "./danos";
 import type { Env } from "./index";
@@ -44,9 +44,6 @@ export function agruparLaboratorios(aulas: { id: number; nombre: string; piso: n
     aulas: g.nombres.length > 1 ? `${g.nombres.slice(0, -1).join(", ")} y ${g.nombres.at(-1)}` : g.nombres[0],
   }));
 }
-// Minutos de cada ronda terminada; el día se cuenta en hora de Lima
-const MINUTOS = `(julianday(fin) - julianday(inicio)) * 1440`;
-const HOY = `date(inicio, '-5 hours') = date('now', '-5 hours')`;
 
 export type Fila = Omit<Monitoreo, "hallazgos" | "aulas"> & { hallazgos: string };
 export const leer = (f: Fila, labs: Laboratorio[]): Monitoreo => ({
@@ -61,15 +58,13 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
   const email = sesion.email;
 
   if (pathname === "/api/monitoreo" && metodo === "GET") {
-    const [aulas, activo, recientes, resumen, fotosHoy] = await env.DB.batch([
+    const [aulas, activos, recientes, semana, fotosHoy] = await env.DB.batch([
       env.DB.prepare(`${SQL_AULAS_ML} ${ORDEN_AULAS_ML}`),
-      env.DB.prepare(`${SQL_MONITOREO} WHERE m.email = ? AND m.fin IS NULL ORDER BY m.inicio DESC LIMIT 1`).bind(email),
+      env.DB.prepare(`${SQL_MONITOREO} WHERE m.email = ? AND m.fin IS NULL ORDER BY a.piso DESC`).bind(email),
       env.DB.prepare(`${SQL_MONITOREO} WHERE m.email = ? AND m.fin IS NOT NULL ORDER BY m.inicio DESC LIMIT 200`).bind(email),
+      // Rondas terminadas de los últimos 7 días; el día se cuenta en hora de Lima
       env.DB.prepare(
-        `SELECT COALESCE(SUM(${HOY}), 0) AS rondas_hoy,
-                COALESCE(SUM(CASE WHEN ${HOY} THEN ${MINUTOS} END), 0) AS minutos_hoy,
-                COUNT(*) AS rondas, COALESCE(SUM(${MINUTOS}), 0) AS minutos,
-                COALESCE(SUM(hallazgos <> '[]'), 0) AS con_hallazgos
+        `SELECT email, inicio, fin, hallazgos, date(inicio, '-5 hours') = date('now', '-5 hours') AS es_hoy
          FROM monitoreo WHERE email = ? AND fin IS NOT NULL AND inicio >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-7 days')`,
       ).bind(email),
       // Fotos de hoy por piso, separadas en mañana y tarde
@@ -82,31 +77,49 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
          GROUP BY a.piso`,
       ).bind(email),
     ]);
-    const r = resumen.results[0] as Record<string, number>;
+    const semanales = semana.results as { email: string; inicio: string; fin: string; hallazgos: string; es_hoy: number }[];
+    const deHoy = semanales.filter((r) => r.es_hoy);
     const labs = agruparLaboratorios(aulas.results as Parameters<typeof agruparLaboratorios>[0]);
     const datos: DatosMonitoreo = {
       laboratorios: labs,
-      activo: activo.results[0] ? leer(activo.results[0] as Fila, labs) : null,
+      activos: (activos.results as Fila[]).map((f) => leer(f, labs)),
       recientes: (recientes.results as Fila[]).map((f) => leer(f, labs)),
-      hoy: { rondas: r.rondas_hoy, minutos: Math.round(r.minutos_hoy) },
-      semana: { rondas: r.rondas, minutos: Math.round(r.minutos), con_hallazgos: r.con_hallazgos },
+      hoy: { rondas: deHoy.length, minutos: minutosMonitoreo(deHoy) },
+      semana: {
+        rondas: semanales.length,
+        minutos: minutosMonitoreo(semanales),
+        con_hallazgos: semanales.filter((r) => r.hallazgos !== "[]").length,
+      },
       fotos_hoy: fotosHoy.results as DatosMonitoreo["fotos_hoy"],
     };
     return json(datos);
   }
 
-  // Empezar una ronda. Si había otra abierta (cambió de aula o de piso), esa termina ahora.
+  // Empezar una ronda. Se puede estar en los dos pisos a la vez: hay a lo más una ronda abierta por
+  // laboratorio, y si ya había una en ese piso se devuelve esa. "cerrar" termina ahora otra ronda abierta
+  // (al pasar de un piso al otro).
   if (pathname === "/api/monitoreo" && metodo === "POST") {
-    const datos = await request.json<{ aula_id?: unknown }>().catch(() => null);
+    const datos = await request.json<{ aula_id?: unknown; cerrar?: unknown }>().catch(() => null);
     const aulaId = Number(datos?.aula_id);
-    const aula = Number.isInteger(aulaId) ? await env.DB.prepare(`${SQL_AULAS_ML} AND id = ?`).bind(aulaId).first() : null;
+    const aula = Number.isInteger(aulaId)
+      ? await env.DB.prepare(`${SQL_AULAS_ML} AND id = ?`).bind(aulaId).first<{ piso: number | null }>()
+      : null;
     if (!aula) return json({ error: "Elige uno de los laboratorios ML" }, 400);
+    const abierta = await env.DB.prepare(
+      `SELECT m.id FROM monitoreo m JOIN aula a ON a.id = m.aula_id WHERE m.email = ? AND m.fin IS NULL AND a.piso IS ?`,
+    )
+      .bind(email, aula.piso)
+      .first<{ id: number }>();
+    if (abierta) return json(await unaRonda(env, abierta.id));
+    const cerrar = Number(datos?.cerrar);
     // Cualquier aula del laboratorio sirve: la ronda es del piso
-    const [, nuevo] = await env.DB.batch([
-      env.DB.prepare(`UPDATE monitoreo SET fin = ${AHORA} WHERE email = ? AND fin IS NULL`).bind(email),
+    const nuevo = await env.DB.batch([
+      ...(Number.isInteger(cerrar)
+        ? [env.DB.prepare(`UPDATE monitoreo SET fin = ${AHORA} WHERE id = ? AND email = ? AND fin IS NULL`).bind(cerrar, email)]
+        : []),
       env.DB.prepare(`INSERT INTO monitoreo (aula_id, email, inicio) VALUES (?, ?, ${AHORA}) RETURNING id`).bind(aulaId, email),
     ]);
-    const id = (nuevo.results[0] as { id: number }).id;
+    const id = (nuevo.at(-1)!.results[0] as { id: number }).id;
     return json(await unaRonda(env, id), 201);
   }
 
@@ -232,7 +245,7 @@ export async function monitoreoSemanal(env: Env, inicio: string, fin: string): P
 
   return {
     rondas: lista.length,
-    minutos: lista.reduce((s, r) => s + minutos(r), 0),
+    minutos: minutosMonitoreo(lista), // el rato en los dos pisos a la vez cuenta una vez
     con_hallazgos: lista.filter((r) => r.hallazgos.length).length,
     laboratorios: [...porLab.values()],
     dias: [...porDia.values()].sort((a, b) => a.dia.localeCompare(b.dia) || (b.piso ?? 0) - (a.piso ?? 0)),
@@ -244,7 +257,7 @@ export async function monitoreoSemanal(env: Env, inicio: string, fin: string): P
 
 export interface MonitoreoSemanal {
   rondas: number;
-  minutos: number;
+  minutos: number; // tiempo real: menos que la suma de los laboratorios si estuvo en los dos a la vez
   con_hallazgos: number;
   laboratorios: { piso: number | null; aulas: string; rondas: number; minutos: number }[]; // todos, del piso más alto al más bajo
   // Un registro por día y piso con rondas o fotos (día en hora de Lima, AAAA-MM-DD)

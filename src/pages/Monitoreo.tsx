@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { HALLAZGOS, nombreLaboratorio, nombrePiso, type DatosMonitoreo, type Hallazgo, type Laboratorio } from "../../shared/monitoreo";
+import { HALLAZGOS, nombreLaboratorio, nombrePiso, type DatosMonitoreo, type Hallazgo, type Laboratorio, type Monitoreo as Ronda } from "../../shared/monitoreo";
 import { api, leerToken, NoAutorizado } from "../api";
 import { comprimir } from "../comprimir";
 import { csvRondas } from "../csv";
@@ -34,12 +34,8 @@ const RONDA_LARGA_MIN = 120;
 // marcar lo que encuentra y terminar al salir. Solo la ve quien hace las rondas (MONITOREO_EMAILS).
 export default function Monitoreo({ onNoAutorizado }: Props) {
   const [d, setD] = useState<DatosMonitoreo | null>(null);
-  const [hallazgos, setHallazgos] = useState<Hallazgo[]>([]);
-  const [nota, setNota] = useState("");
-  const [finManual, setFinManual] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState("");
-  const [subiendo, setSubiendo] = useState(false);
   const [, setTic] = useState(0);
 
   const fallo = useCallback(
@@ -53,12 +49,7 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
   const cargar = useCallback(
     () =>
       api<DatosMonitoreo>("/api/monitoreo")
-        .then((datos) => {
-          setD(datos);
-          setHallazgos(datos.activo?.hallazgos ?? []);
-          setNota(datos.activo?.nota ?? "");
-          setFinManual("");
-        })
+        .then(setD)
         .catch(fallo),
     [fallo],
   );
@@ -86,54 +77,11 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
     }
   }
 
-  const activo = d?.activo ?? null;
-  const transcurrido = activo ? minutosEntre(activo.inicio, new Date().toISOString()) ?? 0 : 0;
-  const larga = transcurrido > RONDA_LARGA_MIN;
-
-  const guardar = (cambios: Record<string, unknown>) =>
-    activo ? api(`/api/monitoreo/${activo.id}`, { method: "PATCH", body: JSON.stringify(cambios) }) : Promise.resolve();
-
-  function alternar(h: Hallazgo) {
-    const lista = hallazgos.includes(h) ? hallazgos.filter((x) => x !== h) : [...hallazgos, h];
-    setHallazgos(lista);
-    guardar({ hallazgos: lista }).catch(fallo);
-  }
-
-  const empezar = (lab: Laboratorio) =>
-    accion(async () => {
-      // Al pasar al otro piso, la ronda actual se guarda con lo marcado y termina ahora
-      if (activo) await guardar({ hallazgos, nota });
-      await api("/api/monitoreo", { method: "POST", body: JSON.stringify({ aula_id: lab.aula_id }) });
-    });
-
-  const terminar = () =>
-    accion(() =>
-      guardar({ hallazgos, nota, terminar: true, ...(larga && finManual && activo ? { fin: horaAIso(finManual, activo.inicio) } : {}) }),
-    );
-
-  async function subirFotos(lista: FileList | null) {
-    if (!activo || !lista?.length) return;
-    setSubiendo(true);
-    setError("");
-    const token = leerToken();
-    let fallidas = 0;
-    for (const archivo of [...lista]) {
-      const foto = await comprimir(archivo).catch(() => archivo);
-      const res = await fetch(`/api/monitoreo/${activo.id}/foto`, {
-        method: "PUT",
-        headers: { "Content-Type": foto.type || "image/jpeg", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: foto,
-      }).catch(() => null);
-      if (!res?.ok) fallidas++;
-    }
-    if (fallidas) setError(fallidas === 1 ? "Una foto no se pudo subir." : `${fallidas} fotos no se pudieron subir.`);
-    setSubiendo(false);
-    await cargar();
-  }
-
-  const descartar = () => accion(() => (activo ? api(`/api/monitoreo/${activo.id}`, { method: "DELETE" }) : Promise.resolve()));
+  const empezar = (lab: Laboratorio) => accion(() => api("/api/monitoreo", { method: "POST", body: JSON.stringify({ aula_id: lab.aula_id }) }));
 
   const pisos = (d?.laboratorios ?? []).map((l) => l.piso);
+  // Laboratorios sin ronda abierta: se puede empezar ahí también, a la vez que la otra
+  const libres = (d?.laboratorios ?? []).filter((l) => !d?.activos.some((r) => r.piso === l.piso));
   const turnoTarde = horaLimaAhora() >= HORA_TARDE;
 
   return (
@@ -181,105 +129,26 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
             </ul>
           </section>
 
-          {activo ? (
-            <section className="tarjeta ronda-activa" aria-live="polite">
-              <div className="ronda-cabeza">
-                <span className="punto-vivo" aria-hidden="true" />
-                <div>
-                  <small>Monitoreando</small>
-                  <h2>{nombreLaboratorio(activo)}</h2>
-                  <p>
-                    Desde las {hora(activo.inicio)} · {duracion(transcurrido)}
-                  </p>
-                </div>
-              </div>
+          {d.activos.map((r) => (
+            <RondaActiva key={r.id} ronda={r} libres={libres} ocupado={ocupado} accion={accion} recargar={cargar} fallo={fallo} setError={setError} />
+          ))}
 
-              <fieldset>
-                <legend>¿Qué encontraste?</legend>
-                <div className="chips">
-                  {(Object.keys(HALLAZGOS) as Hallazgo[]).map((h) => (
-                    <button key={h} type="button" className={`chip ${hallazgos.includes(h) ? "activo" : ""}`} aria-pressed={hallazgos.includes(h)} onClick={() => alternar(h)}>
-                      {HALLAZGOS[h]}
-                    </button>
-                  ))}
-                </div>
-                <small className="pista">Si no marcas nada, la ronda queda como «Todo en orden».</small>
-              </fieldset>
-
-              <div className="fotos-ronda">
-                <span className="etiqueta-campo">Fotos</span>
-                {activo.fotos > 0 && <FotosReporte reporteId={activo.id} total={activo.fotos} ruta={`/api/monitoreo/${activo.id}/fotos`} />}
-                <label className={`boton-foto ${subiendo || activo.fotos >= 6 ? "deshabilitado" : ""}`}>
-                  <Icono nombre="camara" />
-                  {subiendo ? "Subiendo…" : activo.fotos ? "Agregar otra foto" : "Tomar o elegir foto"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    hidden
-                    disabled={subiendo || activo.fotos >= 6}
-                    onChange={(e) => {
-                      subirFotos(e.target.files);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              </div>
-
-              <label>
-                Nota (opcional)
-                <textarea
-                  rows={2}
-                  value={nota}
-                  maxLength={1000}
-                  onChange={(e) => setNota(e.target.value)}
-                  onBlur={() => guardar({ nota }).catch(fallo)}
-                  placeholder="Ej. Dos alumnos de 10B en juegos; le avisé al docente"
-                />
-              </label>
-
-              {larga && (
-                <label className="fin-manual">
-                  ¿A qué hora terminaste? Lleva {duracion(transcurrido)} abierta.
-                  <input type="time" value={finManual} onChange={(e) => setFinManual(e.target.value)} />
-                </label>
-              )}
-
-              <button className="primario terminar" disabled={ocupado} onClick={terminar}>
-                <Icono nombre="check" />
-                Terminar monitoreo
-              </button>
-              <div className="pasar-a">
-                <span>¿Te vas al otro piso? Esta ronda termina y empieza la del otro laboratorio:</span>
-                <div className="chips">
-                  {d.laboratorios
-                    .filter((l) => l.piso !== activo.piso)
-                    .map((l) => (
-                      <button key={l.aula_id} className="chip" disabled={ocupado} onClick={() => empezar(l)}>
-                        {nombrePiso(l.piso)} ({l.aulas})
-                      </button>
-                    ))}
-                </div>
-              </div>
-              <button className="enlace peligro descartar" disabled={ocupado} onClick={descartar}>
-                Descartar esta ronda
-              </button>
-            </section>
-          ) : (
+          {libres.length > 0 && (
             <section className="aulas-ml botones-ml">
-              {d.laboratorios.map((l) => (
+              {d.activos.length > 0 && <p className="pista">¿También estás en el otro piso? Las dos rondas pueden ir a la vez.</p>}
+              {libres.map((l) => (
                 <button key={l.aula_id} className="aula-ml" disabled={ocupado} onClick={() => empezar(l)}>
                   <Icono nombre="chromebook" />
                   <strong>
                     Laboratorio del {nombrePiso(l.piso)}
                     <small>Aulas {l.aulas}</small>
                   </strong>
-                  <span>Empezar monitoreo</span>
+                  <span>{d.activos.length ? "Empezar también aquí" : "Empezar monitoreo"}</span>
                 </button>
               ))}
-              {d.laboratorios.length === 0 && <p className="vacio">No hay aulas con "ML" en la sección.</p>}
             </section>
           )}
+          {d.laboratorios.length === 0 && <p className="vacio">No hay aulas con "ML" en la sección.</p>}
 
           <section className="resumen">
             <div className="dato">
@@ -342,5 +211,152 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
         </>
       )}
     </div>
+  );
+}
+
+interface PropsRonda {
+  ronda: Ronda;
+  libres: Laboratorio[];
+  ocupado: boolean;
+  accion: (hacer: () => Promise<unknown>) => Promise<void>;
+  recargar: () => Promise<void>;
+  fallo: (e: unknown) => void;
+  setError: (texto: string) => void;
+}
+
+// Una ronda abierta (puede haber una por piso): lo encontrado, las fotos y la nota se guardan solos
+function RondaActiva({ ronda, libres, ocupado, accion, recargar, fallo, setError }: PropsRonda) {
+  const [hallazgos, setHallazgos] = useState<Hallazgo[]>(ronda.hallazgos);
+  const [nota, setNota] = useState(ronda.nota ?? "");
+  const [finManual, setFinManual] = useState("");
+  const [subiendo, setSubiendo] = useState(false);
+
+  const transcurrido = minutosEntre(ronda.inicio, new Date().toISOString()) ?? 0;
+  const larga = transcurrido > RONDA_LARGA_MIN;
+
+  const guardar = (cambios: Record<string, unknown>) => api(`/api/monitoreo/${ronda.id}`, { method: "PATCH", body: JSON.stringify(cambios) });
+
+  function alternar(h: Hallazgo) {
+    const lista = hallazgos.includes(h) ? hallazgos.filter((x) => x !== h) : [...hallazgos, h];
+    setHallazgos(lista);
+    guardar({ hallazgos: lista }).catch(fallo);
+  }
+
+  const terminar = () =>
+    accion(() => guardar({ hallazgos, nota, terminar: true, ...(larga && finManual ? { fin: horaAIso(finManual, ronda.inicio) } : {}) }));
+
+  // Al pasar al otro piso, esta ronda se guarda con lo marcado y termina ahora
+  const pasarA = (lab: Laboratorio) =>
+    accion(async () => {
+      await guardar({ hallazgos, nota });
+      await api("/api/monitoreo", { method: "POST", body: JSON.stringify({ aula_id: lab.aula_id, cerrar: ronda.id }) });
+    });
+
+  async function subirFotos(lista: FileList | null) {
+    if (!lista?.length) return;
+    setSubiendo(true);
+    setError("");
+    const token = leerToken();
+    let fallidas = 0;
+    for (const archivo of [...lista]) {
+      const foto = await comprimir(archivo).catch(() => archivo);
+      const res = await fetch(`/api/monitoreo/${ronda.id}/foto`, {
+        method: "PUT",
+        headers: { "Content-Type": foto.type || "image/jpeg", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: foto,
+      }).catch(() => null);
+      if (!res?.ok) fallidas++;
+    }
+    if (fallidas) setError(fallidas === 1 ? "Una foto no se pudo subir." : `${fallidas} fotos no se pudieron subir.`);
+    setSubiendo(false);
+    await recargar();
+  }
+
+  const descartar = () => accion(() => api(`/api/monitoreo/${ronda.id}`, { method: "DELETE" }));
+
+  return (
+    <section className="tarjeta ronda-activa" aria-live="polite">
+      <div className="ronda-cabeza">
+        <span className="punto-vivo" aria-hidden="true" />
+        <div>
+          <small>Monitoreando</small>
+          <h2>{nombreLaboratorio(ronda)}</h2>
+          <p>
+            Desde las {hora(ronda.inicio)} · {duracion(transcurrido)}
+          </p>
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>¿Qué encontraste?</legend>
+        <div className="chips">
+          {(Object.keys(HALLAZGOS) as Hallazgo[]).map((h) => (
+            <button key={h} type="button" className={`chip ${hallazgos.includes(h) ? "activo" : ""}`} aria-pressed={hallazgos.includes(h)} onClick={() => alternar(h)}>
+              {HALLAZGOS[h]}
+            </button>
+          ))}
+        </div>
+        <small className="pista">Si no marcas nada, la ronda queda como «Todo en orden».</small>
+      </fieldset>
+
+      <div className="fotos-ronda">
+        <span className="etiqueta-campo">Fotos</span>
+        {ronda.fotos > 0 && <FotosReporte reporteId={ronda.id} total={ronda.fotos} ruta={`/api/monitoreo/${ronda.id}/fotos`} />}
+        <label className={`boton-foto ${subiendo || ronda.fotos >= 6 ? "deshabilitado" : ""}`}>
+          <Icono nombre="camara" />
+          {subiendo ? "Subiendo…" : ronda.fotos ? "Agregar otra foto" : "Tomar o elegir foto"}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            disabled={subiendo || ronda.fotos >= 6}
+            onChange={(e) => {
+              subirFotos(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+
+      <label>
+        Nota (opcional)
+        <textarea
+          rows={2}
+          value={nota}
+          maxLength={1000}
+          onChange={(e) => setNota(e.target.value)}
+          onBlur={() => guardar({ nota }).catch(fallo)}
+          placeholder="Ej. Dos alumnos de 10B en juegos; le avisé al docente"
+        />
+      </label>
+
+      {larga && (
+        <label className="fin-manual">
+          ¿A qué hora terminaste? Lleva {duracion(transcurrido)} abierta.
+          <input type="time" value={finManual} onChange={(e) => setFinManual(e.target.value)} />
+        </label>
+      )}
+
+      <button className="primario terminar" disabled={ocupado} onClick={terminar}>
+        <Icono nombre="check" />
+        Terminar monitoreo
+      </button>
+      {libres.length > 0 && (
+        <div className="pasar-a">
+          <span>¿Te vas al otro piso? Esta ronda termina y empieza la del otro laboratorio:</span>
+          <div className="chips">
+            {libres.map((l) => (
+              <button key={l.aula_id} className="chip" disabled={ocupado} onClick={() => pasarA(l)}>
+                Pasar al {nombrePiso(l.piso)} ({l.aulas})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <button className="enlace peligro descartar" disabled={ocupado} onClick={descartar}>
+        Descartar esta ronda
+      </button>
+    </section>
   );
 }
