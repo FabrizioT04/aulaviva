@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Ruta } from "../App";
 import { ETIQUETA_ESTADO_DANO, TIPOS_DANO, type Dano, type GrupoDano } from "../../shared/danos";
+import { ACCIONES_CUENTA, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AtencionCuenta } from "../../shared/cuentas";
 import { HALLAZGOS, nombreLaboratorio, type Monitoreo } from "../../shared/monitoreo";
 import type { Historial as DatosHistorial, Reporte } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
@@ -15,7 +16,7 @@ interface Props {
   ir: (r: Ruta) => void;
 }
 
-type Clase = "fallas" | "danos" | "monitoreo";
+type Clase = "fallas" | "danos" | "cuentas" | "monitoreo";
 
 const TODO = "todo";
 const GRUPO: Record<GrupoDano, string> = { tecnologia: "Equipo tecnológico", local: "Mobiliario o infraestructura" };
@@ -99,6 +100,26 @@ function csvDanos(filas: Dano[], mes: string) {
   );
 }
 
+const ORIGEN_CUENTA = { whatsapp: "WhatsApp", presencial: "En persona", otro: "Otro" } as const;
+
+function csvCuentas(filas: AtencionCuenta[], mes: string) {
+  descargarCsv(
+    `aulaviva-cuentas-${mes}.csv`,
+    ["Fecha", "Qué se hizo", "Plataforma", "Para quién", "Cantidad", "Sección o nombre", "Nota", "Cómo llegó", "Atendió"],
+    filas.map((a) => [
+      fechaExcel(a.creado_en),
+      ACCIONES_CUENTA[a.accion] ?? a.accion,
+      PLATAFORMAS[a.plataforma] ?? a.plataforma,
+      PERSONAS[a.persona] ?? a.persona,
+      a.cantidad,
+      a.detalle,
+      a.nota,
+      ORIGEN_CUENTA[a.origen] ?? a.origen,
+      a.email,
+    ]),
+  );
+}
+
 // Todo lo que llegó, mes por mes: el resumen del Observatorio de ese mes y la lista completa de fallas
 // y daños, para buscar un caso antiguo o descargarlo en Excel para un informe
 export default function Historial({ onNoAutorizado, ir }: Props) {
@@ -140,6 +161,17 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
     [d, texto],
   );
 
+  const cuentas = useMemo(
+    () =>
+      (d?.cuentas ?? []).filter(
+        (a) => !texto || sinTildes([resumenAtencion(a), paraQuien(a), a.detalle, a.nota, a.email].join(" ")).includes(texto),
+      ),
+    [d, texto],
+  );
+  // Una atención puede ser de varias cuentas (las claves de toda una sección)
+  const totalCuentas = cuentas.reduce((s, a) => s + a.cantidad, 0);
+  const clavesCambiadas = cuentas.filter((a) => a.accion === "clave").reduce((s, a) => s + a.cantidad, 0);
+
   const rondas = useMemo(
     () =>
       (d?.monitoreo?.rondas ?? []).filter(
@@ -161,7 +193,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
         <div>
           <h1>Historial</h1>
           <p className="subtitulo">
-            Todas las fallas y daños que llegaron{d?.monitoreo ? ", y las rondas en los laboratorios ML" : ""}, mes por mes.
+            Todas las fallas, daños y atenciones de cuentas{d?.monitoreo ? ", y las rondas en los laboratorios ML" : ""}, mes por mes.
           </p>
         </div>
         <label className="selector-mes">
@@ -170,6 +202,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
             {d?.meses.map((m) => (
               <option key={m.mes} value={m.mes}>
                 {nombreMes(m.mes)} · {m.fallas} {m.fallas === 1 ? "falla" : "fallas"}, {m.danos} {m.danos === 1 ? "daño" : "daños"}
+                {m.cuentas > 0 && `, ${m.cuentas} de cuentas`}
                 {m.rondas != null && `, ${m.rondas} ${m.rondas === 1 ? "ronda" : "rondas"}`}
               </option>
             ))}
@@ -226,6 +259,9 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                 <button className={vista === "danos" ? "activo" : ""} onClick={() => setClase("danos")}>
                   Daños ({d.danos.length})
                 </button>
+                <button className={vista === "cuentas" ? "activo" : ""} onClick={() => setClase("cuentas")}>
+                  Cuentas ({d.cuentas.length})
+                </button>
                 {d.monitoreo && (
                   <button className={vista === "monitoreo" ? "activo" : ""} onClick={() => setClase("monitoreo")}>
                     Monitoreo ({d.monitoreo.rondas.length})
@@ -244,13 +280,15 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
               </label>
               <button
                 className="descargar"
-                disabled={!(vista === "fallas" ? fallas : vista === "danos" ? danos : rondas).length}
+                disabled={!{ fallas, danos, cuentas, monitoreo: rondas }[vista].length}
                 onClick={() =>
                   vista === "fallas"
                     ? csvFallas(fallas, archivo)
                     : vista === "danos"
                       ? csvDanos(danos, archivo)
-                      : csvRondas(rondas, `aulaviva-monitoreo-${archivo}.csv`)
+                      : vista === "cuentas"
+                        ? csvCuentas(cuentas, archivo)
+                        : csvRondas(rondas, `aulaviva-monitoreo-${archivo}.csv`)
                 }
               >
                 <Icono nombre="descargar" />
@@ -299,6 +337,46 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                           <td>
                             {r.causa ?? ""}
                             {r.notas_resolucion && <small>{r.notas_resolucion}</small>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : vista === "cuentas" ? (
+              cuentas.length === 0 ? (
+                <p className="vacio">{texto ? "Nada coincide con la búsqueda." : "No hubo atenciones de cuentas en este periodo."}</p>
+              ) : (
+                <div className="tabla-contenedor">
+                  <p className="pista total-cuentas">
+                    {totalCuentas} {totalCuentas === 1 ? "cuenta atendida" : "cuentas atendidas"}, {clavesCambiadas}{" "}
+                    {clavesCambiadas === 1 ? "cambio de clave" : "cambios de clave"}
+                  </p>
+                  <table className="tabla-historial">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Qué se hizo</th>
+                        <th>Para quién</th>
+                        <th>Atendió</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cuentas.map((a) => (
+                        <tr key={a.id}>
+                          <td className="fecha">{fechaHora(a.creado_en)}</td>
+                          <td>
+                            {ACCIONES_CUENTA[a.accion] ?? a.accion}
+                            <small>{PLATAFORMAS[a.plataforma] ?? a.plataforma}</small>
+                          </td>
+                          <td>
+                            {paraQuien(a)}
+                            {(a.detalle || a.nota) && <small>{[a.detalle, a.nota].filter(Boolean).join(" · ")}</small>}
+                          </td>
+                          <td>
+                            {a.email.split("@")[0]}
+                            <small>{ORIGEN_CUENTA[a.origen] ?? a.origen}</small>
                           </td>
                         </tr>
                       ))}

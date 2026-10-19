@@ -4,6 +4,7 @@ import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FAL
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { minutosMonitoreo } from "../shared/monitoreo";
 import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, monitoreoSemanal, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
+import { cuentasSemanal, enrutarCuentas, SQL_CUENTAS } from "./cuentas";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -106,6 +107,11 @@ export default {
         const puede = verFoto ? puedeVerMonitoreo(sesion, env) : puedeMonitorear(sesion, env);
         if (!puede) return json({ error: "El monitoreo de laboratorios es solo de quien hace las rondas" }, 403);
         return await enrutarMonitoreo(request, url, env, sesion);
+      }
+      // Cuentas y plataformas: lo registra TI; COA lo ve en el Historial
+      if (url.pathname === "/api/cuentas" || url.pathname.startsWith("/api/cuentas/")) {
+        if (sesion.rol !== "ti") return json({ error: "Solo el área de TI registra las atenciones de cuentas" }, 403);
+        return await enrutarCuentas(request, url, env, sesion);
       }
       // COA ve todo el panel (solo lectura); los avisos al celular son solo de TI
       const soloLee = sesion.rol === "coa" && request.method === "GET" && !url.pathname.startsWith("/api/push");
@@ -928,6 +934,8 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
     pendientes_anteriores: (anteriores.results[0] as { n: number }).n,
     // Rondas en los laboratorios ML de la semana (sección "Monitoreo de laboratorios" del correo)
     monitoreo: await monitoreoSemanal(env, inicio, fin),
+    // Cambios de clave y soporte en plataformas (sección "Cuentas y plataformas" del correo)
+    cuentas: await cuentasSemanal(env, inicio, fin),
   });
 }
 
@@ -949,13 +957,15 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
     inicio = new Date(Date.UTC(a, m - 1, 1, 5)).toISOString();
     fin = new Date(Date.UTC(a, m, 1, 5)).toISOString();
   }
-  const [meses, resumen, reportes, danos, rondas, aulasMl] = await env.DB.batch([
+  const [meses, resumen, reportes, danos, cuentas, rondas, aulasMl] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos, SUM(rondas) AS rondas FROM (
-         SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos, 0 AS rondas FROM reporte
+      `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos, SUM(cuentas) AS cuentas, SUM(rondas) AS rondas FROM (
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos, 0 AS cuentas, 0 AS rondas FROM reporte
          UNION ALL
-         SELECT strftime('%Y-%m', reportado_en, '-5 hours'), 0, 1, 0 FROM dano
-         ${conMonitoreo ? `UNION ALL SELECT strftime('%Y-%m', inicio, '-5 hours'), 0, 0, 1 FROM monitoreo WHERE fin IS NOT NULL` : ""})
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours'), 0, 1, 0, 0 FROM dano
+         UNION ALL
+         SELECT strftime('%Y-%m', creado_en, '-5 hours'), 0, 0, 1, 0 FROM atencion_cuenta
+         ${conMonitoreo ? `UNION ALL SELECT strftime('%Y-%m', inicio, '-5 hours'), 0, 0, 0, 1 FROM monitoreo WHERE fin IS NOT NULL` : ""})
        GROUP BY mes ORDER BY mes DESC`,
     ),
     env.DB.prepare(
@@ -972,6 +982,7 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
     env.DB.prepare(
       `${SQL_DANOS} WHERE d.reportado_en >= ?1 AND d.reportado_en < ?2 ORDER BY d.reportado_en DESC LIMIT ${MAX_HISTORIAL}`,
     ).bind(inicio, fin),
+    env.DB.prepare(`${SQL_CUENTAS} WHERE creado_en >= ?1 AND creado_en < ?2 ORDER BY creado_en DESC LIMIT ${MAX_HISTORIAL}`).bind(inicio, fin),
     ...(conMonitoreo
       ? [
           env.DB.prepare(
@@ -983,7 +994,7 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
   ]);
   const listaMeses = meses.results as Historial["meses"];
   // El mes actual siempre aparece, aunque todavía no tenga nada
-  if (!listaMeses.some((m) => m.mes === actual)) listaMeses.unshift({ mes: actual, fallas: 0, danos: 0, rondas: 0 });
+  if (!listaMeses.some((m) => m.mes === actual)) listaMeses.unshift({ mes: actual, fallas: 0, danos: 0, cuentas: 0, rondas: 0 });
   if (!conMonitoreo) for (const m of listaMeses) delete m.rondas;
   const datos: Historial = {
     mes,
@@ -991,6 +1002,7 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
     resumen: resumen.results[0] as Historial["resumen"],
     reportes: reportes.results as Historial["reportes"],
     danos: danos.results as Historial["danos"],
+    cuentas: cuentas.results as Historial["cuentas"],
   };
   if (rondas && aulasMl) {
     const labs = agruparLaboratorios(aulasMl.results as Parameters<typeof agruparLaboratorios>[0]);

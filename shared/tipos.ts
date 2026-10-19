@@ -1,3 +1,4 @@
+import type { AtencionCuenta } from "./cuentas";
 import type { Dano } from "./danos";
 import type { Monitoreo } from "./monitoreo";
 // Tipos de falla. Los cuatro primeros se muestran siempre; los demás, al tocar "Ver más".
@@ -147,10 +148,11 @@ export type EntradaTi = (typeof ENTRADAS_TI)[number];
 // Historial: un mes (o todo, con mes en null) con sus reportes, sus daños y el resumen del Observatorio
 export interface Historial {
   mes: string | null;
-  meses: { mes: string; fallas: number; danos: number; rondas?: number }[];
+  meses: { mes: string; fallas: number; danos: number; cuentas: number; rondas?: number }[];
   resumen: Metricas["resumen"];
   reportes: Reporte[];
   danos: Dano[];
+  cuentas: AtencionCuenta[]; // cambios de clave y soporte en plataformas (ver shared/cuentas.ts)
   // Rondas terminadas en los laboratorios ML: solo para quien las hace y COA (ver worker/monitoreo.ts)
   monitoreo?: { rondas: Monitoreo[]; minutos: number };
 }

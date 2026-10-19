@@ -598,3 +598,14 @@ main:has(.pagina-historial) { max-width: 1440px; }
   .primario:hover { background: var(--primario); }
   .tramo.avisaron, .muestra-estado.avisaron { background: var(--borde); }
 }
+
+/* Registrar: falla en un aula o atención de cuenta/plataforma */
+.selector-registro { display: flex; margin: 0 0 16px; }
+.registro-cuenta form > fieldset, .registro-cuenta form > label, .registro-cuenta form > .fila-campos { margin-bottom: 18px; }
+.registro-cuenta .fila-campos { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+@media (max-width: 700px) { .registro-cuenta .fila-campos { grid-template-columns: 1fr; } }
+.registro-cuenta .fila-campos input[type="number"] { max-width: 140px; }
+.borrar-atencion { justify-self: start; font-size: 0.86rem; }
+.registro-cuenta fieldset { min-width: 0; }
+.registro-cuenta .segmentado button { padding: 10px 8px; }
+.total-cuentas { margin: 0 0 10px; padding: 0 12px; color: var(--suave); font-size: 0.9rem; }
