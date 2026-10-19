@@ -46,10 +46,13 @@ function fechaExcel(iso: string | null): string {
 
 const sinTildes = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-// CSV que Excel abre con tildes (BOM UTF-8) y Google Sheets también
+// CSV que Excel abre con tildes (BOM UTF-8) y Google Sheets también.
+// Un texto escrito por un docente que empieza con = + - @ (o tab/retorno) se abriría como fórmula:
+// el apóstrofo delante hace que Excel y Sheets lo muestren como texto.
 function descargarCsv(nombre: string, encabezados: string[], filas: (string | number | null)[][]) {
   const celda = (v: string | number | null) => {
-    const t = v == null ? "" : String(v);
+    let t = v == null ? "" : String(v);
+    if (typeof v === "string" && /^[=+\-@\t\r]/.test(t)) t = `'${t}`;
     return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
   const csv = [encabezados, ...filas].map((f) => f.map(celda).join(",")).join("\r\n");
