@@ -1,12 +1,13 @@
 // API de Cuentas y plataformas (ver shared/cuentas.ts). Lo registra TI; COA lo ve desde el Historial.
-// El docente también puede pedirlo desde /docente (pedido_cuenta): TI lo atiende desde Registrar.
+// El docente también puede pedirlo desde el QR de un ML (pedido_cuenta): TI lo atiende desde Registrar.
 import { ACCIONES_CUENTA, cuentaDelPedido, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AtencionCuenta, type PedidoCuenta } from "../shared/cuentas";
 import type { Sesion } from "../shared/tipos";
 import type { Env } from "./index";
 import { sede } from "./sede-en-vivo";
 
 export const SQL_CUENTAS = `SELECT id, accion, plataforma, persona, cantidad, detalle, nota, origen, email, creado_en, pedido_id FROM atencion_cuenta`;
-export const SQL_PEDIDOS = `SELECT id, accion, plataforma, para, cantidad, detalle, descripcion, email, estado, creado_en, resuelto_en FROM pedido_cuenta`;
+export const SQL_PEDIDOS = `SELECT id, accion, plataforma, para, cantidad, detalle, descripcion, email, estado, creado_en, resuelto_en, aula_id,
+  (SELECT nombre FROM aula WHERE aula.id = pedido_cuenta.aula_id) AS aula_nombre FROM pedido_cuenta`;
 const ORIGENES = ["whatsapp", "presencial", "otro"];
 // Un error al registrar se puede borrar durante el día; después ya cuenta para los reportes
 const HORAS_PARA_BORRAR = 12;
@@ -95,8 +96,15 @@ export async function enrutarCuentas(request: Request, url: URL, env: Env, sesio
 const reabrir = (env: Env, id: number) =>
   env.DB.prepare(`UPDATE pedido_cuenta SET estado = 'pendiente', resuelto_en = NULL WHERE id = ?`).bind(id).run();
 
-// POST /api/qr/cuentas: el docente pide ayuda con su cuenta o la de un estudiante. Nunca se piden claves.
-export async function crearPedido(request: Request, env: Env, email: string, alCrear: (p: PedidoCuenta) => void): Promise<Response> {
+// POST /api/qr/:codigo/cuentas: desde un ML, el docente pide ayuda con la cuenta de un estudiante o la suya.
+// Nunca se piden claves.
+export async function crearPedido(
+  request: Request,
+  env: Env,
+  email: string,
+  aula: { id: number; nombre: string },
+  alCrear: (p: PedidoCuenta) => void,
+): Promise<Response> {
   const d = await request.json<Record<string, unknown>>().catch(() => null);
   if (!d) return json({ error: "Datos inválidos" }, 400);
   if (typeof d.accion !== "string" || !(d.accion in ACCIONES_CUENTA)) return json({ error: "Elige qué problema tienes" }, 400);
@@ -121,25 +129,27 @@ export async function crearPedido(request: Request, env: Env, email: string, alC
   if (((pendientes.results[0] as { n: number }).n ?? 0) >= MAX_PEDIDOS_PENDIENTES)
     return json({ error: `Ya tienes ${MAX_PEDIDOS_PENDIENTES} pedidos esperando a TI. Espera a que los atiendan, o escríbele a TI.` }, 429);
 
-  const pedido = await env.DB.prepare(
-    `INSERT INTO pedido_cuenta (accion, plataforma, para, cantidad, detalle, descripcion, email) VALUES (?, ?, ?, ?, ?, ?, ?)
-     RETURNING id, accion, plataforma, para, cantidad, detalle, descripcion, email, estado, creado_en, resuelto_en`,
+  const fila = await env.DB.prepare(
+    `INSERT INTO pedido_cuenta (accion, plataforma, para, cantidad, detalle, descripcion, email, aula_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     RETURNING id, accion, plataforma, para, cantidad, detalle, descripcion, email, estado, creado_en, resuelto_en, aula_id`,
   )
-    .bind(d.accion, d.plataforma, d.para, cantidad, detalle, descripcion, email)
-    .first<PedidoCuenta>();
-  if (!pedido) return json({ error: "No se pudo guardar. Intenta de nuevo." }, 500);
+    .bind(d.accion, d.plataforma, d.para, cantidad, detalle, descripcion, email, aula.id)
+    .first<Omit<PedidoCuenta, "aula_nombre">>();
+  if (!fila) return json({ error: "No se pudo guardar. Intenta de nuevo." }, 500);
+  const pedido: PedidoCuenta = { ...fila, aula_nombre: aula.nombre };
   await sede(env).difundir({ tipo: "cuentas" });
   alCrear(pedido);
   return json(pedido, 201);
 }
 
-// Para "Tus reportes" en /docente: los pendientes y los resueltos de los últimos 7 días
-export async function pedidosDe(env: Env, email: string): Promise<PedidoCuenta[]> {
+// Para "Tus reportes" del docente: los pendientes y los resueltos de los últimos 7 días (de un aula, en su QR)
+export async function pedidosDe(env: Env, email: string, aulaId?: number): Promise<PedidoCuenta[]> {
   const { results } = await env.DB.prepare(
-    `${SQL_PEDIDOS} WHERE email = ? AND (estado = 'pendiente' OR resuelto_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-7 days'))
+    `${SQL_PEDIDOS} WHERE email = ?1 AND (estado = 'pendiente' OR resuelto_en >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-7 days'))
+       AND (?2 IS NULL OR aula_id = ?2)
      ORDER BY creado_en DESC LIMIT 8`,
   )
-    .bind(email)
+    .bind(email, aulaId ?? null)
     .all<PedidoCuenta>();
   return results;
 }
@@ -160,7 +170,7 @@ export async function cuentasSemanal(env: Env, inicio: string, fin: string) {
     registros: results.length,
     cuentas: results.reduce((s, a) => s + a.cantidad, 0),
     claves: results.filter((a) => a.accion === "clave").reduce((s, a) => s + a.cantidad, 0),
-    pedidos: results.filter((a) => a.pedido_id !== null).length, // atenciones que el docente pidió desde /docente
+    pedidos: results.filter((a) => a.pedido_id !== null).length, // atenciones que el docente pidió desde un ML
     por_plataforma: [...porPlataforma.values()].sort((a, b) => b.cuentas - a.cuentas),
     detalle: results.map((a) => ({
       creado_en: a.creado_en,

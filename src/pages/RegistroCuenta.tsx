@@ -15,7 +15,7 @@ const ORIGENES: { valor: EntradaTi; etiqueta: string }[] = [
 interface Datos {
   recientes: AtencionCuenta[];
   hoy: { registros: number; cuentas: number };
-  pedidos: PedidoCuenta[]; // los que enviaron los docentes desde /docente, sin atender
+  pedidos: PedidoCuenta[]; // los que enviaron los docentes desde los ML, sin atender
 }
 
 const usuario = (email: string) => email.split("@")[0];
@@ -131,7 +131,8 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
                   <span>{fechaCorta(p.creado_en)}</span>
                 </div>
                 <p>
-                  {cuentaDelPedido(p)} · pide {usuario(p.email)}
+                  {cuentaDelPedido(p)}
+                  {p.aula_nombre ? ` · ${p.aula_nombre}` : ""} · pide {usuario(p.email)}
                 </p>
                 {p.descripcion && <p className="pista">“{p.descripcion}”</p>}
                 {pedido?.id !== p.id && (

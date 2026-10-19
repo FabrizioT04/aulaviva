@@ -6,7 +6,7 @@ import RegistroCuenta from "./RegistroCuenta";
 type Que = "falla" | "cuenta";
 
 // La pestaña Registrar: una falla en un aula, o una atención de cuenta o plataforma (cambio de clave…).
-// pedidos: los que enviaron los docentes desde /docente y esperan a TI
+// pedidos: los que enviaron los docentes desde los ML y esperan a TI
 export default function Registrar(props: { email: string; onNoAutorizado: () => void; ir: (r: Ruta) => void; inicial: Que; pedidos: number }) {
   const [que, setQue] = useState<Que>(props.inicial);
   function elegir(v: Que) {

@@ -41,10 +41,10 @@ export interface AtencionCuenta {
   origen: "whatsapp" | "presencial" | "otro";
   email: string; // quién de TI lo atendió
   creado_en: string;
-  pedido_id: number | null; // si vino de un pedido del docente en /docente
+  pedido_id: number | null; // si vino de un pedido del docente desde el QR de un ML
 }
 
-// Lo que el docente pide desde /docente: su cuenta o la de un estudiante
+// Lo que el docente pide desde el QR de un ML: la cuenta de un estudiante o la suya
 export interface PedidoCuenta {
   id: number;
   accion: AccionCuenta;
@@ -57,6 +57,8 @@ export interface PedidoCuenta {
   estado: "pendiente" | "resuelto";
   creado_en: string;
   resuelto_en: string | null;
+  aula_id: number | null; // el ML desde donde se pidió
+  aula_nombre: string | null;
 }
 
 // Las mismas acciones, como las diría el docente (casi siempre de un estudiante)

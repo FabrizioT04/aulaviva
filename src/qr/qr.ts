@@ -9,6 +9,7 @@ import { ATIENDE_DANO, DESTINO_DANO, EQUIPO_DANOS, ETIQUETA_ATIENDE, grupoDanoDe
 import type { GrupoDano, TipoDano } from "../../shared/danos";
 import type { EstadoAulaQr, GuiaDocente, TipoFalla } from "../../shared/tipos";
 import { activarBotonTema, botonTema, esc, ESTADO_DOCENTE, filaMiReporte, MARCA } from "./comun";
+import { activarCuenta, formularioCuenta } from "./cuenta";
 import "./qr.css";
 import "./qr-efectos.css";
 
@@ -195,6 +196,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
       <p class="error" id="error" role="alert"></p>
     </form>
     <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo roto o golpeado? ${tieneChromebooks(aula) ? "Chromebook" : `${etiquetaFalla("pc", aula.equipo)} con la pantalla rota`}, carpetas, ventilador, luz…</span></button>
+    ${tieneChromebooks(aula) ? `<button type="button" class="enlace-dano" id="pedir-cuenta">${iconoSvg("cuenta")}<span>¿Un estudiante no puede entrar a una plataforma? Khan Academy, Pearson, ALEKS, su correo…</span></button>` : ""}
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
   // Dos botones en vez de la pregunta "¿Te impide dar la clase?": el docente avisa en dos toques
@@ -411,6 +413,10 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
   for (const boton of botones) boton.addEventListener("click", () => enviarReporte(boton));
   document.getElementById("reportar-dano")!.addEventListener("click", () => {
     pintarDano(estado);
+    scrollTo(0, 0);
+  });
+  document.getElementById("pedir-cuenta")?.addEventListener("click", () => {
+    pintarCuenta(estado);
     scrollTo(0, 0);
   });
 
@@ -785,6 +791,42 @@ function pintarDano(estado: EstadoAulaQr) {
         <p>${TIPOS_DANO[tipo].etiqueta}. ${ETIQUETA_ATIENDE[ATIENDE_DANO[grupo]]} se encarga del seguimiento.</p>${
           fallidas ? `<p class="suave">El aviso llegó, pero ${fallidas === 1 ? "una foto no se pudo subir" : `${fallidas} fotos no se pudieron subir`}.</p>` : ""
         }
+        <a class="enviar boton-listo" href="/docente">Entendido</a>
+        <button type="button" class="enlace-otra" id="otra-falla">Reportar una falla a TI</button>
+      </section>`,
+      true,
+    );
+    scrollTo(0, 0);
+  });
+}
+
+// Cuentas y plataformas, solo en los ML (las aulas con Chromebooks): ahí los estudiantes usan Khan Academy, Pearson…
+function pintarCuenta(estado: EstadoAulaQr) {
+  const { aula, email } = estado;
+  app.innerHTML = `
+    ${cabecera(aula)}
+    <section>
+      <h2>¿Problema con una cuenta o plataforma?</h2>
+      <p class="regla">De tus estudiantes o la tuya. TI lo atiende y lo ves en tus reportes.</p>
+      ${formularioCuenta()}
+    </section>
+    <button type="button" class="enlace-dano" id="volver">${iconoSvg("pc")}<span>¿Un equipo no funciona? ${fallasDe(aula)
+      .filter((t) => t !== "otro")
+      .slice(0, 3)
+      .map((t, i) => (i ? etiquetaFalla(t, aula.equipo).toLowerCase() : etiquetaFalla(t, aula.equipo)))
+      .join(", ")}…</span></button>
+    <p class="pie">Reportando como ${esc(email)}</p>`;
+  document.getElementById("volver")!.addEventListener("click", () => {
+    pintar(estado);
+    scrollTo(0, 0);
+  });
+  activarCuenta(document.getElementById("form-cuenta") as HTMLFormElement, `/api/qr/${encodeURIComponent(codigo)}/cuentas`, async (r) => {
+    const nuevo = await fetch(`/api/qr/${encodeURIComponent(codigo)}`).then((res) => (res.ok ? res.json() : null)).catch(() => null);
+    pintar(
+      (nuevo as EstadoAulaQr) ?? estado,
+      `<section class="tarjeta exito">
+        <h2><span class="check">${iconoSvg("check")}</span>${r.ya_enviado ? "Ya lo habías enviado" : "Listo, TI ya recibió tu pedido"}</h2>
+        <p>Lo ves en "Tus reportes" del inicio y cambia a Resuelto cuando TI lo atienda.</p>
         <a class="enviar boton-listo" href="/docente">Entendido</a>
         <button type="button" class="enlace-otra" id="otra-falla">Reportar una falla a TI</button>
       </section>`,

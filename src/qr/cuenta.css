@@ -1,0 +1,17 @@
+/* Pedido de cuenta o plataforma (ver cuenta.ts) */
+#form-cuenta { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
+#form-cuenta fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+#form-cuenta legend { padding: 0; margin-bottom: 10px; font-weight: 800; font-size: 1rem; }
+#form-cuenta label[hidden], #form-cuenta .opcional[hidden] { display: none; }
+#form-cuenta .opcional { font-weight: 600; color: var(--suave); }
+#form-cuenta input { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
+#form-cuenta input:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
+#form-cuenta .error { margin: -8px 0 0; }
+#form-cuenta .error:empty { display: none; }
+.chips-cuenta { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips-cuenta button { min-height: 44px; padding: 8px 14px; font: inherit; font-size: 0.92rem; font-weight: 700; border-radius: 999px; border: 1.5px solid var(--borde); background: var(--superficie); color: var(--texto); cursor: pointer; }
+.chips-cuenta button[aria-pressed="true"] { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); }
+.chips-cuenta button:focus-visible { outline: 3px solid var(--primario-suave); }
+.nota-clave { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 0.86rem; font-weight: 600; color: var(--suave); }
+.nota-clave .icono { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+#form-cuenta input[type="number"] { max-width: 120px; }
