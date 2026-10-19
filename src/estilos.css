@@ -558,6 +558,24 @@ main:has(.pagina-historial) { max-width: 1440px; }
 .pagina-monitoreo .resumen { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 520px) { .pagina-monitoreo .resumen { gap: 8px; } .pagina-monitoreo .dato { padding: 14px 12px; } .pagina-monitoreo .dato strong { font-size: 1.6rem; } }
 .fin-manual input { max-width: 160px; }
+.fotos-hoy { margin-bottom: 20px; padding: 18px 22px; }
+.fotos-hoy h2 { margin: 0; font-size: 1rem; }
+.fotos-hoy .pista { margin: 4px 0 12px; color: var(--suave); font-size: 0.84rem; }
+.fotos-hoy ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.fotos-hoy li { display: grid; grid-template-columns: 80px minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 8px; max-width: 460px; }
+.fotos-hoy li.encabezado { color: var(--suave); font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.fotos-hoy li strong { font-size: 0.92rem; }
+.turno { justify-content: center; }
+.turno { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; background: var(--superficie-2); color: var(--suave); }
+.turno.hecho { background: var(--verde-suave); color: var(--verde); }
+.turno.falto { background: var(--rojo-suave); color: var(--rojo-texto); }
+.turno .icono { width: 14px; height: 14px; }
+.fotos-ronda { display: grid; gap: 10px; margin: 0 0 18px; justify-items: start; }
+.fotos-ronda .etiqueta-campo { font-weight: 700; font-size: 0.92rem; }
+.fotos-ronda .fotos-reporte { margin-top: 0; }
+.boton-foto { flex-direction: row; align-items: center; gap: 8px; margin: 0; padding: 10px 16px; min-height: 44px; border: 1px dashed var(--primario); border-radius: var(--radio-sm); color: var(--primario); background: var(--primario-suave); cursor: pointer; }
+.boton-foto .icono { width: 18px; height: 18px; }
+.boton-foto.deshabilitado { opacity: 0.5; cursor: not-allowed; }
 .titulo-rondas { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .titulo-rondas h2 { margin: 0; font-size: 1rem; }
 .titulo-rondas .descargar { display: inline-flex; align-items: center; gap: 8px; }

@@ -22,6 +22,7 @@ export interface Monitoreo {
   fin: string | null;
   hallazgos: Hallazgo[]; // vacío = todo en orden
   nota: string | null;
+  fotos: number;
 }
 
 export interface AulaMl {
@@ -37,4 +38,6 @@ export interface DatosMonitoreo {
   recientes: Monitoreo[];
   hoy: { rondas: number; minutos: number };
   semana: { rondas: number; minutos: number; con_hallazgos: number };
+  // Fotos de hoy por piso: se pide al menos una en la mañana y otra en la tarde (corte: 1 p. m.)
+  fotos_hoy: { piso: number | null; manana: number; tarde: number }[];
 }

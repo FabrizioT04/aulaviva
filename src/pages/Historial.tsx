@@ -4,6 +4,7 @@ import { ETIQUETA_ESTADO_DANO, TIPOS_DANO, type Dano, type GrupoDano } from "../
 import { HALLAZGOS, type Monitoreo } from "../../shared/monitoreo";
 import type { Historial as DatosHistorial, Reporte } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
+import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
 import { useEnVivo } from "../useEnVivo";
 import { csvRondas, descargarCsv, fechaExcel } from "../csv";
@@ -334,6 +335,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                           <td>
                             {r.hallazgos.length ? r.hallazgos.map((h) => HALLAZGOS[h]).join(", ") : "Todo en orden"}
                             {r.nota && <small>{r.nota}</small>}
+                            {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} ruta={`/api/monitoreo/${r.id}/fotos`} />}
                           </td>
                         </tr>
                       ))}

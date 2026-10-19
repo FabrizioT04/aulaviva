@@ -31,7 +31,7 @@ export function descargarCsv(nombre: string, encabezados: string[], filas: (stri
 export function csvRondas(rondas: Monitoreo[], nombre: string) {
   descargarCsv(
     nombre,
-    ["Inicio", "Fin", "Minutos", "Aula", "Quién", "Resultado", "Nota"],
+    ["Inicio", "Fin", "Minutos", "Aula", "Quién", "Resultado", "Nota", "Fotos"],
     rondas.map((r) => [
       fechaExcel(r.inicio),
       fechaExcel(r.fin),
@@ -40,6 +40,7 @@ export function csvRondas(rondas: Monitoreo[], nombre: string) {
       r.email,
       r.hallazgos.length ? r.hallazgos.map((h) => HALLAZGOS[h]).join("; ") : "Todo en orden",
       r.nota,
+      r.fotos,
     ]),
   );
 }

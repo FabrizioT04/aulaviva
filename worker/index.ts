@@ -100,7 +100,10 @@ export default {
       }
       // Monitoreo de los laboratorios ML: una tarea personal de quien hace las rondas
       if (url.pathname === "/api/monitoreo" || url.pathname.startsWith("/api/monitoreo/")) {
-        if (!puedeMonitorear(sesion, env)) return json({ error: "El monitoreo de laboratorios es solo de quien hace las rondas" }, 403);
+        // COA mira las fotos de las rondas desde el Historial; todo lo demás es de quien hace las rondas
+        const verFoto = request.method === "GET" && /^\/api\/monitoreo\/\d+\/fotos\/\d+$/.test(url.pathname);
+        const puede = verFoto ? puedeVerMonitoreo(sesion, env) : puedeMonitorear(sesion, env);
+        if (!puede) return json({ error: "El monitoreo de laboratorios es solo de quien hace las rondas" }, 403);
         return await enrutarMonitoreo(request, url, env, sesion);
       }
       // COA ve todo el panel (solo lectura); los avisos al celular son solo de TI
