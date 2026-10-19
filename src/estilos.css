@@ -618,3 +618,7 @@ main:has(.pagina-historial) { max-width: 1440px; }
 .aviso-pedido { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; padding: 12px 14px; border-radius: 12px; background: var(--primario-suave); }
 .registro-cuenta fieldset[hidden] { display: none; }
 .registro-cuenta form { scroll-margin-top: 90px; }
+/* La marca queda fuera del QR para conservar intacta su área de lectura. */
+.qr figcaption .marca-qr { display:flex; justify-content:center; align-items:center; gap:6px; color:#213b7c; }
+.marca-qr .dragon-aulaviva { width:28px; height:28px; display:block; }
+@media print { .qr figcaption .marca-qr { color:#000; } }

@@ -1,12 +1,13 @@
 // Piezas compartidas por las páginas livianas del docente: la del QR del aula y su inicio.
 import { iconoSvg, type NombreIcono } from "../../shared/iconos";
+import { DRAGON_AULAVIVA } from "../../shared/marca";
 import { TIPOS_FALLA, type EstadoMiReporte, type MiReporte, type TipoFalla } from "../../shared/tipos";
 
 export function esc(texto: string): string {
   return texto.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-export const MARCA = `<span class="marca"><span class="logo-marca">${iconoSvg("pulso")}</span><strong>AulaViva</strong></span>`;
+export const MARCA = `<span class="marca"><span class="logo-marca">${DRAGON_AULAVIVA}</span><strong>AulaViva</strong></span>`;
 
 // Botón de tema: alterna claro y oscuro y lo recuerda en el celular.
 // El HTML aplica el tema guardado antes de pintar; los estilos leen data-tema (ver vite.config.ts).

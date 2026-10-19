@@ -3,6 +3,7 @@ import type { Ruta } from "../App";
 import type { AulaConEstado } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import Icono from "../Icono";
+import { DRAGON_AULAVIVA } from "../../shared/marca";
 
 interface Props {
   onNoAutorizado: () => void;
@@ -96,7 +97,7 @@ export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
                 {aula.seccion ? ` · ${aula.seccion}` : ""}
               </strong>
               <span>Escanea para reportar una falla a TI</span>
-              <em>AulaViva · Soporte TI</em>
+              <em className="marca-qr"><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: DRAGON_AULAVIVA }} />AulaViva · Soporte TI</em>
             </figcaption>
             <div className="acciones-una no-imprimir">
               <a href={url} target="_blank" rel="noopener">
