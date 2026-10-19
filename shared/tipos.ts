@@ -182,6 +182,7 @@ export interface Sesion {
   email: string;
   rol: "ti" | "coa" | "docente" | "servicio"; // servicio = el reporte semanal del viernes; coa = COA, ve todo y solo cambia Daños
   modo: "access" | "local";
+  monitorea?: boolean; // ve la pestaña Monitoreo ML (solo /api/sesion lo dice)
 }
 
 // Lo que ve el docente al escanear el QR de un aula

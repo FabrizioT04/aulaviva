@@ -2,6 +2,7 @@ import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import { enrutarMonitoreo, puedeMonitorear } from "./monitoreo";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -19,6 +20,7 @@ export interface Env {
   ACCESS_AUD?: string; // "Application Audience (AUD) Tag" de la aplicación de Access
   TI_EMAILS?: string; // correos de TI separados por coma
   COA_EMAILS?: string; // correos de COA: ven todo el panel y solo cambian Daños y mantenimiento
+  MONITOREO_EMAILS?: string; // correos de TI que ven la pestaña Monitoreo ML; sin lista, todo TI
   ACCESS_SERVICE_TOKEN_ID?: string; // Client ID del service token que usa el reporte semanal
   DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
   // Notificaciones push a TI (secretos; se generan con `npm run push:claves`)
@@ -79,7 +81,7 @@ export default {
     try {
       const sesion = await obtenerSesion(request, url, env);
       if (url.pathname === "/api/sesion") {
-        return sesion ? json(sesion) : json({ error: "No autorizado", access: accessConfigurado(env) }, 401);
+        return sesion ? json({ ...sesion, monitorea: puedeMonitorear(sesion, env) }) : json({ error: "No autorizado", access: accessConfigurado(env) }, 401);
       }
       if (!sesion) return json({ error: "No autorizado" }, 401);
 
@@ -95,6 +97,11 @@ export default {
       if (url.pathname === "/api/danos" || url.pathname.startsWith("/api/danos/")) {
         if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA pueden ver los daños" }, 403);
         return await enrutarDanos(request, url, env, sesion);
+      }
+      // Monitoreo de los laboratorios ML: una tarea personal de quien hace las rondas
+      if (url.pathname === "/api/monitoreo" || url.pathname.startsWith("/api/monitoreo/")) {
+        if (!puedeMonitorear(sesion, env)) return json({ error: "El monitoreo de laboratorios es solo de quien hace las rondas" }, 403);
+        return await enrutarMonitoreo(request, url, env, sesion);
       }
       // COA ve todo el panel (solo lectura); los avisos al celular son solo de TI
       const soloLee = sesion.rol === "coa" && request.method === "GET" && !url.pathname.startsWith("/api/push");
