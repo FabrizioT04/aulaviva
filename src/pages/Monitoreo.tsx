@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { HALLAZGOS, type AulaMl, type DatosMonitoreo, type Hallazgo, type Monitoreo as Ronda } from "../../shared/monitoreo";
+import { HALLAZGOS, nombreLaboratorio, nombrePiso, type DatosMonitoreo, type Hallazgo, type Laboratorio } from "../../shared/monitoreo";
 import { api, leerToken, NoAutorizado } from "../api";
 import { comprimir } from "../comprimir";
 import { csvRondas } from "../csv";
@@ -9,16 +9,6 @@ import Icono from "../Icono";
 
 interface Props {
   onNoAutorizado: () => void;
-}
-
-const nombreAula = (a: { nombre: string; seccion: string | null }) => `${a.nombre}${a.seccion ? ` · ${a.seccion}` : ""}`;
-const nombreRonda = (r: Ronda) => nombreAula({ nombre: r.aula_nombre, seccion: r.aula_seccion });
-
-// 2 → "2do piso", 3 → "3er piso"
-function nombrePiso(piso: number | null): string {
-  if (piso == null) return "Sin piso";
-  const sufijo = piso === 1 || piso === 3 ? "er" : piso === 2 ? "do" : "to";
-  return `${piso}${sufijo} piso`;
 }
 
 const LIMA = { timeZone: "America/Lima" } as const;
@@ -109,11 +99,11 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
     guardar({ hallazgos: lista }).catch(fallo);
   }
 
-  const empezar = (aula: AulaMl) =>
+  const empezar = (lab: Laboratorio) =>
     accion(async () => {
-      // Al pasar a otra aula, la ronda actual se guarda con lo marcado y termina ahora
+      // Al pasar al otro piso, la ronda actual se guarda con lo marcado y termina ahora
       if (activo) await guardar({ hallazgos, nota });
-      await api("/api/monitoreo", { method: "POST", body: JSON.stringify({ aula_id: aula.id }) });
+      await api("/api/monitoreo", { method: "POST", body: JSON.stringify({ aula_id: lab.aula_id }) });
     });
 
   const terminar = () =>
@@ -143,7 +133,7 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
 
   const descartar = () => accion(() => (activo ? api(`/api/monitoreo/${activo.id}`, { method: "DELETE" }) : Promise.resolve()));
 
-  const pisos = [...new Set((d?.aulas ?? []).map((a) => a.piso))];
+  const pisos = (d?.laboratorios ?? []).map((l) => l.piso);
   const turnoTarde = horaLimaAhora() >= HORA_TARDE;
 
   return (
@@ -197,7 +187,7 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
                 <span className="punto-vivo" aria-hidden="true" />
                 <div>
                   <small>Monitoreando</small>
-                  <h2>{nombreRonda(activo)}</h2>
+                  <h2>{nombreLaboratorio(activo)}</h2>
                   <p>
                     Desde las {hora(activo.inicio)} · {duracion(transcurrido)}
                   </p>
@@ -261,13 +251,13 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
                 Terminar monitoreo
               </button>
               <div className="pasar-a">
-                <span>¿Te vas a otra aula? Esta ronda termina y empieza la otra:</span>
+                <span>¿Te vas al otro piso? Esta ronda termina y empieza la del otro laboratorio:</span>
                 <div className="chips">
-                  {d.aulas
-                    .filter((a) => a.id !== activo.aula_id)
-                    .map((a) => (
-                      <button key={a.id} className="chip" disabled={ocupado} onClick={() => empezar(a)}>
-                        {a.nombre}
+                  {d.laboratorios
+                    .filter((l) => l.piso !== activo.piso)
+                    .map((l) => (
+                      <button key={l.aula_id} className="chip" disabled={ocupado} onClick={() => empezar(l)}>
+                        {nombrePiso(l.piso)} ({l.aulas})
                       </button>
                     ))}
                 </div>
@@ -277,24 +267,18 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
               </button>
             </section>
           ) : (
-            <section className="aulas-ml">
-              {pisos.map((piso) => (
-                <div key={piso ?? "sin-piso"} className="piso-ml">
-                  <h2>{nombrePiso(piso)}</h2>
-                  <div className="botones-ml">
-                    {d.aulas
-                      .filter((a) => a.piso === piso)
-                      .map((a) => (
-                        <button key={a.id} className="aula-ml" disabled={ocupado} onClick={() => empezar(a)}>
-                          <Icono nombre="chromebook" />
-                          <strong>{nombreAula(a)}</strong>
-                          <span>Empezar monitoreo</span>
-                        </button>
-                      ))}
-                  </div>
-                </div>
+            <section className="aulas-ml botones-ml">
+              {d.laboratorios.map((l) => (
+                <button key={l.aula_id} className="aula-ml" disabled={ocupado} onClick={() => empezar(l)}>
+                  <Icono nombre="chromebook" />
+                  <strong>
+                    Laboratorio del {nombrePiso(l.piso)}
+                    <small>Aulas {l.aulas}</small>
+                  </strong>
+                  <span>Empezar monitoreo</span>
+                </button>
               ))}
-              {d.aulas.length === 0 && <p className="vacio">No hay aulas con "ML" en la sección.</p>}
+              {d.laboratorios.length === 0 && <p className="vacio">No hay aulas con "ML" en la sección.</p>}
             </section>
           )}
 
@@ -333,7 +317,7 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
                 {d.recientes.map((r) => (
                   <li key={r.id}>
                     <div className="ronda-linea">
-                      <strong>{nombreRonda(r)}</strong>
+                      <strong>{nombreLaboratorio(r)}</strong>
                       <span>
                         {dia(r.inicio)}, {hora(r.inicio)}–{r.fin ? hora(r.fin) : ""} · {duracion(minutosEntre(r.inicio, r.fin))}
                       </span>

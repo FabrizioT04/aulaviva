@@ -2,7 +2,7 @@ import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
-import { enrutarMonitoreo, leer as leerRonda, puedeMonitorear, puedeVerMonitoreo, SQL_MONITOREO } from "./monitoreo";
+import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -946,7 +946,7 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
     inicio = new Date(Date.UTC(a, m - 1, 1, 5)).toISOString();
     fin = new Date(Date.UTC(a, m, 1, 5)).toISOString();
   }
-  const [meses, resumen, reportes, danos, rondas] = await env.DB.batch([
+  const [meses, resumen, reportes, danos, rondas, aulasMl] = await env.DB.batch([
     env.DB.prepare(
       `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos, SUM(rondas) AS rondas FROM (
          SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos, 0 AS rondas FROM reporte
@@ -974,6 +974,7 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
           env.DB.prepare(
             `${SQL_MONITOREO} WHERE m.fin IS NOT NULL AND m.inicio >= ?1 AND m.inicio < ?2 ORDER BY m.inicio DESC LIMIT ${MAX_HISTORIAL}`,
           ).bind(inicio, fin),
+          env.DB.prepare(`${SQL_AULAS_ML} ORDER BY piso DESC, codigo`),
         ]
       : []),
   ]);
@@ -988,8 +989,9 @@ async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> 
     reportes: reportes.results as Historial["reportes"],
     danos: danos.results as Historial["danos"],
   };
-  if (rondas) {
-    const lista = (rondas.results as Parameters<typeof leerRonda>[0][]).map(leerRonda);
+  if (rondas && aulasMl) {
+    const labs = agruparLaboratorios(aulasMl.results as Parameters<typeof agruparLaboratorios>[0]);
+    const lista = (rondas.results as FilaRonda[]).map((f) => leerRonda(f, labs));
     const minutos = lista.reduce((s, r) => s + (new Date(r.fin!).getTime() - new Date(r.inicio).getTime()) / 60000, 0);
     datos.monitoreo = { rondas: lista, minutos: Math.round(minutos) };
   }

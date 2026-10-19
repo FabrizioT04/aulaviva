@@ -1,4 +1,4 @@
-import { HALLAZGOS, type DatosMonitoreo, type Hallazgo, type Monitoreo } from "../shared/monitoreo";
+import { HALLAZGOS, type DatosMonitoreo, type Hallazgo, type Laboratorio, type Monitoreo } from "../shared/monitoreo";
 import type { Sesion } from "../shared/tipos";
 import { MAX_FOTO_BYTES, TIPOS_FOTO } from "./danos";
 import type { Env } from "./index";
@@ -20,20 +20,40 @@ export function puedeVerMonitoreo(sesion: Sesion, env: Env): boolean {
 }
 
 const AHORA = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
-export const SQL_MONITOREO = `SELECT m.id, m.aula_id, a.nombre AS aula_nombre, a.seccion AS aula_seccion, m.email, m.inicio, m.fin, m.hallazgos, m.nota,
+export const SQL_MONITOREO = `SELECT m.id, m.aula_id, a.piso, m.email, m.inicio, m.fin, m.hallazgos, m.nota,
     (SELECT COUNT(*) FROM foto_monitoreo f WHERE f.monitoreo_id = m.id) AS fotos
   FROM monitoreo m JOIN aula a ON a.id = m.aula_id`;
 const MAX_FOTOS = 6;
 // La foto de la mañana es antes de la 1 p. m. de Lima; la de la tarde, desde la 1 p. m.
 export const HORA_TARDE = 13;
 // Las aulas ML son las que tienen "ML" en la sección (Aula 306 · ML/10B)
-const SQL_AULAS_ML = `SELECT id, nombre, seccion, piso FROM aula WHERE activa = 1 AND seccion LIKE 'ML%'`;
+export const SQL_AULAS_ML = `SELECT id, nombre, seccion, piso FROM aula WHERE activa = 1 AND seccion LIKE 'ML%'`;
+const ORDEN_AULAS_ML = "ORDER BY piso DESC, codigo";
+
+// Las aulas ML de cada piso forman un solo laboratorio: "Aula 306" y "Aula 307" → "306 y 307"
+export function agruparLaboratorios(aulas: { id: number; nombre: string; piso: number | null }[]): Laboratorio[] {
+  const porPiso = new Map<number | null, { id: number; nombres: string[] }>();
+  for (const a of aulas) {
+    const grupo = porPiso.get(a.piso) ?? { id: a.id, nombres: [] };
+    grupo.nombres.push(a.nombre.replace(/^Aula\s+/i, ""));
+    porPiso.set(a.piso, grupo);
+  }
+  return [...porPiso].map(([piso, g]) => ({
+    aula_id: g.id,
+    piso,
+    aulas: g.nombres.length > 1 ? `${g.nombres.slice(0, -1).join(", ")} y ${g.nombres.at(-1)}` : g.nombres[0],
+  }));
+}
 // Minutos de cada ronda terminada; el día se cuenta en hora de Lima
 const MINUTOS = `(julianday(fin) - julianday(inicio)) * 1440`;
 const HOY = `date(inicio, '-5 hours') = date('now', '-5 hours')`;
 
-type Fila = Omit<Monitoreo, "hallazgos"> & { hallazgos: string };
-export const leer = (f: Fila): Monitoreo => ({ ...f, hallazgos: JSON.parse(f.hallazgos) as Hallazgo[] });
+export type Fila = Omit<Monitoreo, "hallazgos" | "aulas"> & { hallazgos: string };
+export const leer = (f: Fila, labs: Laboratorio[]): Monitoreo => ({
+  ...f,
+  aulas: labs.find((l) => l.piso === f.piso)?.aulas ?? "",
+  hallazgos: JSON.parse(f.hallazgos) as Hallazgo[],
+});
 
 export async function enrutarMonitoreo(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
   const { pathname } = url;
@@ -42,7 +62,7 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
 
   if (pathname === "/api/monitoreo" && metodo === "GET") {
     const [aulas, activo, recientes, resumen, fotosHoy] = await env.DB.batch([
-      env.DB.prepare(`${SQL_AULAS_ML} ORDER BY piso DESC, codigo`),
+      env.DB.prepare(`${SQL_AULAS_ML} ${ORDEN_AULAS_ML}`),
       env.DB.prepare(`${SQL_MONITOREO} WHERE m.email = ? AND m.fin IS NULL ORDER BY m.inicio DESC LIMIT 1`).bind(email),
       env.DB.prepare(`${SQL_MONITOREO} WHERE m.email = ? AND m.fin IS NOT NULL ORDER BY m.inicio DESC LIMIT 200`).bind(email),
       env.DB.prepare(
@@ -63,10 +83,11 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
       ).bind(email),
     ]);
     const r = resumen.results[0] as Record<string, number>;
+    const labs = agruparLaboratorios(aulas.results as Parameters<typeof agruparLaboratorios>[0]);
     const datos: DatosMonitoreo = {
-      aulas: aulas.results as DatosMonitoreo["aulas"],
-      activo: activo.results[0] ? leer(activo.results[0] as Fila) : null,
-      recientes: (recientes.results as Fila[]).map(leer),
+      laboratorios: labs,
+      activo: activo.results[0] ? leer(activo.results[0] as Fila, labs) : null,
+      recientes: (recientes.results as Fila[]).map((f) => leer(f, labs)),
       hoy: { rondas: r.rondas_hoy, minutos: Math.round(r.minutos_hoy) },
       semana: { rondas: r.rondas, minutos: Math.round(r.minutos), con_hallazgos: r.con_hallazgos },
       fotos_hoy: fotosHoy.results as DatosMonitoreo["fotos_hoy"],
@@ -80,13 +101,13 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
     const aulaId = Number(datos?.aula_id);
     const aula = Number.isInteger(aulaId) ? await env.DB.prepare(`${SQL_AULAS_ML} AND id = ?`).bind(aulaId).first() : null;
     if (!aula) return json({ error: "Elige uno de los laboratorios ML" }, 400);
+    // Cualquier aula del laboratorio sirve: la ronda es del piso
     const [, nuevo] = await env.DB.batch([
       env.DB.prepare(`UPDATE monitoreo SET fin = ${AHORA} WHERE email = ? AND fin IS NULL`).bind(email),
       env.DB.prepare(`INSERT INTO monitoreo (aula_id, email, inicio) VALUES (?, ?, ${AHORA}) RETURNING id`).bind(aulaId, email),
     ]);
     const id = (nuevo.results[0] as { id: number }).id;
-    const fila = await env.DB.prepare(`${SQL_MONITOREO} WHERE m.id = ?`).bind(id).first<Fila>();
-    return json(leer(fila!), 201);
+    return json(await unaRonda(env, id), 201);
   }
 
   const una = pathname.match(/^\/api\/monitoreo\/(\d+)(\/foto|\/fotos\/(\d+))?$/);
@@ -150,8 +171,7 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
     await env.DB.prepare(`UPDATE monitoreo SET ${cambios.join(", ")} WHERE id = ? AND email = ?`)
       .bind(...valores, id, email)
       .run();
-    const fila = await env.DB.prepare(`${SQL_MONITOREO} WHERE m.id = ?`).bind(id).first<Fila>();
-    return json(leer(fila!));
+    return json(await unaRonda(env, id));
   }
 
   // Descartar una ronda empezada por error (solo mientras sigue abierta)
@@ -166,6 +186,14 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
     return json({ ok: true });
   }
   return json({ error: "Ruta no encontrada" }, 404);
+}
+
+async function unaRonda(env: Env, id: number): Promise<Monitoreo> {
+  const [aulas, fila] = await env.DB.batch([
+    env.DB.prepare(`${SQL_AULAS_ML} ${ORDEN_AULAS_ML}`),
+    env.DB.prepare(`${SQL_MONITOREO} WHERE m.id = ?`).bind(id),
+  ]);
+  return leer(fila.results[0] as Fila, agruparLaboratorios(aulas.results as Parameters<typeof agruparLaboratorios>[0]));
 }
 
 // Fotos de la ronda: hasta 6, ya comprimidas en el celular (src/comprimir.ts)

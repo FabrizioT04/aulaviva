@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Ruta } from "../App";
 import { ETIQUETA_ESTADO_DANO, TIPOS_DANO, type Dano, type GrupoDano } from "../../shared/danos";
-import { HALLAZGOS, type Monitoreo } from "../../shared/monitoreo";
+import { HALLAZGOS, nombreLaboratorio, type Monitoreo } from "../../shared/monitoreo";
 import type { Historial as DatosHistorial, Reporte } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import FotosReporte from "../FotosReporte";
@@ -145,7 +145,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
       (d?.monitoreo?.rondas ?? []).filter(
         (r: Monitoreo) =>
           !texto ||
-          sinTildes([r.aula_nombre, r.aula_seccion, r.email, r.nota, ...r.hallazgos.map((h) => HALLAZGOS[h])].join(" ")).includes(texto),
+          sinTildes([nombreLaboratorio(r), r.email, r.nota, ...r.hallazgos.map((h) => HALLAZGOS[h])].join(" ")).includes(texto),
       ),
     [d, texto],
   );
@@ -315,7 +315,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                     <thead>
                       <tr>
                         <th>Fecha</th>
-                        <th>Aula</th>
+                        <th>Laboratorio</th>
                         <th>Horario</th>
                         <th>Duración</th>
                         <th>Quién</th>
@@ -326,7 +326,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                       {rondas.map((r) => (
                         <tr key={r.id}>
                           <td className="fecha">{fechaHora(r.inicio).split(",")[0]}</td>
-                          <td className="col-aula">{r.aula_nombre}{r.aula_seccion ? ` · ${r.aula_seccion}` : ""}</td>
+                          <td className="col-aula">{nombreLaboratorio(r).replace("Laboratorio del ", "")}</td>
                           <td className="numero">
                             {horaLima(r.inicio)}–{horaLima(r.fin)}
                           </td>

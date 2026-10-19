@@ -1,4 +1,4 @@
-import { HALLAZGOS, type Monitoreo } from "../shared/monitoreo";
+import { HALLAZGOS, nombreLaboratorio, type Monitoreo } from "../shared/monitoreo";
 import { minutosEntre } from "./formato";
 
 // Descargas "Excel" del panel (Historial y Monitoreo ML)
@@ -31,12 +31,12 @@ export function descargarCsv(nombre: string, encabezados: string[], filas: (stri
 export function csvRondas(rondas: Monitoreo[], nombre: string) {
   descargarCsv(
     nombre,
-    ["Inicio", "Fin", "Minutos", "Aula", "Quién", "Resultado", "Nota", "Fotos"],
+    ["Inicio", "Fin", "Minutos", "Laboratorio", "Quién", "Resultado", "Nota", "Fotos"],
     rondas.map((r) => [
       fechaExcel(r.inicio),
       fechaExcel(r.fin),
       Math.round(minutosEntre(r.inicio, r.fin) ?? 0),
-      `${r.aula_nombre}${r.aula_seccion ? ` · ${r.aula_seccion}` : ""}`,
+      nombreLaboratorio(r),
       r.email,
       r.hallazgos.length ? r.hallazgos.map((h) => HALLAZGOS[h]).join("; ") : "Todo en orden",
       r.nota,

@@ -534,13 +534,13 @@ main:has(.pagina-historial) { max-width: 1440px; }
 .insignia.estado-historial.resuelto { background: var(--verde-suave); color: var(--verde); }
 
 /* Monitoreo ML: rondas en los laboratorios con Chromebooks */
-.aulas-ml { display: grid; gap: 20px; margin-bottom: 24px; }
-.piso-ml h2 { margin: 0 0 10px; font-size: 0.82rem; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: 0.04em; }
+.aulas-ml { margin-bottom: 24px; }
 .botones-ml { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .aula-ml { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 14px; row-gap: 2px; align-items: center; padding: 18px 20px; border-radius: var(--radio); text-align: left; background: var(--superficie); box-shadow: var(--sombra); }
 .aula-ml .icono-caja { grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--primario-suave); color: var(--primario); }
 .aula-ml .icono { width: 22px; height: 22px; }
 .aula-ml strong { font-size: 1.02rem; }
+.aula-ml strong small { display: block; margin-top: 2px; color: var(--suave); font-size: 0.82rem; font-weight: 600; }
 .aula-ml span:last-child { color: var(--primario); font-size: 0.85rem; }
 .ronda-activa { margin-bottom: 24px; border-color: var(--primario); }
 .ronda-cabeza { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
