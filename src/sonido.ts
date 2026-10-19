@@ -1,4 +1,4 @@
-// Sonido propio de AulaViva, para reconocer los avisos de la plataforma. TI elige el tono en el menú de la campana.
+// Sonido propio de Hazio, para reconocer los avisos de la plataforma. TI elige el tono en el menú de la campana.
 // Lo genera el navegador con Web Audio, sin archivos. Suena con el panel abierto en alguna pestaña,
 // aunque esté minimizado; con el navegador cerrado, la notificación usa el sonido del sistema.
 

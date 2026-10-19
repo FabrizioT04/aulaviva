@@ -13,7 +13,7 @@ self.addEventListener("push", (e) => {
   }
   e.waitUntil(
     Promise.all([
-      self.registration.showNotification(aviso.titulo || "Nuevo reporte en AulaViva", {
+      self.registration.showNotification(aviso.titulo || "Nuevo reporte en Hazio", {
         body: aviso.cuerpo || "",
         tag: aviso.tag,
         // Con la misma etiqueta, vuelve a sonar y a mostrarse en vez de reemplazarse en silencio
@@ -31,7 +31,7 @@ self.addEventListener("push", (e) => {
   );
 });
 
-// Si el panel está abierto en alguna pestaña, toca el sonido de AulaViva (ver src/sonido.ts).
+// Si el panel está abierto en alguna pestaña, toca el sonido de Hazio (ver src/sonido.ts).
 // Solo en una pestaña, la que está al frente si la hay, para que no suene repetido
 async function avisarAlPanel(aviso) {
   const abiertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

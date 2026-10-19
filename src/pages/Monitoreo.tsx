@@ -172,7 +172,7 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
             <div className="titulo-rondas">
               <h2>Rondas anteriores</h2>
               {d.recientes.length > 0 && (
-                <button className="descargar" onClick={() => csvRondas(d.recientes, "aulaviva-monitoreo-ml.csv")}>
+                <button className="descargar" onClick={() => csvRondas(d.recientes, "hazio-monitoreo-ml.csv")}>
                   <Icono nombre="descargar" />
                   Descargar Excel
                 </button>

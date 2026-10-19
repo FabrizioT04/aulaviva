@@ -80,7 +80,7 @@ export default function Notificaciones() {
     };
   }, []);
 
-  // El service worker avisa a esta pestaña cuando llega una notificación: suena el tono de AulaViva
+  // El service worker avisa a esta pestaña cuando llega una notificación: suena el tono de Hazio
   useEffect(() => {
     if (!soportado()) return;
     const alMensaje = (e: MessageEvent) => {
@@ -214,7 +214,7 @@ export default function Notificaciones() {
             Enviar una prueba a este equipo
           </button>
           <div className="tono-avisos">
-            <label htmlFor="tono-avisos">Sonido de AulaViva</label>
+            <label htmlFor="tono-avisos">Sonido de Hazio</label>
             <select id="tono-avisos" value={tono ?? "no"} onChange={(e) => cambiarTono(e.target.value)}>
               {LISTA_TONOS.map((id) => (
                 <option key={id} value={id}>
