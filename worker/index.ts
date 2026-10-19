@@ -4,7 +4,8 @@ import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FAL
 import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
 import { minutosMonitoreo } from "../shared/monitoreo";
 import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, monitoreoSemanal, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
-import { cuentasSemanal, enrutarCuentas, SQL_CUENTAS } from "./cuentas";
+import { ACCIONES_DOCENTE, PLATAFORMAS } from "../shared/cuentas";
+import { crearPedido, cuentasSemanal, enrutarCuentas, pedidosDe, SQL_CUENTAS } from "./cuentas";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -497,7 +498,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
   return json({ error: "Ruta no encontrada" }, 404);
 }
 
-// Reportes y daños recientes del docente: los abiertos y los resueltos de los últimos 7 días
+// Reportes, daños y pedidos de cuenta recientes del docente: los abiertos y los resueltos de los últimos 7 días
 const ESTADO_DOCENTE: Record<string, EstadoMiReporte> = {
   abierto: "recibido",
   pendiente: "recibido",
@@ -521,7 +522,7 @@ async function misReportes(env: Env, email: string, aulaId?: number): Promise<Mi
   )
     .bind(email, aulaId ?? null)
     .all<{ clase: "reporte" | "dano"; id: number; tipo: string; estado: string; reportado_en: string; resuelto_en: string | null; codigo: string; nombre: string; equipo: AulaConEstado["equipo"] }>();
-  return results.map((m) => ({
+  const mios: MiReporte[] = results.map((m) => ({
     clase: m.clase,
     id: m.id,
     tipo: m.tipo,
@@ -532,6 +533,20 @@ async function misReportes(env: Env, email: string, aulaId?: number): Promise<Mi
     reportado_en: m.reportado_en,
     resuelto_en: m.resuelto_en,
   }));
+  // Los pedidos de cuenta no son de un aula: solo salen en el inicio del docente, no en la página del QR
+  if (aulaId !== undefined) return mios;
+  const pedidos: MiReporte[] = (await pedidosDe(env, email)).map((p) => ({
+    clase: "cuenta",
+    id: p.id,
+    tipo: p.plataforma,
+    titulo: `${PLATAFORMAS[p.plataforma] ?? p.plataforma}: ${ACCIONES_DOCENTE[p.accion] ?? p.accion}`,
+    aula_codigo: "",
+    aula_nombre: p.para === "yo" ? "Tu cuenta" : (p.detalle ?? "Un estudiante"),
+    estado: p.estado === "resuelto" ? "resuelto" : "recibido",
+    reportado_en: p.creado_en,
+    resuelto_en: p.resuelto_en,
+  }));
+  return [...mios, ...pedidos].sort((a, b) => b.reportado_en.localeCompare(a.reportado_en)).slice(0, 8);
 }
 
 // Rutas del QR: las usa el docente desde su celular (y TI para probar)
@@ -541,6 +556,22 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.piso, a.codigo`).all<AulaConEstado>();
     const respuesta: AulasDocente = { aulas: results, email: sesion.email, mios: await misReportes(env, sesion.email) };
     return json(respuesta);
+  }
+  // Problema con una cuenta o plataforma (Classroom, Pearson…): le llega a TI como push y lo atiende desde Registrar
+  if (url.pathname === "/api/qr/cuentas") {
+    if (request.method !== "POST") return json({ error: "Ruta no encontrada" }, 404);
+    return crearPedido(request, env, sesion.email, (p) =>
+      ctx.waitUntil(
+        notificarTi(env, url.origin, {
+          titulo: `Cuenta · ${PLATAFORMAS[p.plataforma] ?? p.plataforma}: ${ACCIONES_DOCENTE[p.accion] ?? p.accion}`,
+          cuerpo: [p.para === "yo" ? "Es su propia cuenta" : `Estudiante: ${p.detalle}`, p.descripcion, `Pide ${p.email.split("@")[0]}`]
+            .filter(Boolean)
+            .join("\n"),
+          url: "/cuentas",
+          tag: `pedido-${p.id}`,
+        }),
+      ),
+    );
   }
   const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion|\/danos(?:\/(\d+)\/foto)?)?$/);
   if (!coincide) return json({ error: "Ruta no encontrada" }, 404);
@@ -805,7 +836,7 @@ interface AvisoPush {
   url: string;
   tag: string;
   urgente?: boolean;
-  pendientes?: number; // reportes y daños tecnológicos sin resolver, para el número en el ícono de la app (public/sw.js)
+  pendientes?: number; // reportes, daños tecnológicos y pedidos de cuenta sin resolver, para el número en el ícono de la app (public/sw.js)
 }
 
 // Daño de un equipo tecnológico reportado desde el QR: le llega a TI como push
@@ -833,10 +864,12 @@ async function notificarTi(env: Env, origen: string, aviso: AvisoPush) {
   if (!claves) return;
   const [subs, pendientes] = await env.DB.batch([
     env.DB.prepare(`SELECT email, endpoint, p256dh, auth FROM suscripcion_push`),
-    // Lo mismo que cuenta src/usePendientes.ts para TI: reportes y daños de equipos tecnológicos sin resolver
+    // Lo mismo que cuenta src/usePendientes.ts para TI: reportes y daños de equipos tecnológicos sin resolver,
+    // y pedidos de cuenta de los docentes
     env.DB.prepare(
       `SELECT (SELECT COUNT(*) FROM reporte WHERE estado <> 'resuelto')
-            + (SELECT COUNT(*) FROM dano WHERE grupo = 'tecnologia' AND estado <> 'resuelto') AS n`,
+            + (SELECT COUNT(*) FROM dano WHERE grupo = 'tecnologia' AND estado <> 'resuelto')
+            + (SELECT COUNT(*) FROM pedido_cuenta WHERE estado = 'pendiente') AS n`,
     ),
   ]);
   const destinos = (subs.results as (SuscripcionPush & { email: string })[]).filter((s) => sigueEnTi(s.email, env));

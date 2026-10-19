@@ -123,7 +123,8 @@ export interface Ficha {
 
 // Mensaje que el Durable Object envía a los dashboards abiertos
 // "cambio": cambió el estado de un aula (reportes). "danos": se registró o cambió un daño.
-export type EventoEnVivo = { tipo: "cambio"; aula: AulaConEstado } | { tipo: "danos" };
+// "cuentas": un docente pidió ayuda con una cuenta o plataforma, o TI atendió un pedido.
+export type EventoEnVivo = { tipo: "cambio"; aula: AulaConEstado } | { tipo: "danos" } | { tipo: "cuentas" };
 
 export interface Promedios {
   prom_atencion_min: number | null;
@@ -201,9 +202,9 @@ export interface AulasDocente {
 // Lo que el docente reportó hace poco (fallas y daños), para que sepa en qué va sin preguntar por WhatsApp.
 // Los resueltos se muestran 7 días; los demás, hasta que se resuelvan.
 export interface MiReporte {
-  clase: "reporte" | "dano";
+  clase: "reporte" | "dano" | "cuenta";
   id: number;
-  tipo: string; // tipo_falla, o el tipo de daño
+  tipo: string; // tipo_falla, el tipo de daño o la plataforma
   titulo: string;
   aula_codigo: string;
   aula_nombre: string;

@@ -41,7 +41,30 @@ export interface AtencionCuenta {
   origen: "whatsapp" | "presencial" | "otro";
   email: string; // quién de TI lo atendió
   creado_en: string;
+  pedido_id: number | null; // si vino de un pedido del docente en /docente
 }
+
+// Lo que el docente pide desde /docente: su cuenta o la de un estudiante
+export interface PedidoCuenta {
+  id: number;
+  accion: AccionCuenta;
+  plataforma: Plataforma;
+  para: "yo" | "estudiante";
+  detalle: string | null; // nombre y sección del estudiante
+  descripcion: string | null;
+  email: string; // el docente
+  estado: "pendiente" | "resuelto";
+  creado_en: string;
+  resuelto_en: string | null;
+}
+
+// Las mismas acciones, como las diría el docente
+export const ACCIONES_DOCENTE: Record<AccionCuenta, string> = {
+  clave: "Olvidé la clave",
+  acceso: "No puedo entrar",
+  curso: "Agregar a una clase o curso",
+  otro: "Otro problema",
+};
 
 // "Cambio de clave · Correo institucional"
 export const resumenAtencion = (a: Pick<AtencionCuenta, "accion" | "plataforma">) =>

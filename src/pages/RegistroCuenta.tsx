@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { ACCIONES_CUENTA, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AccionCuenta, type AtencionCuenta, type Persona, type Plataforma } from "../../shared/cuentas";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ACCIONES_CUENTA, ACCIONES_DOCENTE, PERSONAS, PLATAFORMAS, paraQuien, resumenAtencion, type AccionCuenta, type AtencionCuenta, type PedidoCuenta, type Persona, type Plataforma } from "../../shared/cuentas";
 import type { EntradaTi } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import { fechaCorta } from "../formato";
 import Icono from "../Icono";
+import { useEnVivo } from "../useEnVivo";
 
 const ORIGENES: { valor: EntradaTi; etiqueta: string }[] = [
   { valor: "presencial", etiqueta: "En persona" },
@@ -14,7 +15,10 @@ const ORIGENES: { valor: EntradaTi; etiqueta: string }[] = [
 interface Datos {
   recientes: AtencionCuenta[];
   hoy: { registros: number; cuentas: number };
+  pedidos: PedidoCuenta[]; // los que enviaron los docentes desde /docente, sin atender
 }
+
+const usuario = (email: string) => email.split("@")[0];
 
 // Cambios de clave y soporte en plataformas (Classroom, Pearson, Khan Academy, Elesapiens, ALEKS…):
 // pocos toques, para que este trabajo también cuente en el Historial y en el correo del viernes
@@ -29,6 +33,9 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
   const [d, setD] = useState<Datos | null>(null);
+  // El pedido del docente que se está atendiendo: al registrar, se cierra y el docente lo ve resuelto
+  const [pedido, setPedido] = useState<PedidoCuenta | null>(null);
+  const formulario = useRef<HTMLFormElement>(null);
 
   const fallo = useCallback(
     (e: unknown) => {
@@ -41,6 +48,26 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
   useEffect(() => {
     cargar();
   }, [cargar]);
+  // Un pedido nuevo de un docente, o uno que atendió otra persona de TI
+  useEnVivo((evento) => {
+    if (!evento || evento.tipo === "cuentas") cargar();
+  });
+  // Si otra persona de TI lo atendió primero, ya no se está atendiendo
+  useEffect(() => {
+    if (pedido && d && !d.pedidos.some((p) => p.id === pedido.id)) setPedido(null);
+  }, [d, pedido]);
+
+  function atender(p: PedidoCuenta) {
+    setPedido(p);
+    setAccion(p.accion);
+    setPlataforma(p.plataforma);
+    setPersona(p.para === "yo" ? "docente" : "estudiante");
+    setCantidad("1");
+    setDetalle(p.para === "yo" ? `Prof. ${usuario(p.email)}` : (p.detalle ?? ""));
+    setNota(p.descripcion ?? "");
+    setMensaje(null);
+    formulario.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   const n = Number(cantidad);
   const cantidadValida = Number.isInteger(n) && n >= 1 && n <= 200;
@@ -53,9 +80,15 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
     try {
       const a = await api<AtencionCuenta>("/api/cuentas", {
         method: "POST",
-        body: JSON.stringify({ accion, plataforma, persona, cantidad: n, detalle, nota, origen }),
+        body: JSON.stringify({ accion, plataforma, persona, cantidad: n, detalle, nota, origen, pedido_id: pedido?.id }),
       });
-      setMensaje({ ok: true, texto: `Registrado: ${resumenAtencion(a)}, ${paraQuien(a)}.` });
+      setMensaje({
+        ok: true,
+        texto: pedido
+          ? `Pedido cerrado: ${usuario(pedido.email)} ya lo ve como resuelto en AulaViva.`
+          : `Registrado: ${resumenAtencion(a)}, ${paraQuien(a)}.`,
+      });
+      setPedido(null);
       // Lo que más se repite es otra cuenta igual: se conservan qué, plataforma y para quién
       setCantidad("1");
       setDetalle("");
@@ -63,6 +96,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
       await cargar();
     } catch (err) {
       fallo(err);
+      if (pedido) cargar();
     } finally {
       setEnviando(false);
     }
@@ -82,7 +116,45 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
         </div>
       </header>
       {selector}
-      <form className="tarjeta" onSubmit={enviar}>
+      {d && d.pedidos.length > 0 && (
+        <section className="tarjeta pedidos-cuenta">
+          <h2>
+            Pedidos de docentes <span className="cuenta-nav">{d.pedidos.length}</span>
+          </h2>
+          <ul className="lista-rondas">
+            {d.pedidos.map((p) => (
+              <li key={p.id} className={pedido?.id === p.id ? "atendiendo" : ""}>
+                <div className="ronda-linea">
+                  <strong>
+                    {PLATAFORMAS[p.plataforma] ?? p.plataforma}: {ACCIONES_DOCENTE[p.accion] ?? p.accion}
+                  </strong>
+                  <span>{fechaCorta(p.creado_en)}</span>
+                </div>
+                <p>
+                  {p.para === "yo" ? "Su propia cuenta" : `Estudiante: ${p.detalle}`} · pide {usuario(p.email)}
+                </p>
+                {p.descripcion && <p className="pista">“{p.descripcion}”</p>}
+                {pedido?.id !== p.id && (
+                  <button type="button" className="atender-pedido" onClick={() => atender(p)}>
+                    Atender
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <form className="tarjeta" onSubmit={enviar} ref={formulario}>
+        {pedido && (
+          <div className="aviso-pedido">
+            <span>
+              Atendiendo el pedido de <strong>{usuario(pedido.email)}</strong>. Al registrar, el pedido se cierra.
+            </span>
+            <button type="button" className="enlace" onClick={() => setPedido(null)}>
+              Cancelar
+            </button>
+          </div>
+        )}
         <fieldset>
           <legend>¿Qué hiciste?</legend>
           <div className="chips">
@@ -131,7 +203,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
           <textarea rows={2} value={nota} maxLength={500} onChange={(e) => setNota(e.target.value)} placeholder="Ej. no recordaba su clave después de vacaciones" />
         </label>
 
-        <fieldset>
+        <fieldset hidden={pedido !== null}>
           <legend>¿Cómo llegó?</legend>
           <div className="segmentado">
             {ORIGENES.map((o) => (
@@ -148,7 +220,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
         </p>
 
         <button className="primario" type="submit" disabled={!plataforma || !cantidadValida || enviando}>
-          {enviando ? "Registrando…" : "Registrar atención"}
+          {enviando ? "Registrando…" : pedido ? "Registrar y cerrar el pedido" : "Registrar atención"}
         </button>
         {mensaje && <p className={mensaje.ok ? "aviso ok" : "aviso error"}>{mensaje.texto}</p>}
       </form>
@@ -174,8 +246,9 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
                   <p>
                     {paraQuien(a)}
                     {a.detalle ? ` · ${a.detalle}` : ""}
-                    {a.email !== email ? ` · ${a.email.split("@")[0]}` : ""}
+                    {a.email !== email ? ` · ${usuario(a.email)}` : ""}
                     {a.nota ? ` · ${a.nota}` : ""}
+                    {a.pedido_id !== null ? " · lo pidió en AulaViva" : ""}
                   </p>
                   {a.email === email && Date.now() - new Date(a.creado_en).getTime() < 12 * 3_600_000 && (
                     <button className="enlace peligro borrar-atencion" onClick={() => borrar(a)}>

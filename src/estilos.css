@@ -609,3 +609,12 @@ main:has(.pagina-historial) { max-width: 1440px; }
 .registro-cuenta fieldset { min-width: 0; }
 .registro-cuenta .segmentado button { padding: 10px 8px; }
 .total-cuentas { margin: 0 0 10px; padding: 0 12px; color: var(--suave); font-size: 0.9rem; }
+/* Pedidos que los docentes envían desde /docente: TI los atiende y quedan registrados */
+.selector-registro .cuenta-nav, .pedidos-cuenta h2 .cuenta-nav { position: static; margin: 0 0 0 8px; min-width: 20px; height: 20px; padding: 0 6px; font-size: 0.72rem; box-shadow: none; }
+.pedidos-cuenta { border-color: var(--amarillo); }
+.pedidos-cuenta h2 { display: flex; align-items: center; gap: 8px; }
+.pedidos-cuenta li.atendiendo { padding: 14px 12px; background: var(--primario-suave); border-radius: 12px; }
+.atender-pedido { justify-self: start; }
+.aviso-pedido { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; padding: 12px 14px; border-radius: 12px; background: var(--primario-suave); }
+.registro-cuenta fieldset[hidden] { display: none; }
+.registro-cuenta form { scroll-margin-top: 90px; }

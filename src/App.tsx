@@ -18,7 +18,7 @@ import Observatorio from "./pages/Observatorio";
 import Registrar from "./pages/Registrar";
 
 export type Ruta =
-  | { pantalla: "registro" }
+  | { pantalla: "registro"; cuenta?: boolean } // cuenta: abre Registrar en Cuenta o plataforma (el push de un pedido)
   | { pantalla: "dashboard" }
   | { pantalla: "observatorio" }
   | { pantalla: "historial" }
@@ -74,6 +74,7 @@ const AREA_USUARIO: Record<string, string> = {
 function cuentaDe(pantalla: Ruta["pantalla"], pendientes: Pendientes): number {
   if (pantalla === "dashboard") return pendientes.reportes;
   if (pantalla === "danos") return pendientes.danos;
+  if (pantalla === "registro") return pendientes.cuentas;
   return 0;
 }
 
@@ -88,12 +89,14 @@ function rutaActual(): Ruta {
   if (p.startsWith("/fichas")) return { pantalla: "fichas" };
   if (p.startsWith("/qr-aulas")) return { pantalla: "qr" };
   if (p.startsWith("/danos")) return { pantalla: "danos" };
+  if (p.startsWith("/cuentas")) return { pantalla: "registro", cuenta: true };
   return { pantalla: "registro" };
 }
 
 function rutaAUrl(r: Ruta): string {
   if (r.pantalla === "aula") return `/aula/${r.id}`;
   if (r.pantalla === "qr") return "/qr-aulas";
+  if (r.pantalla === "registro" && r.cuenta) return "/cuentas";
   return r.pantalla === "registro" ? "/" : `/${r.pantalla}`;
 }
 
@@ -234,7 +237,14 @@ export default function App() {
           <Danos sesion={sesion} onNoAutorizado={salir} />
         )}
         {pantalla.pantalla === "registro" && (
-          <Registrar email={sesion.email} onNoAutorizado={salir} ir={ir} />
+          <Registrar
+            key={pantalla.cuenta ? "cuenta" : "falla"}
+            email={sesion.email}
+            onNoAutorizado={salir}
+            ir={ir}
+            inicial={pantalla.cuenta ? "cuenta" : "falla"}
+            pedidos={pendientes.cuentas}
+          />
         )}
         {pantalla.pantalla === "dashboard" && (
           <Dashboard onNoAutorizado={salir} ir={ir} soloLectura={soloLectura} />
