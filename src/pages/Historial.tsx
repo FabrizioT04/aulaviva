@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Ruta } from "../App";
 import { ETIQUETA_ESTADO_DANO, TIPOS_DANO, type Dano, type GrupoDano } from "../../shared/danos";
+import { HALLAZGOS, type Monitoreo } from "../../shared/monitoreo";
 import type { Historial as DatosHistorial, Reporte } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
+import FotosReporte from "../FotosReporte";
 import Icono from "../Icono";
 import { useEnVivo } from "../useEnVivo";
+import { csvRondas, descargarCsv, fechaExcel } from "../csv";
 import { canal, duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, minutosEntre } from "../formato";
 
 interface Props {
@@ -12,7 +15,7 @@ interface Props {
   ir: (r: Ruta) => void;
 }
 
-type Clase = "fallas" | "danos";
+type Clase = "fallas" | "danos" | "monitoreo";
 
 const TODO = "todo";
 const GRUPO: Record<GrupoDano, string> = { tecnologia: "Equipo tecnológico", local: "Mobiliario o infraestructura" };
@@ -38,31 +41,10 @@ function fechaHora(iso: string | null): string {
   });
 }
 
-// En el Excel, "2026-10-16 08:46" (hora de Lima): así se puede ordenar y filtrar como fecha
-function fechaExcel(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleString("sv-SE", { timeZone: "America/Lima", dateStyle: "short", timeStyle: "short" });
-}
+const horaLima = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString("es-PE", { timeZone: "America/Lima", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
 
 const sinTildes = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-
-// CSV que Excel abre con tildes (BOM UTF-8) y Google Sheets también.
-// Un texto escrito por un docente que empieza con = + - @ (o tab/retorno) se abriría como fórmula:
-// el apóstrofo delante hace que Excel y Sheets lo muestren como texto.
-function descargarCsv(nombre: string, encabezados: string[], filas: (string | number | null)[][]) {
-  const celda = (v: string | number | null) => {
-    let t = v == null ? "" : String(v);
-    if (typeof v === "string" && /^[=+\-@\t\r]/.test(t)) t = `'${t}`;
-    return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
-  };
-  const csv = [encabezados, ...filas].map((f) => f.map(celda).join(",")).join("\r\n");
-  const url = URL.createObjectURL(new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 const minutos = (desde: string, hasta: string | null) => {
   const m = minutosEntre(desde, hasta);
@@ -158,6 +140,18 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
     [d, texto],
   );
 
+  const rondas = useMemo(
+    () =>
+      (d?.monitoreo?.rondas ?? []).filter(
+        (r: Monitoreo) =>
+          !texto ||
+          sinTildes([r.aula_nombre, r.aula_seccion, r.email, r.nota, ...r.hallazgos.map((h) => HALLAZGOS[h])].join(" ")).includes(texto),
+      ),
+    [d, texto],
+  );
+  // Si el mes elegido viene sin monitoreo (no debería), vuelve a Fallas
+  const vista: Clase = clase === "monitoreo" && !d?.monitoreo ? "fallas" : clase;
+
   const elegido = d ? (d.mes ?? TODO) : (mes ?? "");
   const archivo = d?.mes ?? "todo";
 
@@ -166,7 +160,9 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
       <header className="cabecera-pagina">
         <div>
           <h1>Historial</h1>
-          <p className="subtitulo">Todas las fallas y daños que llegaron, mes por mes.</p>
+          <p className="subtitulo">
+            Todas las fallas y daños que llegaron{d?.monitoreo ? ", y las rondas en los laboratorios ML" : ""}, mes por mes.
+          </p>
         </div>
         <label className="selector-mes">
           <span className="solo-lector">Mes</span>
@@ -174,6 +170,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
             {d?.meses.map((m) => (
               <option key={m.mes} value={m.mes}>
                 {nombreMes(m.mes)} · {m.fallas} {m.fallas === 1 ? "falla" : "fallas"}, {m.danos} {m.danos === 1 ? "daño" : "daños"}
+                {m.rondas != null && `, ${m.rondas} ${m.rondas === 1 ? "ronda" : "rondas"}`}
               </option>
             ))}
             <option value={TODO}>Todo el historial</option>
@@ -209,17 +206,31 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
               <strong>{d.danos.length}</strong>
               <small>{d.danos.filter((x) => x.estado !== "resuelto").length} sin resolver</small>
             </div>
+            {d.monitoreo && (
+              <div className="dato">
+                <span>Monitoreo ML</span>
+                <strong>{duracion(d.monitoreo.minutos)}</strong>
+                <small>
+                  {d.monitoreo.rondas.length} {d.monitoreo.rondas.length === 1 ? "ronda" : "rondas"} en los laboratorios
+                </small>
+              </div>
+            )}
           </section>
 
           <section className="tarjeta">
             <div className="historial-controles">
               <div className="segmentado compacto" role="group" aria-label="Qué ver">
-                <button className={clase === "fallas" ? "activo" : ""} onClick={() => setClase("fallas")}>
+                <button className={vista === "fallas" ? "activo" : ""} onClick={() => setClase("fallas")}>
                   Fallas ({d.reportes.length})
                 </button>
-                <button className={clase === "danos" ? "activo" : ""} onClick={() => setClase("danos")}>
+                <button className={vista === "danos" ? "activo" : ""} onClick={() => setClase("danos")}>
                   Daños ({d.danos.length})
                 </button>
+                {d.monitoreo && (
+                  <button className={vista === "monitoreo" ? "activo" : ""} onClick={() => setClase("monitoreo")}>
+                    Monitoreo ({d.monitoreo.rondas.length})
+                  </button>
+                )}
               </div>
               <label className="buscador">
                 <Icono nombre="buscar" />
@@ -233,15 +244,21 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
               </label>
               <button
                 className="descargar"
-                disabled={clase === "fallas" ? !fallas.length : !danos.length}
-                onClick={() => (clase === "fallas" ? csvFallas(fallas, archivo) : csvDanos(danos, archivo))}
+                disabled={!(vista === "fallas" ? fallas : vista === "danos" ? danos : rondas).length}
+                onClick={() =>
+                  vista === "fallas"
+                    ? csvFallas(fallas, archivo)
+                    : vista === "danos"
+                      ? csvDanos(danos, archivo)
+                      : csvRondas(rondas, `aulaviva-monitoreo-${archivo}.csv`)
+                }
               >
                 <Icono nombre="descargar" />
                 Descargar Excel
               </button>
             </div>
 
-            {clase === "fallas" ? (
+            {vista === "fallas" ? (
               fallas.length === 0 ? (
                 <p className="vacio">{texto ? "Nada coincide con la búsqueda." : "No llegaron fallas en este periodo."}</p>
               ) : (
@@ -282,6 +299,43 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                           <td>
                             {r.causa ?? ""}
                             {r.notas_resolucion && <small>{r.notas_resolucion}</small>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : vista === "monitoreo" ? (
+              rondas.length === 0 ? (
+                <p className="vacio">{texto ? "Nada coincide con la búsqueda." : "No hubo rondas de monitoreo en este periodo."}</p>
+              ) : (
+                <div className="tabla-contenedor">
+                  <table className="tabla-historial tabla-rondas">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Aula</th>
+                        <th>Horario</th>
+                        <th>Duración</th>
+                        <th>Quién</th>
+                        <th>Qué se encontró</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rondas.map((r) => (
+                        <tr key={r.id}>
+                          <td className="fecha">{fechaHora(r.inicio).split(",")[0]}</td>
+                          <td className="col-aula">{r.aula_nombre}{r.aula_seccion ? ` · ${r.aula_seccion}` : ""}</td>
+                          <td className="numero">
+                            {horaLima(r.inicio)}–{horaLima(r.fin)}
+                          </td>
+                          <td className="numero">{duracion(minutosEntre(r.inicio, r.fin))}</td>
+                          <td>{r.email.split("@")[0]}</td>
+                          <td>
+                            {r.hallazgos.length ? r.hallazgos.map((h) => HALLAZGOS[h]).join(", ") : "Todo en orden"}
+                            {r.nota && <small>{r.nota}</small>}
+                            {r.fotos > 0 && <FotosReporte reporteId={r.id} total={r.fotos} ruta={`/api/monitoreo/${r.id}/fotos`} />}
                           </td>
                         </tr>
                       ))}

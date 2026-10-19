@@ -13,6 +13,7 @@ import Fichas from "./pages/Fichas";
 import Historial from "./pages/Historial";
 import Dashboard from "./pages/Dashboard";
 import ImprimirQr from "./pages/ImprimirQr";
+import Monitoreo from "./pages/Monitoreo";
 import Observatorio from "./pages/Observatorio";
 import Registro from "./pages/Registro";
 
@@ -21,6 +22,7 @@ export type Ruta =
   | { pantalla: "dashboard" }
   | { pantalla: "observatorio" }
   | { pantalla: "historial" }
+  | { pantalla: "monitoreo" }
   | { pantalla: "fichas" }
   | { pantalla: "qr" }
   | { pantalla: "danos" }
@@ -32,6 +34,7 @@ const PESTANAS: {
     | "dashboard"
     | "observatorio"
     | "historial"
+    | "monitoreo"
     | "fichas"
     | "danos"
     | "qr";
@@ -39,11 +42,13 @@ const PESTANAS: {
   corta?: string; // para la barra inferior del celular, si la etiqueta no cabe
   icono: NombreIcono;
   soloPc?: boolean; // en el celular la barra inferior solo tiene espacio para cuatro
+  soloMonitoreo?: boolean; // solo para quien hace las rondas en los laboratorios ML
 }[] = [
   { pantalla: "registro", etiqueta: "Registrar", icono: "registrar" },
   { pantalla: "dashboard", etiqueta: "Dashboard", icono: "dashboard" },
   { pantalla: "observatorio", etiqueta: "Observatorio", icono: "observatorio" },
   { pantalla: "historial", etiqueta: "Historial", icono: "reloj", soloPc: true },
+  { pantalla: "monitoreo", etiqueta: "Monitoreo ML", corta: "Monitoreo", icono: "chromebook", soloMonitoreo: true },
   {
     pantalla: "fichas",
     etiqueta: "Base de conocimiento",
@@ -79,6 +84,7 @@ function rutaActual(): Ruta {
   if (p.startsWith("/dashboard")) return { pantalla: "dashboard" };
   if (p.startsWith("/observatorio")) return { pantalla: "observatorio" };
   if (p.startsWith("/historial")) return { pantalla: "historial" };
+  if (p.startsWith("/monitoreo")) return { pantalla: "monitoreo" };
   if (p.startsWith("/fichas")) return { pantalla: "fichas" };
   if (p.startsWith("/qr-aulas")) return { pantalla: "qr" };
   if (p.startsWith("/danos")) return { pantalla: "danos" };
@@ -156,12 +162,16 @@ export default function App() {
   const soloLectura = sesion.rol !== "ti";
   // COA no registra incidencias: entra directo a Daños
   const pantalla: Ruta =
-    soloLectura && ruta.pantalla === "registro" ? { pantalla: "danos" } : ruta;
+    soloLectura && ruta.pantalla === "registro"
+      ? { pantalla: "danos" }
+      : ruta.pantalla === "monitoreo" && !sesion.monitorea
+        ? { pantalla: "registro" }
+        : ruta;
   const pestana =
     pantalla.pantalla === "aula" ? "dashboard" : pantalla.pantalla;
-  const pestanas = soloLectura
-    ? PESTANAS.filter((p) => p.pantalla !== "registro")
-    : PESTANAS;
+  const pestanas = PESTANAS.filter(
+    (p) => !(soloLectura && p.pantalla === "registro") && (!p.soloMonitoreo || sesion.monitorea),
+  );
   const usuario =
     sesion.modo === "local"
       ? `${sesion.rol === "ti" ? "TI" : AREA_USUARIO[sesion.rol]} (local)`
@@ -178,7 +188,8 @@ export default function App() {
                 key={p.pantalla}
                 className={[
                   pestana === p.pantalla ? "activo" : "",
-                  p.soloPc ? "solo-pc" : "",
+                  // En el celular caben seis: quien ve Monitoreo deja el Observatorio para la PC
+                  p.soloPc || (p.pantalla === "observatorio" && sesion.monitorea) ? "solo-pc" : "",
                 ]
                   .join(" ")
                   .trim()}
@@ -232,6 +243,7 @@ export default function App() {
           <Observatorio onNoAutorizado={salir} ir={ir} />
         )}
         {pantalla.pantalla === "historial" && <Historial onNoAutorizado={salir} ir={ir} />}
+        {pantalla.pantalla === "monitoreo" && <Monitoreo onNoAutorizado={salir} />}
         {pantalla.pantalla === "fichas" && <Fichas onNoAutorizado={salir} soloLectura={soloLectura} />}
         {pantalla.pantalla === "qr" && (
           <ImprimirQr onNoAutorizado={salir} ir={ir} />

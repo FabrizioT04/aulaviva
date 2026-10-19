@@ -72,6 +72,12 @@ npx wrangler secret put COA_EMAILS
 
 Si un correo está en `TI_EMAILS`, entra como TI aunque también esté en otra lista.
 
+La pestaña Monitoreo ML (las rondas en los laboratorios con Chromebooks) es personal. Para que solo la vea quien hace las rondas, pon su correo (debe estar también en `TI_EMAILS`) en otro secreto. Sin ese secreto, la ve todo TI:
+
+```bash
+npx wrangler secret put MONITOREO_EMAILS
+```
+
 La clave `TOKEN_TI` nunca funciona en producción (solo en `localhost`): solo entra quien pasa por Access. Si tenías el secreto `TOKEN_TI` guardado en Cloudflare, puedes borrarlo con `npx wrangler secret delete TOKEN_TI`.
 
 ## 6. Prueba

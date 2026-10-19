@@ -1,7 +1,8 @@
 import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import { enrutarMonitoreo, leer as leerRonda, puedeMonitorear, puedeVerMonitoreo, SQL_MONITOREO } from "./monitoreo";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -19,6 +20,7 @@ export interface Env {
   ACCESS_AUD?: string; // "Application Audience (AUD) Tag" de la aplicación de Access
   TI_EMAILS?: string; // correos de TI separados por coma
   COA_EMAILS?: string; // correos de COA: ven todo el panel y solo cambian Daños y mantenimiento
+  MONITOREO_EMAILS?: string; // correos de TI que ven la pestaña Monitoreo ML; sin lista, todo TI
   ACCESS_SERVICE_TOKEN_ID?: string; // Client ID del service token que usa el reporte semanal
   DOMINIO_DOCENTES?: string; // por defecto innovaschools.edu.pe
   // Notificaciones push a TI (secretos; se generan con `npm run push:claves`)
@@ -79,7 +81,7 @@ export default {
     try {
       const sesion = await obtenerSesion(request, url, env);
       if (url.pathname === "/api/sesion") {
-        return sesion ? json(sesion) : json({ error: "No autorizado", access: accessConfigurado(env) }, 401);
+        return sesion ? json({ ...sesion, monitorea: puedeMonitorear(sesion, env) }) : json({ error: "No autorizado", access: accessConfigurado(env) }, 401);
       }
       if (!sesion) return json({ error: "No autorizado" }, 401);
 
@@ -95,6 +97,14 @@ export default {
       if (url.pathname === "/api/danos" || url.pathname.startsWith("/api/danos/")) {
         if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA pueden ver los daños" }, 403);
         return await enrutarDanos(request, url, env, sesion);
+      }
+      // Monitoreo de los laboratorios ML: una tarea personal de quien hace las rondas
+      if (url.pathname === "/api/monitoreo" || url.pathname.startsWith("/api/monitoreo/")) {
+        // COA mira las fotos de las rondas desde el Historial; todo lo demás es de quien hace las rondas
+        const verFoto = request.method === "GET" && /^\/api\/monitoreo\/\d+\/fotos\/\d+$/.test(url.pathname);
+        const puede = verFoto ? puedeVerMonitoreo(sesion, env) : puedeMonitorear(sesion, env);
+        if (!puede) return json({ error: "El monitoreo de laboratorios es solo de quien hace las rondas" }, 403);
+        return await enrutarMonitoreo(request, url, env, sesion);
       }
       // COA ve todo el panel (solo lectura); los avisos al celular son solo de TI
       const soloLee = sesion.rol === "coa" && request.method === "GET" && !url.pathname.startsWith("/api/push");
@@ -207,7 +217,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     });
   }
 
-  if (pathname === "/api/historial" && metodo === "GET") return await historial(url, env);
+  if (pathname === "/api/historial" && metodo === "GET") return await historial(url, env, sesion);
 
   if (pathname === "/api/reportes" && metodo === "GET") {
     const abiertos = url.searchParams.get("estado") === "abiertos";
@@ -921,7 +931,8 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
 // Historial: todos los reportes y daños de un mes (de Lima), con el resumen del Observatorio de ese mes.
 // ?mes=2026-10; ?mes=todo trae todo lo guardado. Por defecto, el mes actual
 const MAX_HISTORIAL = 5000;
-async function historial(url: URL, env: Env): Promise<Response> {
+async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> {
+  const conMonitoreo = puedeVerMonitoreo(sesion, env);
   const pedido = url.searchParams.get("mes");
   const todo = pedido === "todo";
   const hoyLima = new Date(Date.now() - 5 * 3_600_000);
@@ -935,12 +946,13 @@ async function historial(url: URL, env: Env): Promise<Response> {
     inicio = new Date(Date.UTC(a, m - 1, 1, 5)).toISOString();
     fin = new Date(Date.UTC(a, m, 1, 5)).toISOString();
   }
-  const [meses, resumen, reportes, danos] = await env.DB.batch([
+  const [meses, resumen, reportes, danos, rondas] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos FROM (
-         SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos FROM reporte
+      `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos, SUM(rondas) AS rondas FROM (
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos, 0 AS rondas FROM reporte
          UNION ALL
-         SELECT strftime('%Y-%m', reportado_en, '-5 hours'), 0, 1 FROM dano)
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours'), 0, 1, 0 FROM dano
+         ${conMonitoreo ? `UNION ALL SELECT strftime('%Y-%m', inicio, '-5 hours'), 0, 0, 1 FROM monitoreo WHERE fin IS NOT NULL` : ""})
        GROUP BY mes ORDER BY mes DESC`,
     ),
     env.DB.prepare(
@@ -957,11 +969,31 @@ async function historial(url: URL, env: Env): Promise<Response> {
     env.DB.prepare(
       `${SQL_DANOS} WHERE d.reportado_en >= ?1 AND d.reportado_en < ?2 ORDER BY d.reportado_en DESC LIMIT ${MAX_HISTORIAL}`,
     ).bind(inicio, fin),
+    ...(conMonitoreo
+      ? [
+          env.DB.prepare(
+            `${SQL_MONITOREO} WHERE m.fin IS NOT NULL AND m.inicio >= ?1 AND m.inicio < ?2 ORDER BY m.inicio DESC LIMIT ${MAX_HISTORIAL}`,
+          ).bind(inicio, fin),
+        ]
+      : []),
   ]);
-  const listaMeses = meses.results as { mes: string; fallas: number; danos: number }[];
+  const listaMeses = meses.results as Historial["meses"];
   // El mes actual siempre aparece, aunque todavía no tenga nada
-  if (!listaMeses.some((m) => m.mes === actual)) listaMeses.unshift({ mes: actual, fallas: 0, danos: 0 });
-  return json({ mes, meses: listaMeses, resumen: resumen.results[0], reportes: reportes.results, danos: danos.results });
+  if (!listaMeses.some((m) => m.mes === actual)) listaMeses.unshift({ mes: actual, fallas: 0, danos: 0, rondas: 0 });
+  if (!conMonitoreo) for (const m of listaMeses) delete m.rondas;
+  const datos: Historial = {
+    mes,
+    meses: listaMeses,
+    resumen: resumen.results[0] as Historial["resumen"],
+    reportes: reportes.results as Historial["reportes"],
+    danos: danos.results as Historial["danos"],
+  };
+  if (rondas) {
+    const lista = (rondas.results as Parameters<typeof leerRonda>[0][]).map(leerRonda);
+    const minutos = lista.reduce((s, r) => s + (new Date(r.fin!).getTime() - new Date(r.inicio).getTime()) / 60000, 0);
+    datos.monitoreo = { rondas: lista, minutos: Math.round(minutos) };
+  }
+  return json(datos);
 }
 
 function texto(valor: unknown): string | null {

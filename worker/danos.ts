@@ -11,8 +11,8 @@ export const SQL_DANOS = `
     (SELECT COUNT(*) FROM foto_dano f WHERE f.dano_id = d.id) AS fotos
   FROM dano d JOIN aula a ON a.id = d.aula_id`;
 
-const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-const MAX_FOTO_BYTES = 3 * 1024 * 1024;
+export const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+export const MAX_FOTO_BYTES = 3 * 1024 * 1024;
 const MAX_FOTOS = 3;
 
 export const puedeVerDanos = (sesion: Sesion) => sesion.rol === "ti" || sesion.rol === "coa";
