@@ -20,4 +20,3 @@ for (const name of ['manifest.webmanifest','manifest-ti.webmanifest']) {
 const branded = source.replace('<svg ', '<svg class="dragon-aulaviva" aria-hidden="true" ');
 await writeFile(new URL('../shared/marca.ts',import.meta.url),'// Generado desde public/dragon-aulaviva.svg por scripts/iconos-marca.mjs.\nexport const DRAGON_AULAVIVA = '+JSON.stringify(branded)+';\n');
 console.log('Marca y cuatro iconos PNG generados; manifiestos actualizados.');
-
