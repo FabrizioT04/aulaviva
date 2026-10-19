@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "hazio",
+  "main": "index.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "services": [{ "binding": "AULAVIVA", "service": "aulaviva" }],
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "https://aulaviva-smp1.cloudflareaccess.com",
+    "ACCESS_AUD": "cda2af380f36b3b65705c17219cf7e7b7a3cd01f0db6bcee87c955e7b5f7ff95"
+  },
+  "observability": { "enabled": true }
+}
