@@ -183,5 +183,5 @@ function texto(valor: unknown): string | null {
 }
 
 function json(datos: unknown, status = 200) {
-  return Response.json(datos, { status });
+  return Response.json(datos, { status, headers: { "Cache-Control": "no-store" } });
 }

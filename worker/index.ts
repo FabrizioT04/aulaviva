@@ -758,9 +758,10 @@ async function enrutarPush(request: Request, url: URL, env: Env, sesion: Sesion)
 
   const datos = await request.json<Record<string, unknown>>().catch(() => null);
   const endpoint = typeof datos?.endpoint === "string" ? datos.endpoint : "";
-  if (!/^https:\/\/[^\s]{1,1000}$/.test(endpoint) || !servicioPushConocido(endpoint)) return json({ error: "Suscripción inválida" }, 400);
+  if (!/^https:\/\/[^\s]{1,1000}$/.test(endpoint)) return json({ error: "Suscripción inválida" }, 400);
 
   if (url.pathname === "/api/push" && request.method === "POST") {
+    if (!servicioPushConocido(endpoint)) return json({ error: "Suscripción inválida" }, 400);
     const llaves = datos?.keys as Record<string, unknown> | undefined;
     const p256dh = typeof llaves?.p256dh === "string" ? llaves.p256dh : "";
     const auth = typeof llaves?.auth === "string" ? llaves.auth : "";
@@ -773,8 +774,9 @@ async function enrutarPush(request: Request, url: URL, env: Env, sesion: Sesion)
       .run();
     return json({ ok: true }, 201);
   }
+  // Cada quien borra solo sus suscripciones, aunque sean de un servicio que ya no se acepta
   if (url.pathname === "/api/push" && request.method === "DELETE") {
-    await env.DB.prepare(`DELETE FROM suscripcion_push WHERE endpoint = ?`).bind(endpoint).run();
+    await env.DB.prepare(`DELETE FROM suscripcion_push WHERE endpoint = ? AND email = ?`).bind(endpoint, sesion.email).run();
     return json({ ok: true });
   }
   return json({ error: "Ruta no encontrada" }, 404);
@@ -825,7 +827,10 @@ async function notificarTi(env: Env, origen: string, aviso: AvisoPush) {
   await enviarATodos(env, destinos, claves, { ...aviso, pendientes: n });
 }
 
-async function enviarATodos(env: Env, subs: SuscripcionPush[], claves: ClavesVapid, aviso: AvisoPush): Promise<number> {
+async function enviarATodos(env: Env, todas: SuscripcionPush[], claves: ClavesVapid, aviso: AvisoPush): Promise<number> {
+  // Suscripciones guardadas antes de exigir un servicio push conocido: no reciben nada
+  const subs = todas.filter((s) => servicioPushConocido(s.endpoint));
+  if (subs.length < todas.length) console.error("push: se omitieron", todas.length - subs.length, "suscripciones de servicios no admitidos");
   const estados = await Promise.all(
     subs.map((s) =>
       enviarPush(s, aviso, claves).catch((e) => {
@@ -982,8 +987,9 @@ function mediana(valores: number[]): number | null {
   return orden.length % 2 ? orden[medio] : (orden[medio - 1] + orden[medio]) / 2;
 }
 
+// no-store: las respuestas de la API traen datos de reportes y docentes que no deben quedar en caché
 function json(datos: unknown, status = 200) {
-  return Response.json(datos, { status });
+  return Response.json(datos, { status, headers: { "Cache-Control": "no-store" } });
 }
 
 // Contra CSRF: una página de otro sitio que visite alguien de TI no puede usar su sesión de Access
@@ -994,7 +1000,7 @@ function json(datos: unknown, status = 200) {
 // Los avisos solo salen hacia los servicios push de los navegadores (Chrome, Edge, Firefox, Safari)
 const SERVICIOS_PUSH = ["fcm.googleapis.com", "push.services.mozilla.com", "notify.windows.com", "push.apple.com"];
 function servicioPushConocido(endpoint: string): boolean {
-  const host = new URL(endpoint).hostname;
+  const host = URL.canParse(endpoint) ? new URL(endpoint).hostname : "";
   return SERVICIOS_PUSH.some((s) => host === s || host.endsWith(`.${s}`));
 }
 
