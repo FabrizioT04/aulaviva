@@ -188,6 +188,70 @@ export async function enrutarMonitoreo(request: Request, url: URL, env: Env, ses
   return json({ error: "Ruta no encontrada" }, 404);
 }
 
+// Para el correo del viernes (/api/resumen-semanal): las rondas terminadas entre inicio y fin (UTC),
+// con el tiempo por laboratorio, las fotos de mañana y tarde de cada día y lo que se encontró
+export async function monitoreoSemanal(env: Env, inicio: string, fin: string): Promise<MonitoreoSemanal> {
+  const [aulas, rondas, fotos] = await env.DB.batch([
+    env.DB.prepare(`${SQL_AULAS_ML} ${ORDEN_AULAS_ML}`),
+    env.DB.prepare(`${SQL_MONITOREO} WHERE m.fin IS NOT NULL AND m.inicio >= ? AND m.inicio < ? ORDER BY m.inicio`).bind(inicio, fin),
+    env.DB.prepare(
+      `SELECT f.creado_en, a.piso FROM foto_monitoreo f JOIN monitoreo m ON m.id = f.monitoreo_id JOIN aula a ON a.id = m.aula_id
+       WHERE f.creado_en >= ? AND f.creado_en < ?`,
+    ).bind(inicio, fin),
+  ]);
+  const labs = agruparLaboratorios(aulas.results as Parameters<typeof agruparLaboratorios>[0]);
+  const lista = (rondas.results as Fila[]).map((f) => leer(f, labs));
+  const lima = (iso: string) => new Date(new Date(iso).getTime() - 5 * 3_600_000);
+  const minutos = (r: Monitoreo) => Math.round((new Date(r.fin!).getTime() - new Date(r.inicio).getTime()) / 60000);
+
+  // Todos los laboratorios, también los que no tuvieron rondas: el correo arma la tabla de fotos con ellos
+  const porLab = new Map(labs.map((l) => [l.piso, { piso: l.piso, aulas: l.aulas, rondas: 0, minutos: 0 }]));
+  const porDia = new Map<string, MonitoreoSemanal["dias"][number]>();
+  const delDia = (dia: string, piso: number | null) => {
+    const clave = `${dia}|${piso}`;
+    if (!porDia.has(clave)) {
+      porDia.set(clave, { dia, piso, aulas: labs.find((l) => l.piso === piso)?.aulas ?? "", rondas: 0, minutos: 0, fotos_manana: 0, fotos_tarde: 0 });
+    }
+    return porDia.get(clave)!;
+  };
+  for (const r of lista) {
+    const lab = porLab.get(r.piso) ?? { piso: r.piso, aulas: r.aulas, rondas: 0, minutos: 0 };
+    lab.rondas++;
+    lab.minutos += minutos(r);
+    porLab.set(r.piso, lab);
+    const d = delDia(lima(r.inicio).toISOString().slice(0, 10), r.piso);
+    d.rondas++;
+    d.minutos += minutos(r);
+  }
+  for (const f of fotos.results as { creado_en: string; piso: number | null }[]) {
+    const t = lima(f.creado_en);
+    const d = delDia(t.toISOString().slice(0, 10), f.piso);
+    if (t.getUTCHours() < HORA_TARDE) d.fotos_manana++;
+    else d.fotos_tarde++;
+  }
+
+  return {
+    rondas: lista.length,
+    minutos: lista.reduce((s, r) => s + minutos(r), 0),
+    con_hallazgos: lista.filter((r) => r.hallazgos.length).length,
+    laboratorios: [...porLab.values()],
+    dias: [...porDia.values()].sort((a, b) => a.dia.localeCompare(b.dia) || (b.piso ?? 0) - (a.piso ?? 0)),
+    novedades: lista
+      .filter((r) => r.hallazgos.length || r.nota)
+      .map((r) => ({ inicio: r.inicio, piso: r.piso, aulas: r.aulas, hallazgos: r.hallazgos.map((h) => HALLAZGOS[h]), nota: r.nota })),
+  };
+}
+
+export interface MonitoreoSemanal {
+  rondas: number;
+  minutos: number;
+  con_hallazgos: number;
+  laboratorios: { piso: number | null; aulas: string; rondas: number; minutos: number }[]; // todos, del piso más alto al más bajo
+  // Un registro por día y piso con rondas o fotos (día en hora de Lima, AAAA-MM-DD)
+  dias: { dia: string; piso: number | null; aulas: string; rondas: number; minutos: number; fotos_manana: number; fotos_tarde: number }[];
+  novedades: { inicio: string; piso: number | null; aulas: string; hallazgos: string[]; nota: string | null }[];
+}
+
 async function unaRonda(env: Env, id: number): Promise<Monitoreo> {
   const [aulas, fila] = await env.DB.batch([
     env.DB.prepare(`${SQL_AULAS_ML} ${ORDEN_AULAS_ML}`),

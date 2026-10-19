@@ -137,7 +137,7 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | POST | `/api/qr/:codigo/reportes` | Reporte del docente `{tipo_falla, bloquea_clase, descripcion}` |
 | PUT | `/api/qr/:codigo/reportes/:id/foto` | Agrega una foto al reporte (JPEG, PNG o WebP, máx. 3 MB; hasta 3), solo su autor y en los 15 minutos siguientes |
 | GET | `/api/reportes/:id/fotos/:n` | Ver la foto número `n` (0, 1 o 2) del reporte (solo TI) |
-| GET | `/api/resumen-semanal?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | Resumen de la semana (días de Lima) para el correo del viernes; por defecto la semana actual. TI o el service token del reporte |
+| GET | `/api/resumen-semanal?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` | Resumen de la semana (días de Lima) para el correo del viernes, con las rondas de monitoreo de los laboratorios ML (`monitoreo`); por defecto la semana actual. TI o el service token del reporte |
 
 Con Access, la sesión viaja en la cookie de Cloudflare y el Worker verifica el token `Cf-Access-Jwt-Assertion`. Sin Access (solo en `localhost`), las rutas de TI piden `Authorization: Bearer <TOKEN_TI>` (el WebSocket usa `?token=`). Los cambios (POST, PUT, PATCH, DELETE) y el WebSocket deben venir del mismo sitio. Las rutas `/api/qr/*` son para docentes y TI; el resto, solo TI.
 
