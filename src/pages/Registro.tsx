@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fallasDe, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import { borrarBorrador, guardarBorrador, leerBorrador, limpiarBorradores } from "../borrador";
 import { sugerirTipo } from "../../shared/sugerencia";
@@ -53,7 +53,7 @@ interface Borrador {
 }
 
 // Registro rápido: lo que TI llena al leer el mensaje de WhatsApp o cuando le cuentan en persona
-export default function Registro({ email, onNoAutorizado, ir }: { email: string; onNoAutorizado: () => void; ir: (r: Ruta) => void }) {
+export default function Registro({ email, onNoAutorizado, ir, selector }: { email: string; onNoAutorizado: () => void; ir: (r: Ruta) => void; selector?: ReactNode }) {
   const CLAVE_BORRADOR = claveBorrador(email);
   const [aulas, setAulas] = useState<AulaConEstado[]>([]);
   // Si se salió a medio registrar, se retoma donde quedó
@@ -212,6 +212,7 @@ export default function Registro({ email, onNoAutorizado, ir }: { email: string;
           <p className="subtitulo">Para lo que llega por WhatsApp, te cuentan en persona o por otro canal.</p>
         </div>
       </header>
+      {selector}
       <form className="tarjeta" onSubmit={enviar}>
         {recuperado && (
           <p className="borrador-recuperado" role="status">

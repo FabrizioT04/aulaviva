@@ -15,7 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import ImprimirQr from "./pages/ImprimirQr";
 import Monitoreo from "./pages/Monitoreo";
 import Observatorio from "./pages/Observatorio";
-import Registro from "./pages/Registro";
+import Registrar from "./pages/Registrar";
 
 export type Ruta =
   | { pantalla: "registro" }
@@ -234,7 +234,7 @@ export default function App() {
           <Danos sesion={sesion} onNoAutorizado={salir} />
         )}
         {pantalla.pantalla === "registro" && (
-          <Registro email={sesion.email} onNoAutorizado={salir} ir={ir} />
+          <Registrar email={sesion.email} onNoAutorizado={salir} ir={ir} />
         )}
         {pantalla.pantalla === "dashboard" && (
           <Dashboard onNoAutorizado={salir} ir={ir} soloLectura={soloLectura} />
