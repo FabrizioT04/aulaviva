@@ -98,6 +98,7 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 @media (prefers-color-scheme: dark) { .estado-reporte.escalado { background: #221a3d; color: #b392f5; } }
 .tipo-icono { display: inline-grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 12px; background: var(--superficie-2); color: var(--suave); }
 .tipo-icono .icono { width: 20px; height: 20px; }
+.tipo-icono.cuenta { background: var(--primario-suave); color: var(--primario); }
 
 .exito { border-color: var(--verde); background: var(--verde-suave); }
 .boton-listo { margin-top: 6px; min-height: 52px; background: var(--verde-punto); color: #fff; text-decoration: none; }

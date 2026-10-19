@@ -116,30 +116,3 @@ body.con-escaner { overflow: hidden; }
 .mis-reportes summary .icono { flex: none; width: 22px; height: 22px; color: var(--suave); transition: transform 0.2s; }
 .mis-reportes[open] summary .icono { transform: rotate(180deg); }
 .mis-reportes[open] summary { margin-bottom: 12px; }
-
-/* Problema con una cuenta o plataforma: plegado debajo de las aulas */
-.pedido-cuenta summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
-.pedido-cuenta summary::-webkit-details-marker { display: none; }
-.pedido-cuenta summary > .icono { flex: none; width: 22px; height: 22px; color: var(--suave); transition: transform 0.2s; }
-.pedido-cuenta[open] summary > .icono { transform: rotate(180deg); }
-.pedido-cuenta .mis-reportes-titulo small { color: var(--suave); }
-.tipo-icono.cuenta { background: var(--primario-suave); color: var(--primario); }
-#form-cuenta { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
-#form-cuenta fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
-#form-cuenta legend { padding: 0; margin-bottom: 10px; font-weight: 800; font-size: 1rem; }
-#form-cuenta label[hidden], #form-cuenta .opcional[hidden] { display: none; }
-#form-cuenta .opcional { font-weight: 600; color: var(--suave); }
-#form-cuenta input { font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--borde); background: var(--superficie); color: var(--texto); }
-#form-cuenta input:focus { outline: 3px solid var(--primario-suave); border-color: var(--primario); }
-#form-cuenta .error { margin: -8px 0 0; }
-#form-cuenta .error:empty { display: none; }
-.chips-cuenta { display: flex; flex-wrap: wrap; gap: 8px; }
-.chips-cuenta button { min-height: 44px; padding: 8px 14px; font: inherit; font-size: 0.92rem; font-weight: 700; border-radius: 999px; border: 1.5px solid var(--borde); background: var(--superficie); color: var(--texto); cursor: pointer; }
-.chips-cuenta button[aria-pressed="true"] { border-color: var(--primario); background: var(--primario-suave); color: var(--primario); }
-.chips-cuenta button:focus-visible { outline: 3px solid var(--primario-suave); }
-.nota-clave { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 0.86rem; font-weight: 600; color: var(--suave); }
-.nota-clave .icono { flex: none; width: 18px; height: 18px; margin-top: 1px; }
-.enviado-cuenta { display: flex; gap: 12px; align-items: flex-start; margin-top: 18px; padding: 14px 16px; border-radius: 16px; background: var(--verde-suave); }
-.enviado-cuenta strong { color: var(--verde); }
-.enviado-cuenta p { margin: 4px 0 0; font-size: 0.9rem; color: var(--texto); }
-#form-cuenta input[type="number"] { max-width: 120px; }

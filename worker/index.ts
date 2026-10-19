@@ -533,15 +533,16 @@ async function misReportes(env: Env, email: string, aulaId?: number): Promise<Mi
     reportado_en: m.reportado_en,
     resuelto_en: m.resuelto_en,
   }));
-  // Los pedidos de cuenta no son de un aula: solo salen en el inicio del docente, no en la página del QR
-  if (aulaId !== undefined) return mios;
-  const pedidos: MiReporte[] = (await pedidosDe(env, email)).map((p) => ({
+  const pedidos: MiReporte[] = (await pedidosDe(env, email, aulaId)).map((p) => ({
     clase: "cuenta",
     id: p.id,
     tipo: p.plataforma,
     titulo: `${PLATAFORMAS[p.plataforma] ?? p.plataforma}: ${ACCIONES_DOCENTE[p.accion] ?? p.accion}`,
     aula_codigo: "",
-    aula_nombre: p.para === "yo" ? "Tu cuenta" : `${p.cantidad > 1 ? `${p.cantidad} estudiantes · ` : ""}${p.detalle ?? ""}`,
+    // "Aula 306 · 3 estudiantes · 4B: Luis…": el docente reconoce el pedido por el ML y los estudiantes
+    aula_nombre: [p.aula_nombre, p.para === "yo" ? "Tu cuenta" : `${p.cantidad > 1 ? `${p.cantidad} estudiantes · ` : ""}${p.detalle ?? ""}`]
+      .filter(Boolean)
+      .join(" · "),
     estado: p.estado === "resuelto" ? "resuelto" : "recibido",
     reportado_en: p.creado_en,
     resuelto_en: p.resuelto_en,
@@ -557,23 +558,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     const respuesta: AulasDocente = { aulas: results, email: sesion.email, mios: await misReportes(env, sesion.email) };
     return json(respuesta);
   }
-  // Problema con una cuenta o plataforma (Classroom, Pearson…): le llega a TI como push y lo atiende desde Registrar
-  if (url.pathname === "/api/qr/cuentas") {
-    if (request.method !== "POST") return json({ error: "Ruta no encontrada" }, 404);
-    return crearPedido(request, env, sesion.email, (p) =>
-      ctx.waitUntil(
-        notificarTi(env, url.origin, {
-          titulo: `Cuenta · ${PLATAFORMAS[p.plataforma] ?? p.plataforma}: ${ACCIONES_DOCENTE[p.accion] ?? p.accion}`,
-          cuerpo: [cuentaDelPedido(p), p.descripcion, `Pide ${p.email.split("@")[0]}`]
-            .filter(Boolean)
-            .join("\n"),
-          url: "/cuentas",
-          tag: `pedido-${p.id}`,
-        }),
-      ),
-    );
-  }
-  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion|\/danos(?:\/(\d+)\/foto)?)?$/);
+  const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion|\/cuentas|\/danos(?:\/(\d+)\/foto)?)?$/);
   if (!coincide) return json({ error: "Ruta no encontrada" }, 404);
   const codigo = coincide[1];
 
@@ -652,6 +637,22 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     return json({ ok: true }, 201);
   }
   if (coincide[2] === "/autosolucion") return json({ error: "Ruta no encontrada" }, 404);
+
+  // Problema con una cuenta o plataforma (Khan Academy, Pearson…), desde los ML: le llega a TI como push y
+  // lo atiende desde Registrar
+  if (coincide[2] === "/cuentas") {
+    if (request.method !== "POST") return json({ error: "Ruta no encontrada" }, 404);
+    return crearPedido(request, env, sesion.email, aula, (p) =>
+      ctx.waitUntil(
+        notificarTi(env, url.origin, {
+          titulo: `${aula.nombre} · ${PLATAFORMAS[p.plataforma] ?? p.plataforma}: ${ACCIONES_DOCENTE[p.accion] ?? p.accion}`,
+          cuerpo: [cuentaDelPedido(p), p.descripcion, `Pide ${p.email.split("@")[0]}`].filter(Boolean).join("\n"),
+          url: "/cuentas",
+          tag: `pedido-${p.id}`,
+        }),
+      ),
+    );
+  }
 
   if (coincide[3] && request.method === "PUT") {
     return subirFoto(request, env, sesion, aula.id, Number(coincide[3]));
