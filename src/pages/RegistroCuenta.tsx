@@ -85,7 +85,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
       setMensaje({
         ok: true,
         texto: pedido
-          ? `Pedido cerrado: ${usuario(pedido.email)} ya lo ve como resuelto en AulaViva.`
+          ? `Pedido cerrado: ${usuario(pedido.email)} ya lo ve como resuelto en Hazio.`
           : `Registrado: ${resumenAtencion(a)}, ${paraQuien(a)}.`,
       });
       setPedido(null);
@@ -249,7 +249,7 @@ export default function RegistroCuenta({ email, onNoAutorizado, selector }: { em
                     {a.detalle ? ` · ${a.detalle}` : ""}
                     {a.email !== email ? ` · ${usuario(a.email)}` : ""}
                     {a.nota ? ` · ${a.nota}` : ""}
-                    {a.pedido_id !== null ? " · lo pidió en AulaViva" : ""}
+                    {a.pedido_id !== null ? " · lo pidió en Hazio" : ""}
                   </p>
                   {a.email === email && Date.now() - new Date(a.creado_en).getTime() < 12 * 3_600_000 && (
                     <button className="enlace peligro borrar-atencion" onClick={() => borrar(a)}>

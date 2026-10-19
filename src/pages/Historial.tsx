@@ -56,7 +56,7 @@ const aulaDe = (r: Reporte) => `${r.aula_nombre}${r.aula_seccion ? ` · ${r.aula
 
 function csvFallas(filas: Reporte[], mes: string) {
   descargarCsv(
-    `aulaviva-fallas-${mes}.csv`,
+    `hazio-fallas-${mes}.csv`,
     ["Reportado", "Aula", "Falla", "Bloqueó la clase", "Reportó", "Canal", "Estado", "Atendido", "Resuelto", "Minutos hasta atención", "Minutos hasta resolución", "Descripción", "Causa", "Qué se hizo", "Observaciones", "Ticket GLPI"],
     filas.map((r) => [
       fechaExcel(r.reportado_en),
@@ -81,7 +81,7 @@ function csvFallas(filas: Reporte[], mes: string) {
 
 function csvDanos(filas: Dano[], mes: string) {
   descargarCsv(
-    `aulaviva-danos-${mes}.csv`,
+    `hazio-danos-${mes}.csv`,
     ["Reportado", "Aula", "Grupo", "Daño", "Equipo", "Sección", "Estudiante", "Reportó", "Estado", "Resuelto", "Descripción", "Qué se hizo"],
     filas.map((d) => [
       fechaExcel(d.reportado_en),
@@ -101,11 +101,11 @@ function csvDanos(filas: Dano[], mes: string) {
 }
 
 const ORIGEN_CUENTA = { whatsapp: "WhatsApp", presencial: "En persona", otro: "Otro" } as const;
-const comoLlego = (a: AtencionCuenta) => (a.pedido_id !== null ? "Pedido desde AulaViva" : (ORIGEN_CUENTA[a.origen] ?? a.origen));
+const comoLlego = (a: AtencionCuenta) => (a.pedido_id !== null ? "Pedido desde Hazio" : (ORIGEN_CUENTA[a.origen] ?? a.origen));
 
 function csvCuentas(filas: AtencionCuenta[], mes: string) {
   descargarCsv(
-    `aulaviva-cuentas-${mes}.csv`,
+    `hazio-cuentas-${mes}.csv`,
     ["Fecha", "Qué se hizo", "Plataforma", "Para quién", "Cantidad", "Sección o nombre", "Nota", "Cómo llegó", "Atendió"],
     filas.map((a) => [
       fechaExcel(a.creado_en),
@@ -289,7 +289,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                       ? csvDanos(danos, archivo)
                       : vista === "cuentas"
                         ? csvCuentas(cuentas, archivo)
-                        : csvRondas(rondas, `aulaviva-monitoreo-${archivo}.csv`)
+                        : csvRondas(rondas, `hazio-monitoreo-${archivo}.csv`)
                 }
               >
                 <Icono nombre="descargar" />

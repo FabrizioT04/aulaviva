@@ -5,7 +5,7 @@ export default function Logo() {
     <span className="logo">
       <span className="logo-marca" dangerouslySetInnerHTML={{ __html: DRAGON_AULAVIVA }} />
       <span className="logo-texto">
-        <strong>AulaViva</strong>
+        <strong>Hazio</strong>
         <small>Soporte TI · Sede SMP1</small>
       </span>
     </span>

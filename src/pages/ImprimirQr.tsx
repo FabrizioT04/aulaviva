@@ -97,7 +97,7 @@ export default function ImprimirQr({ onNoAutorizado, ir }: Props) {
                 {aula.seccion ? ` · ${aula.seccion}` : ""}
               </strong>
               <span>Escanea para reportar una falla a TI</span>
-              <em className="marca-qr"><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: DRAGON_AULAVIVA }} />AulaViva · Soporte TI</em>
+              <em className="marca-qr"><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: DRAGON_AULAVIVA }} />Hazio · Soporte TI</em>
             </figcaption>
             <div className="acciones-una no-imprimir">
               <a href={url} target="_blank" rel="noopener">
