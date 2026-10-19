@@ -101,6 +101,7 @@ function csvDanos(filas: Dano[], mes: string) {
 }
 
 const ORIGEN_CUENTA = { whatsapp: "WhatsApp", presencial: "En persona", otro: "Otro" } as const;
+const comoLlego = (a: AtencionCuenta) => (a.pedido_id !== null ? "Pedido desde AulaViva" : (ORIGEN_CUENTA[a.origen] ?? a.origen));
 
 function csvCuentas(filas: AtencionCuenta[], mes: string) {
   descargarCsv(
@@ -114,7 +115,7 @@ function csvCuentas(filas: AtencionCuenta[], mes: string) {
       a.cantidad,
       a.detalle,
       a.nota,
-      ORIGEN_CUENTA[a.origen] ?? a.origen,
+      comoLlego(a),
       a.email,
     ]),
   );
@@ -376,7 +377,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                           </td>
                           <td>
                             {a.email.split("@")[0]}
-                            <small>{ORIGEN_CUENTA[a.origen] ?? a.origen}</small>
+                            <small>{comoLlego(a)}</small>
                           </td>
                         </tr>
                       ))}

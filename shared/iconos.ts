@@ -36,6 +36,7 @@ const TRAZOS = {
   buscar: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   cerrar: '<path d="M18 6 6 18M6 6l12 12"/>',
   celular: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
+  cuenta: '<circle cx="8" cy="15" r="4"/><path d="m10.85 12.15 9.65-9.65"/><path d="m18 5 3 3"/><path d="m15 8 3 3"/>',
   dano: '<path d="m15 12-8.5 8.5a2.12 2.12 0 0 1-3-3L12 9"/><path d="M17.64 15 22 10.64"/><path d="m20.91 11.7-1.25-1.25a3.18 3.18 0 0 1-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47l2.26 1.91"/>',
   chromebook: '<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9H4z"/><path d="M2 19h20l-2-4H4z"/>',
   edificio:

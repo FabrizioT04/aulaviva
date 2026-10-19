@@ -60,13 +60,13 @@ export function haceCuanto(iso: string): string {
 }
 
 const iconoDe = (m: MiReporte): NombreIcono =>
-  m.clase === "reporte" && TIPOS_FALLA.includes(m.tipo as TipoFalla) ? (m.tipo as TipoFalla) : "dano";
+  m.clase === "cuenta" ? "cuenta" : m.clase === "reporte" && TIPOS_FALLA.includes(m.tipo as TipoFalla) ? (m.tipo as TipoFalla) : "dano";
 
-// Una fila por reporte del docente: qué, dónde, cuándo y en qué va
+// Una fila por reporte del docente: qué, dónde (o de quién es la cuenta), cuándo y en qué va
 export function filaMiReporte(m: MiReporte, conAula = true): string {
   const cuando = m.estado === "resuelto" && m.resuelto_en ? `Resuelto ${haceCuanto(m.resuelto_en)}` : `Enviado ${haceCuanto(m.reportado_en)}`;
   return `<li class="mi-reporte ${m.estado}">
-    <span class="tipo-icono ${m.clase === "reporte" ? esc(m.tipo) : "dano"}">${iconoSvg(iconoDe(m))}</span>
+    <span class="tipo-icono ${m.clase === "reporte" ? esc(m.tipo) : m.clase}">${iconoSvg(iconoDe(m))}</span>
     <span class="abierto-texto"><strong>${esc(m.titulo)}</strong><small>${conAula ? `${esc(m.aula_nombre)} · ` : ""}${cuando}</small></span>
     <span class="estado-reporte ${m.estado}">${m.estado === "resuelto" ? iconoSvg("check") : ""}${ESTADO_DOCENTE[m.estado]}</span>
   </li>`;

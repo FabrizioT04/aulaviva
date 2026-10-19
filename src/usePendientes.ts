@@ -8,12 +8,14 @@ import { useEnVivo } from "./useEnVivo";
 // barra de tareas (Windows y Mac).
 // - Reportes, solo TI: lo mismo que "Reportes abiertos" del dashboard (abiertos, en atención y escalados).
 // - Daños: pendientes y en proceso del grupo que atiende cada uno (TI, equipos tecnológicos; COA, el local).
+// - Cuentas, solo TI: pedidos de cuenta o plataforma que los docentes enviaron desde /docente.
 export interface Pendientes {
   reportes: number;
   danos: number;
+  cuentas: number;
 }
 
-const NINGUNO: Pendientes = { reportes: 0, danos: 0 };
+const NINGUNO: Pendientes = { reportes: 0, danos: 0, cuentas: 0 };
 
 const TITULO = document.title;
 const ICONO = "/icono.svg";
@@ -54,8 +56,9 @@ export function usePendientes(rol: string | null, onNoAutorizado: () => void): P
     Promise.all([
       rol === "ti" ? api<unknown[]>("/api/reportes?estado=abiertos").then((r) => r.length) : 0,
       grupo ? api<MetricasDanos>(`/api/danos/metricas?dias=1&grupo=${grupo}`).then((m) => m.pendientes + m.en_proceso) : 0,
+      rol === "ti" ? api<{ pendientes: number }>("/api/cuentas/pedidos").then((r) => r.pendientes) : 0,
     ])
-      .then(([reportes, danos]) => setPendientes({ reportes, danos }))
+      .then(([reportes, danos, cuentas]) => setPendientes({ reportes, danos, cuentas }))
       .catch((e) => {
         if (e instanceof NoAutorizado) onNoAutorizado();
       });
@@ -69,7 +72,7 @@ export function usePendientes(rol: string | null, onNoAutorizado: () => void): P
     espera.current = window.setTimeout(contar, 400);
   }, activo);
 
-  const total = activo ? pendientes.reportes + pendientes.danos : 0;
+  const total = activo ? pendientes.reportes + pendientes.danos + pendientes.cuentas : 0;
   useEffect(() => {
     mostrar(total);
   }, [total]);
