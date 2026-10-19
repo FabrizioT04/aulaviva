@@ -211,11 +211,10 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
                 {activo.fotos > 0 && <FotosReporte reporteId={activo.id} total={activo.fotos} ruta={`/api/monitoreo/${activo.id}/fotos`} />}
                 <label className={`boton-foto ${subiendo || activo.fotos >= 6 ? "deshabilitado" : ""}`}>
                   <Icono nombre="camara" />
-                  {subiendo ? "Subiendo…" : activo.fotos ? "Tomar otra foto" : "Tomar foto del aula"}
+                  {subiendo ? "Subiendo…" : activo.fotos ? "Agregar otra foto" : "Tomar o elegir foto"}
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     multiple
                     hidden
                     disabled={subiendo || activo.fotos >= 6}
