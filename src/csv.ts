@@ -1,3 +1,6 @@
+import { HALLAZGOS, type Monitoreo } from "../shared/monitoreo";
+import { minutosEntre } from "./formato";
+
 // Descargas "Excel" del panel (Historial y Monitoreo ML)
 
 // En el Excel, "2026-10-16 08:46" (hora de Lima): así se puede ordenar y filtrar como fecha
@@ -22,4 +25,21 @@ export function descargarCsv(nombre: string, encabezados: string[], filas: (stri
   a.download = nombre;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// Rondas en los laboratorios ML, en Monitoreo ML y en el Historial
+export function csvRondas(rondas: Monitoreo[], nombre: string) {
+  descargarCsv(
+    nombre,
+    ["Inicio", "Fin", "Minutos", "Aula", "Quién", "Resultado", "Nota"],
+    rondas.map((r) => [
+      fechaExcel(r.inicio),
+      fechaExcel(r.fin),
+      Math.round(minutosEntre(r.inicio, r.fin) ?? 0),
+      `${r.aula_nombre}${r.aula_seccion ? ` · ${r.aula_seccion}` : ""}`,
+      r.email,
+      r.hallazgos.length ? r.hallazgos.map((h) => HALLAZGOS[h]).join("; ") : "Todo en orden",
+      r.nota,
+    ]),
+  );
 }

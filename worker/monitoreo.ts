@@ -13,8 +13,13 @@ export function puedeMonitorear(sesion: Sesion, env: Env): boolean {
   return lista.length === 0 || lista.includes(sesion.email);
 }
 
+// En el Historial lo ven también COA (solo mirar): las rondas cuentan como trabajo de TI en los laboratorios
+export function puedeVerMonitoreo(sesion: Sesion, env: Env): boolean {
+  return sesion.rol === "coa" || puedeMonitorear(sesion, env);
+}
+
 const AHORA = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
-const SQL_MONITOREO = `SELECT m.id, m.aula_id, a.nombre AS aula_nombre, a.seccion AS aula_seccion, m.inicio, m.fin, m.hallazgos, m.nota
+export const SQL_MONITOREO = `SELECT m.id, m.aula_id, a.nombre AS aula_nombre, a.seccion AS aula_seccion, m.email, m.inicio, m.fin, m.hallazgos, m.nota
   FROM monitoreo m JOIN aula a ON a.id = m.aula_id`;
 // Las aulas ML son las que tienen "ML" en la sección (Aula 306 · ML/10B)
 const SQL_AULAS_ML = `SELECT id, nombre, seccion, piso FROM aula WHERE activa = 1 AND seccion LIKE 'ML%'`;
@@ -23,7 +28,7 @@ const MINUTOS = `(julianday(fin) - julianday(inicio)) * 1440`;
 const HOY = `date(inicio, '-5 hours') = date('now', '-5 hours')`;
 
 type Fila = Omit<Monitoreo, "hallazgos"> & { hallazgos: string };
-const leer = (f: Fila): Monitoreo => ({ ...f, hallazgos: JSON.parse(f.hallazgos) as Hallazgo[] });
+export const leer = (f: Fila): Monitoreo => ({ ...f, hallazgos: JSON.parse(f.hallazgos) as Hallazgo[] });
 
 export async function enrutarMonitoreo(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
   const { pathname } = url;

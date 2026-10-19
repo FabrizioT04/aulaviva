@@ -1,8 +1,8 @@
 import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
-import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
-import { enrutarMonitoreo, puedeMonitorear } from "./monitoreo";
+import type { AulaConEstado, AulasDocente, EntradaReporte, EntradaTi, EstadoReporte, EstadoAulaQr, EstadoMiReporte, EventoEnVivo, Ficha, GuiaDocente, Historial, MiReporte, Recurrente, Reporte, Sesion, Similares, TipoFalla } from "../shared/tipos";
+import { enrutarMonitoreo, leer as leerRonda, puedeMonitorear, puedeVerMonitoreo, SQL_MONITOREO } from "./monitoreo";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -214,7 +214,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     });
   }
 
-  if (pathname === "/api/historial" && metodo === "GET") return await historial(url, env);
+  if (pathname === "/api/historial" && metodo === "GET") return await historial(url, env, sesion);
 
   if (pathname === "/api/reportes" && metodo === "GET") {
     const abiertos = url.searchParams.get("estado") === "abiertos";
@@ -928,7 +928,8 @@ async function resumenSemanal(url: URL, env: Env): Promise<Response> {
 // Historial: todos los reportes y daños de un mes (de Lima), con el resumen del Observatorio de ese mes.
 // ?mes=2026-10; ?mes=todo trae todo lo guardado. Por defecto, el mes actual
 const MAX_HISTORIAL = 5000;
-async function historial(url: URL, env: Env): Promise<Response> {
+async function historial(url: URL, env: Env, sesion: Sesion): Promise<Response> {
+  const conMonitoreo = puedeVerMonitoreo(sesion, env);
   const pedido = url.searchParams.get("mes");
   const todo = pedido === "todo";
   const hoyLima = new Date(Date.now() - 5 * 3_600_000);
@@ -942,12 +943,13 @@ async function historial(url: URL, env: Env): Promise<Response> {
     inicio = new Date(Date.UTC(a, m - 1, 1, 5)).toISOString();
     fin = new Date(Date.UTC(a, m, 1, 5)).toISOString();
   }
-  const [meses, resumen, reportes, danos] = await env.DB.batch([
+  const [meses, resumen, reportes, danos, rondas] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos FROM (
-         SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos FROM reporte
+      `SELECT mes, SUM(fallas) AS fallas, SUM(danos) AS danos, SUM(rondas) AS rondas FROM (
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours') AS mes, 1 AS fallas, 0 AS danos, 0 AS rondas FROM reporte
          UNION ALL
-         SELECT strftime('%Y-%m', reportado_en, '-5 hours'), 0, 1 FROM dano)
+         SELECT strftime('%Y-%m', reportado_en, '-5 hours'), 0, 1, 0 FROM dano
+         ${conMonitoreo ? `UNION ALL SELECT strftime('%Y-%m', inicio, '-5 hours'), 0, 0, 1 FROM monitoreo WHERE fin IS NOT NULL` : ""})
        GROUP BY mes ORDER BY mes DESC`,
     ),
     env.DB.prepare(
@@ -964,11 +966,31 @@ async function historial(url: URL, env: Env): Promise<Response> {
     env.DB.prepare(
       `${SQL_DANOS} WHERE d.reportado_en >= ?1 AND d.reportado_en < ?2 ORDER BY d.reportado_en DESC LIMIT ${MAX_HISTORIAL}`,
     ).bind(inicio, fin),
+    ...(conMonitoreo
+      ? [
+          env.DB.prepare(
+            `${SQL_MONITOREO} WHERE m.fin IS NOT NULL AND m.inicio >= ?1 AND m.inicio < ?2 ORDER BY m.inicio DESC LIMIT ${MAX_HISTORIAL}`,
+          ).bind(inicio, fin),
+        ]
+      : []),
   ]);
-  const listaMeses = meses.results as { mes: string; fallas: number; danos: number }[];
+  const listaMeses = meses.results as Historial["meses"];
   // El mes actual siempre aparece, aunque todavía no tenga nada
-  if (!listaMeses.some((m) => m.mes === actual)) listaMeses.unshift({ mes: actual, fallas: 0, danos: 0 });
-  return json({ mes, meses: listaMeses, resumen: resumen.results[0], reportes: reportes.results, danos: danos.results });
+  if (!listaMeses.some((m) => m.mes === actual)) listaMeses.unshift({ mes: actual, fallas: 0, danos: 0, rondas: 0 });
+  if (!conMonitoreo) for (const m of listaMeses) delete m.rondas;
+  const datos: Historial = {
+    mes,
+    meses: listaMeses,
+    resumen: resumen.results[0] as Historial["resumen"],
+    reportes: reportes.results as Historial["reportes"],
+    danos: danos.results as Historial["danos"],
+  };
+  if (rondas) {
+    const lista = (rondas.results as Parameters<typeof leerRonda>[0][]).map(leerRonda);
+    const minutos = lista.reduce((s, r) => s + (new Date(r.fin!).getTime() - new Date(r.inicio).getTime()) / 60000, 0);
+    datos.monitoreo = { rondas: lista, minutos: Math.round(minutos) };
+  }
+  return json(datos);
 }
 
 function texto(valor: unknown): string | null {

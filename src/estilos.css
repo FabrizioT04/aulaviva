@@ -521,10 +521,12 @@ button.barra-fila:hover, div.barra-fila:hover { background: var(--superficie-2);
 .tabla-historial td.fecha, .tabla-historial td.numero, .tabla-historial td.col-aula { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tabla-historial .insignia { white-space: nowrap; display: inline-block; }
 main:has(.pagina-historial) { max-width: 1440px; }
-.pagina-historial .dato strong { font-size: 1.75rem; }
+.pagina-historial .dato strong { font-size: 1.6rem; white-space: nowrap; }
+.pagina-historial .resumen { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .tabla-historial td.col-falla { min-width: 170px; }
 .tabla-historial .marca-bloqueo { display: block; width: fit-content; margin-top: 6px; padding: 2px 8px; border-radius: 999px; background: var(--rojo-suave); color: var(--rojo-texto); font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 .tabla-historial tbody tr { cursor: pointer; }
+.tabla-rondas tbody tr { cursor: default; }
 .tabla-historial tbody tr:hover { background: var(--superficie-2); }
 .tabla-historial tbody tr:last-child td { border-bottom: 0; }
 .insignia.estado-historial.abierto { background: var(--amarillo-suave); color: var(--amarillo); }

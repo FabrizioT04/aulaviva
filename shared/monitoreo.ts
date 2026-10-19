@@ -17,6 +17,7 @@ export interface Monitoreo {
   aula_id: number;
   aula_nombre: string;
   aula_seccion: string | null;
+  email: string; // quién hizo la ronda
   inicio: string;
   fin: string | null;
   hallazgos: Hallazgo[]; // vacío = todo en orden

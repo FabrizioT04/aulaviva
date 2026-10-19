@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { HALLAZGOS, type AulaMl, type DatosMonitoreo, type Hallazgo, type Monitoreo as Ronda } from "../../shared/monitoreo";
 import { api, NoAutorizado } from "../api";
-import { descargarCsv, fechaExcel } from "../csv";
+import { csvRondas } from "../csv";
 import { duracion, minutosEntre } from "../formato";
 import Icono from "../Icono";
 
@@ -115,22 +115,6 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
     );
 
   const descartar = () => accion(() => (activo ? api(`/api/monitoreo/${activo.id}`, { method: "DELETE" }) : Promise.resolve()));
-
-  function excel() {
-    if (!d) return;
-    descargarCsv(
-      "aulaviva-monitoreo-ml.csv",
-      ["Inicio", "Fin", "Minutos", "Aula", "Resultado", "Nota"],
-      d.recientes.map((r) => [
-        fechaExcel(r.inicio),
-        fechaExcel(r.fin),
-        Math.round(minutosEntre(r.inicio, r.fin) ?? 0),
-        nombreRonda(r),
-        r.hallazgos.length ? r.hallazgos.map((h) => HALLAZGOS[h]).join("; ") : "Todo en orden",
-        r.nota,
-      ]),
-    );
-  }
 
   const pisos = [...new Set((d?.aulas ?? []).map((a) => a.piso))];
 
@@ -256,7 +240,7 @@ export default function Monitoreo({ onNoAutorizado }: Props) {
             <div className="titulo-rondas">
               <h2>Rondas anteriores</h2>
               {d.recientes.length > 0 && (
-                <button className="descargar" onClick={excel}>
+                <button className="descargar" onClick={() => csvRondas(d.recientes, "aulaviva-monitoreo-ml.csv")}>
                   <Icono nombre="descargar" />
                   Descargar Excel
                 </button>
