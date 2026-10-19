@@ -160,3 +160,12 @@ textarea:focus { outline: 3px solid var(--primario-suave); border-color: var(--p
 .campos-chromebook .suave { font-weight: 500; font-size: 0.82rem; }
 #form-dano .enviar { margin-top: 20px; }
 #form-dano #destino-dano { text-align: center; margin: 8px 0 0; font-size: 0.88rem; }
+
+/* Safari anterior a iOS 16.2 (iPhone 7 y 8 con iOS 15) no entiende color-mix(): sin esto,
+   el pie fijo queda transparente sobre la guía y el botón Enviar desactivado se pierde */
+@supports not (color: color-mix(in srgb, red, red)) {
+  .acciones-reporte.fijas { background: var(--fondo); }
+  .enviar:disabled { background: var(--primario); opacity: 0.45; }
+  .boton-urgente:disabled { color: var(--suave); box-shadow: inset 0 0 0 2px var(--borde); }
+  .boton-foto { border-color: var(--borde); }
+}
