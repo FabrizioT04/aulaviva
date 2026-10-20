@@ -1,3 +1,4 @@
+import { limiteFotos } from "../shared/fotos";
 import { EQUIPO_DANOS, seccionesDe, TIPOS_DANO, type TipoDano } from "../shared/danos";
 import { comparar, raices } from "../shared/parecido";
 import { ENTRADAS, ENTRADAS_TI, etiquetaFalla, fallasDe, paraAmbiente, TIPOS_FALLA } from "../shared/tipos";
@@ -735,9 +736,9 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
 
 const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_FOTO_BYTES = 3 * 1024 * 1024; // el celular la comprime antes a ~200 KB
-const MAX_FOTOS = 3;
 
-// Fotos de evidencia: solo el docente que creó el reporte, hasta 3 y en los 15 minutos siguientes
+
+// Fotos de evidencia: solo el docente que creó el reporte, hasta 6 en ML (3 fuera de ML), en los 15 minutos siguientes
 async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: number, reporteId: number) {
   const tipo = (request.headers.get("Content-Type") ?? "").split(";")[0].trim();
   const extension = TIPOS_FOTO[tipo];
@@ -746,6 +747,8 @@ async function subirFoto(request: Request, env: Env, sesion: Sesion, aulaId: num
     return json({ error: "La foto es demasiado grande" }, 413);
   }
 
+  const ambiente = await env.DB.prepare("SELECT seccion FROM aula WHERE id = ?").bind(aulaId).first<{ seccion: string | null }>();
+  const MAX_FOTOS = limiteFotos(ambiente?.seccion);
   const reporte = await env.DB.prepare(
     `SELECT r.id FROM reporte r JOIN profesor p ON p.id = r.profesor_id
      WHERE r.id = ? AND r.aula_id = ? AND p.email = ?

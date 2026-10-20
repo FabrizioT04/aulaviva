@@ -1,3 +1,4 @@
+import { limiteFotos } from "../../shared/fotos";
 // Página que abre el docente al escanear el QR del aula.
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
@@ -140,7 +141,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
   const principales = fallas.slice(0, 4);
   let tipo: TipoFalla | null = null;
   const fotos: Blob[] = [];
-  const MAX_FOTOS = 3;
+  const MAX_FOTOS = limiteFotos(aula.seccion);
 
   const reportados = abiertos.length
     ? `<section class="tarjeta">
@@ -183,7 +184,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
         <label><span id="etiqueta-detalle">Detalle (opcional)</span><textarea id="detalle" rows="2" maxlength="500" placeholder="Ej. desde cuándo pasa o qué ya probaste"></textarea></label>
         <p class="sugerencia" id="sugerencia" role="status" hidden></p>
         <div class="foto">
-          <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
+          <span class="etiqueta-foto">Fotos (opcional, hasta ${MAX_FOTOS})</span>
           <div class="vista-foto" id="vista"></div>
           <label class="boton-foto" id="elegir-foto">${iconoSvg("camara")}<span id="texto-foto">Tomar o elegir foto</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
         </div>
@@ -542,16 +543,15 @@ function pintarDano(estado: EstadoAulaQr) {
   let grupoElegido = false;
   let tipo: TipoDano | null = null;
   const fotos: Blob[] = [];
-  const MAX_FOTOS = 3;
+  const MAX_FOTOS = limiteFotos(aula.seccion);
   const ICONO = { tecnologia: tieneChromebooks(aula) ? "chromebook" : "pc", local: "edificio" } as const;
-  // La sección sale del aula y no se escribe a mano. Si el aula es de dos secciones (ej. ML/10B), se elige una
-  const secciones = seccionesDe(aula.seccion);
-  const campoSeccion =
-    secciones.length > 1
-      ? `<select id="seccion">${secciones.map((s) => `<option>${esc(s)}</option>`).join("")}</select>`
-      : secciones.length === 1
-        ? `<input id="seccion" value="${esc(secciones[0])}" readonly /><span class="suave">Es la sección de esta aula.</span>`
-        : `<input id="seccion" maxlength="20" />`;
+  // El grupo puede estar usando un aula distinta a su sección habitual.
+  const secciones = seccionesDe(aula.seccion).filter((s) => s.toUpperCase() !== "ML");
+  const campoSeccion = `<input id="seccion" maxlength="20" list="secciones-sugeridas"
+    value="${esc(secciones.length === 1 ? secciones[0] : "")}" placeholder="Ej. 5A o 10B"
+    aria-describedby="ayuda-seccion" />
+    <datalist id="secciones-sugeridas">${secciones.map((s) => `<option value="${esc(s)}"></option>`).join("")}</datalist>
+    <span class="suave" id="ayuda-seccion">Puedes cambiarla si el estudiante pertenece a otra sección. El aula del reporte no cambia.</span>`;
 
   app.innerHTML = `
     ${cabecera(aula)}
@@ -577,7 +577,7 @@ function pintarDano(estado: EstadoAulaQr) {
         </div>
       </details>
       <div class="foto">
-        <span class="etiqueta-foto">Fotos (opcional, hasta 3)</span>
+        <span class="etiqueta-foto">Fotos (opcional, hasta ${MAX_FOTOS})</span>
         <div class="vista-foto" id="vista-dano"></div>
         <label class="boton-foto" id="elegir-foto-dano">${iconoSvg("camara")}<span id="texto-foto-dano">Tomar o elegir foto</span><input type="file" id="archivo-dano" accept="image/*" multiple hidden /></label>
       </div>
@@ -709,8 +709,8 @@ function pintarDano(estado: EstadoAulaQr) {
       pintarEstado();
     }
     $<HTMLInputElement>("equipo").value = b.equipo ?? "";
-    // La sección guardada solo vale si es del aula (o si el aula no tiene sección)
-    if (b.seccion && (!secciones.length || secciones.includes(b.seccion))) $<HTMLInputElement>("seccion").value = b.seccion;
+    // También recupera la sección de un grupo que rotó de salón.
+    if (typeof b.seccion === "string") $<HTMLInputElement>("seccion").value = b.seccion.slice(0, 20);
     detalle.value = b.detalle ?? "";
     if (b.equipo || b.detalle) extra.open = true;
     guardarDano();

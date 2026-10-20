@@ -1,3 +1,4 @@
+import { limiteFotos } from "../shared/fotos";
 // API de Daños y mantenimiento (ver shared/danos.ts).
 // Quién ve y quién atiende cada grupo está en shared/danos.ts. El docente solo puede reportar desde el QR.
 import { ATIENDE_DANO, ETIQUETA_ATIENDE, ETIQUETA_ESTADO_DANO, gruposQueVe, LISTA_TIPOS_DANO, puedeEditarDano, TIPOS_DANO, tiposDanoDe } from "../shared/danos";
@@ -13,7 +14,7 @@ export const SQL_DANOS = `
 
 export const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 export const MAX_FOTO_BYTES = 3 * 1024 * 1024;
-const MAX_FOTOS = 3;
+
 
 export const puedeVerDanos = (sesion: Sesion) => sesion.rol === "ti" || sesion.rol === "coa";
 
@@ -147,7 +148,7 @@ export async function crearDano(env: Env, aulaId: number, datos: Record<string, 
   return json(creado, 201);
 }
 
-// Fotos de evidencia: hasta 3 por daño
+// Fotos de evidencia: hasta 6 en ML, 3 en los demás ambientes
 export async function guardarFoto(request: Request, env: Env, danoId: number): Promise<Response> {
   const tipo = (request.headers.get("Content-Type") ?? "").split(";")[0].trim();
   const extension = TIPOS_FOTO[tipo];
@@ -156,6 +157,9 @@ export async function guardarFoto(request: Request, env: Env, danoId: number): P
   if (datos.byteLength === 0 || datos.byteLength > MAX_FOTO_BYTES) {
     return json({ error: "La foto está vacía o es demasiado grande" }, 413);
   }
+  const ambiente = await env.DB.prepare("SELECT a.seccion FROM dano d JOIN aula a ON a.id = d.aula_id WHERE d.id = ?").bind(danoId).first<{ seccion: string | null }>();
+  if (!ambiente) return json({ error: "Daño no encontrado" }, 404);
+  const MAX_FOTOS = limiteFotos(ambiente.seccion);
   const clave = `danos/${danoId}-${crypto.randomUUID()}.${extension}`;
   await env.FOTOS.put(clave, datos, { httpMetadata: { contentType: tipo } });
   const guardada = await env.DB.prepare(
