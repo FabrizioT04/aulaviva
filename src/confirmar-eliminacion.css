@@ -1,0 +1,25 @@
+.confirmar-eliminacion {
+  width: min(460px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  margin: auto;
+  padding: 28px;
+  border: 1px solid var(--borde);
+  border-radius: 24px;
+  background: var(--superficie);
+  color: var(--texto);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 0.22);
+}
+.confirmar-eliminacion::backdrop { background: rgb(15 23 42 / 0.48); backdrop-filter: blur(3px); }
+.confirmar-eliminacion-icono { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 18px; border-radius: 16px; color: var(--rojo-texto); background: var(--rojo-suave); border: 1px solid var(--rojo-borde); }
+.confirmar-eliminacion-icono .icono { width: 24px; height: 24px; }
+.confirmar-eliminacion h2 { font-size: 1.4rem; margin-bottom: 16px; }
+.confirmar-eliminacion p { color: var(--suave); line-height: 1.55; }
+.confirmar-eliminacion .confirmar-eliminacion-detalle { padding: 12px 14px; border-radius: 14px; background: var(--superficie-2); border: 1px solid var(--borde); color: var(--texto); font-weight: 700; overflow-wrap: anywhere; }
+.confirmar-eliminacion strong { display: block; margin-top: 8px; color: var(--texto); }
+.confirmar-eliminacion-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.confirmar-eliminacion .confirmar-eliminacion-boton { background: var(--rojo-texto); border-color: var(--rojo-texto); color: var(--superficie); }
+@media (max-width: 520px) {
+  .confirmar-eliminacion { padding: 22px; }
+  .confirmar-eliminacion-acciones button { flex: 1; }
+}
