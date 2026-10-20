@@ -707,8 +707,9 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
         .bind(creado.id, sesion.email, creado.reportado_en)
         .run();
     }
-    await avisarCambio(env, aula.id);
-    // El push sale después de responder, para que el docente no espere a los servicios push
+    // Tras guardar, dashboard y push arrancan en paralelo y continúan después de responder.
+    // Cada tarea se registra por separado: si una falla, la otra puede completarse.
+    ctx.waitUntil(avisarCambio(env, aula.id).catch((e) => console.error("dashboard reporte", e)));
     if (creado) {
       const bloquea = Boolean(datos?.bloquea_clase);
       ctx.waitUntil(
@@ -725,7 +726,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
           url: `/aula/${aula.id}`,
           tag: `reporte-${creado.id}`,
           urgente: bloquea,
-        }),
+        }).catch((e) => console.error("push reporte", e)),
       );
     }
     return json(creado, 201);
