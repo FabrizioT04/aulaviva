@@ -19,7 +19,8 @@ self.addEventListener("push", (e) => {
         // Con la misma etiqueta, vuelve a sonar y a mostrarse en vez de reemplazarse en silencio
         renotify: Boolean(aviso.tag),
         icon: "/icono-180.png?v=dragon3",
-        badge: "/icono-180.png?v=dragon3",
+        // Silueta sin fondo para el icono pequeño monocromático de Android.
+        badge: "/badge-hazio.png?v=1",
         data: { url: aviso.url || "/dashboard" },
         // Un reporte urgente queda en pantalla hasta que TI lo toque
         requireInteraction: Boolean(aviso.urgente),
