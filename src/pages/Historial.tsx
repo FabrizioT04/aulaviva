@@ -134,9 +134,8 @@ export default function Historial({ onNoAutorizado, ir, soloLectura }: Props) {
 
   async function eliminar(clase: "fallas" | "danos", id: number, detalle: string) {
     if (soloLectura || eliminando) return;
-    const nombre = clase === "fallas" ? "falla" : "daño";
     if (!window.confirm(
-      `¿Eliminar ${nombre} #${id} — ${detalle}?\n\nSe eliminarán el registro y sus fotos asociadas${clase === "fallas" ? ", incluido su historial de estados" : ""}. También dejará de contar en las estadísticas.\n\nEsta acción no se puede deshacer.`,
+      `¿Quieres eliminar este registro?\n\n${detalle}\n\nSe borrarán sus datos y fotos de forma permanente y se actualizarán las estadísticas. No podrás recuperarlo.`,
     )) return;
     setEliminando(true);
     setMensaje(null);
