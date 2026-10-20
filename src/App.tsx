@@ -252,7 +252,7 @@ export default function App() {
         {pantalla.pantalla === "observatorio" && (
           <Observatorio onNoAutorizado={salir} ir={ir} />
         )}
-        {pantalla.pantalla === "historial" && <Historial onNoAutorizado={salir} ir={ir} />}
+        {pantalla.pantalla === "historial" && <Historial onNoAutorizado={salir} ir={ir} soloLectura={soloLectura} />}
         {pantalla.pantalla === "monitoreo" && <Monitoreo onNoAutorizado={salir} />}
         {pantalla.pantalla === "fichas" && <Fichas onNoAutorizado={salir} soloLectura={soloLectura} />}
         {pantalla.pantalla === "qr" && (

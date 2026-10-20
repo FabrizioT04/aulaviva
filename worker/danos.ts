@@ -6,6 +6,7 @@ import type { Dano, EstadoDano, GrupoDano, MetricasDanos, TipoDano } from "../sh
 import type { Sesion } from "../shared/tipos";
 import type { Env } from "./index";
 import { sede } from "./sede-en-vivo";
+import { eliminarRegistro } from "./eliminar-registro";
 
 export const SQL_DANOS = `
   SELECT d.*, a.codigo AS aula_codigo, a.nombre AS aula_nombre,
@@ -79,6 +80,14 @@ export async function enrutarDanos(request: Request, url: URL, env: Env, sesion:
   const id = Number(uno[1]);
   const dano = await env.DB.prepare("SELECT id, grupo FROM dano WHERE id = ?").bind(id).first<{ id: number; grupo: GrupoDano }>();
   if (!dano || !visibles.includes(dano.grupo)) return json({ error: "Daño no encontrado" }, 404);
+
+  if (!uno[2] && metodo === "DELETE") {
+    if (sesion.rol !== "ti" || !puedeEditarDano(sesion.rol, dano.grupo)) return soloVer(dano.grupo);
+    const borrado = await eliminarRegistro(env, "dano", id);
+    if (!borrado) return json({ error: "El daño ya no existe" }, 404);
+    await avisarDanos(env).catch((e) => console.error("dashboard eliminar daño", e));
+    return json({ ok: true });
+  }
 
   if (!uno[2] && metodo === "PATCH") {
     if (!puedeEditarDano(sesion.rol, dano.grupo)) return soloVer(dano.grupo);
