@@ -1,4 +1,5 @@
 import { limiteFotos } from "../../shared/fotos";
+import BotonCamara from "../BotonCamara";
 import { useCallback, useEffect, useState } from "react";
 import {
   ATIENDE_DANO,
@@ -291,7 +292,7 @@ function FormDano({
   const MAX_FOTOS = limiteFotos(aula?.seccion);
   const tiposVisibles = aula ? tiposDanoDe(grupo, aula) : tiposDe(grupo);
 
-  async function elegirFotos(lista: FileList | null) {
+  async function elegirFotos(lista: FileList | File[] | null) {
     const elegidas = [...(lista ?? [])].slice(0, Math.max(0, MAX_FOTOS - fotos.length));
     const nuevas: Blob[] = [];
     for (const f of elegidas) nuevas.push(await comprimir(f).catch(() => f));
@@ -409,9 +410,10 @@ function FormDano({
           required={tipo?.endsWith("_otro")}
         />
       </label>
+      <BotonCamara disabled={guardando || fotos.length >= MAX_FOTOS} onFoto={(foto) => elegirFotos([foto])} />
       <label className="boton-archivo">
         <Icono nombre="camara" />
-        {fotos.length ? `Fotos: ${fotos.length} de ${MAX_FOTOS}` : "Agregar fotos (opcional)"}
+        {fotos.length ? `Elegir fotos (${fotos.length}/${MAX_FOTOS})` : "Elegir fotos (opcional)"}
         <input type="file" accept="image/*" multiple hidden disabled={fotos.length >= MAX_FOTOS} onChange={(e) => elegirFotos(e.target.files)} />
       </label>
       <div className="acciones">

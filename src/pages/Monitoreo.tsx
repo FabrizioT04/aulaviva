@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import BotonCamara from "../BotonCamara";
 import { HALLAZGOS, nombreLaboratorio, nombrePiso, type DatosMonitoreo, type Hallazgo, type Laboratorio, type Monitoreo as Ronda } from "../../shared/monitoreo";
 import { api, leerToken, NoAutorizado } from "../api";
 import { comprimir } from "../comprimir";
@@ -252,13 +253,13 @@ function RondaActiva({ ronda, libres, ocupado, accion, recargar, fallo, setError
       await api("/api/monitoreo", { method: "POST", body: JSON.stringify({ aula_id: lab.aula_id, cerrar: ronda.id }) });
     });
 
-  async function subirFotos(lista: FileList | null) {
+  async function subirFotos(lista: FileList | File[] | null) {
     if (!lista?.length) return;
     setSubiendo(true);
     setError("");
     const token = leerToken();
     let fallidas = 0;
-    for (const archivo of [...lista]) {
+    for (const archivo of [...lista].slice(0, Math.max(0, 6 - ronda.fotos))) {
       const foto = await comprimir(archivo).catch(() => archivo);
       const res = await fetch(`/api/monitoreo/${ronda.id}/foto`, {
         method: "PUT",
@@ -302,9 +303,10 @@ function RondaActiva({ ronda, libres, ocupado, accion, recargar, fallo, setError
       <div className="fotos-ronda">
         <span className="etiqueta-campo">Fotos</span>
         {ronda.fotos > 0 && <FotosReporte reporteId={ronda.id} total={ronda.fotos} ruta={`/api/monitoreo/${ronda.id}/fotos`} />}
+        <BotonCamara disabled={subiendo || ronda.fotos >= 6} onFoto={(foto) => subirFotos([foto])} />
         <label className={`boton-foto ${subiendo || ronda.fotos >= 6 ? "deshabilitado" : ""}`}>
           <Icono nombre="camara" />
-          {subiendo ? "Subiendo…" : ronda.fotos ? "Agregar otra foto" : "Tomar o elegir foto"}
+          {subiendo ? "Subiendo…" : "Elegir fotos"}
           <input
             type="file"
             accept="image/*"

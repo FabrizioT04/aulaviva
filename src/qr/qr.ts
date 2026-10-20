@@ -1,3 +1,4 @@
+import { tomarFoto } from "../camara";
 import { limiteFotos } from "../../shared/fotos";
 // Página que abre el docente al escanear el QR del aula.
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
@@ -186,7 +187,8 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
         <div class="foto">
           <span class="etiqueta-foto">Fotos (opcional, hasta ${MAX_FOTOS})</span>
           <div class="vista-foto" id="vista"></div>
-          <label class="boton-foto" id="elegir-foto">${iconoSvg("camara")}<span id="texto-foto">Tomar o elegir foto</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
+          <button type="button" class="boton-foto" id="tomar-foto">${iconoSvg("camara")}Tomar foto</button>
+        <label class="boton-foto" id="elegir-foto">${iconoSvg("camara")}<span id="texto-foto">Elegir fotos</span><input type="file" id="archivo" accept="image/*" multiple hidden /></label>
         </div>
       </details>
       <div class="acciones-reporte">
@@ -223,7 +225,8 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
       )
       .join("");
     elegir.hidden = fotos.length >= MAX_FOTOS;
-    textoFoto.textContent = fotos.length ? `Agregar otra foto (${fotos.length}/${MAX_FOTOS})` : "Tomar o elegir foto";
+    document.getElementById("tomar-foto")!.hidden = fotos.length >= MAX_FOTOS;
+    textoFoto.textContent = fotos.length ? `Elegir fotos (${fotos.length}/${MAX_FOTOS})` : "Elegir fotos";
     guardarQr();
   }
 
@@ -235,6 +238,18 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
     else guardarBorrador<BorradorQr>(CLAVE_BORRADOR, { tipo, detalle, fotos: fotos.length });
   }
 
+  const botonCamara = document.getElementById(archivo.id === "archivo" ? "tomar-foto" : "tomar-foto-dano") as HTMLButtonElement;
+  botonCamara.addEventListener("click", async () => {
+    if (fotos.length >= MAX_FOTOS) return;
+    botonCamara.disabled = true;
+    try {
+      const foto = await tomarFoto();
+      if (foto && botonCamara.isConnected && fotos.length < MAX_FOTOS) {
+        fotos.push(foto);
+        pintarFotos();
+      }
+    } finally { botonCamara.disabled = false; }
+  });
   archivo.addEventListener("change", async () => {
     const elegidos = [...(archivo.files ?? [])].slice(0, MAX_FOTOS - fotos.length);
     archivo.value = "";
@@ -579,7 +594,8 @@ function pintarDano(estado: EstadoAulaQr) {
       <div class="foto">
         <span class="etiqueta-foto">Fotos (opcional, hasta ${MAX_FOTOS})</span>
         <div class="vista-foto" id="vista-dano"></div>
-        <label class="boton-foto" id="elegir-foto-dano">${iconoSvg("camara")}<span id="texto-foto-dano">Tomar o elegir foto</span><input type="file" id="archivo-dano" accept="image/*" multiple hidden /></label>
+        <button type="button" class="boton-foto" id="tomar-foto-dano">${iconoSvg("camara")}Tomar foto</button>
+        <label class="boton-foto" id="elegir-foto-dano">${iconoSvg("camara")}<span id="texto-foto-dano">Elegir fotos</span><input type="file" id="archivo-dano" accept="image/*" multiple hidden /></label>
       </div>
       <button type="button" class="enviar" id="enviar-dano" disabled>Enviar</button>
       <p class="suave" id="destino-dano"></p>
@@ -695,7 +711,8 @@ function pintarDano(estado: EstadoAulaQr) {
       .map((u, i) => `<div class="miniatura"><img src="${u}" alt="Foto ${i + 1}" /><button type="button" data-quitar="${i}" aria-label="Quitar foto ${i + 1}">✕</button></div>`)
       .join("");
     $("elegir-foto-dano").hidden = fotos.length >= MAX_FOTOS;
-    $("texto-foto-dano").textContent = fotos.length ? `Agregar otra foto (${fotos.length}/${MAX_FOTOS})` : "Tomar o elegir foto";
+    $("tomar-foto-dano").hidden = fotos.length >= MAX_FOTOS;
+    $("texto-foto-dano").textContent = fotos.length ? `Elegir fotos (${fotos.length}/${MAX_FOTOS})` : "Elegir fotos";
     guardarDano();
   }
 
@@ -724,6 +741,18 @@ function pintarDano(estado: EstadoAulaQr) {
       pintarDano(estado);
     });
   }
+  const botonCamara = document.getElementById(archivo.id === "archivo" ? "tomar-foto" : "tomar-foto-dano") as HTMLButtonElement;
+  botonCamara.addEventListener("click", async () => {
+    if (fotos.length >= MAX_FOTOS) return;
+    botonCamara.disabled = true;
+    try {
+      const foto = await tomarFoto();
+      if (foto && botonCamara.isConnected && fotos.length < MAX_FOTOS) {
+        fotos.push(foto);
+        pintarFotos();
+      }
+    } finally { botonCamara.disabled = false; }
+  });
   archivo.addEventListener("change", async () => {
     const elegidos = [...(archivo.files ?? [])].slice(0, MAX_FOTOS - fotos.length);
     archivo.value = "";
