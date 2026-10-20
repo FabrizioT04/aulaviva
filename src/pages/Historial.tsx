@@ -14,6 +14,7 @@ import { canal, duracion, ETIQUETA_ESTADO, ETIQUETA_FALLA, minutosEntre } from "
 interface Props {
   onNoAutorizado: () => void;
   ir: (r: Ruta) => void;
+  soloLectura: boolean;
 }
 
 type Clase = "fallas" | "danos" | "cuentas" | "monitoreo";
@@ -123,11 +124,38 @@ function csvCuentas(filas: AtencionCuenta[], mes: string) {
 
 // Todo lo que llegó, mes por mes: el resumen del Observatorio de ese mes y la lista completa de fallas
 // y daños, para buscar un caso antiguo o descargarlo en Excel para un informe
-export default function Historial({ onNoAutorizado, ir }: Props) {
+export default function Historial({ onNoAutorizado, ir, soloLectura }: Props) {
   const [mes, setMes] = useState<string | null>(null); // null = el mes actual
   const [clase, setClase] = useState<Clase>("fallas");
   const [busqueda, setBusqueda] = useState("");
   const [d, setD] = useState<DatosHistorial | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [mensaje, setMensaje] = useState<{ error: boolean; texto: string } | null>(null);
+
+  async function eliminar(clase: "fallas" | "danos", id: number, detalle: string) {
+    if (soloLectura || eliminando) return;
+    const nombre = clase === "fallas" ? "falla" : "daño";
+    if (!window.confirm(
+      `¿Eliminar ${nombre} #${id} — ${detalle}?\n\nSe eliminarán el registro y sus fotos asociadas${clase === "fallas" ? ", incluido su historial de estados" : ""}. También dejará de contar en las estadísticas.\n\nEsta acción no se puede deshacer.`,
+    )) return;
+    setEliminando(true);
+    setMensaje(null);
+    try {
+      await api(`/api/${clase === "fallas" ? "reportes" : "danos"}/${id}`, { method: "DELETE" });
+      setD((actual) => actual ? {
+        ...actual,
+        reportes: clase === "fallas" ? actual.reportes.filter((r) => r.id !== id) : actual.reportes,
+        danos: clase === "danos" ? actual.danos.filter((r) => r.id !== id) : actual.danos,
+      } : actual);
+      setMensaje({ error: false, texto: "Registro eliminado." });
+      cargar();
+    } catch (e) {
+      if (e instanceof NoAutorizado) onNoAutorizado();
+      else setMensaje({ error: true, texto: e instanceof Error ? e.message : "No se pudo eliminar el registro." });
+    } finally {
+      setEliminando(false);
+    }
+  }
 
   const cargar = useCallback(() => {
     api<DatosHistorial>(`/api/historial${mes ? `?mes=${mes}` : ""}`)
@@ -211,6 +239,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
           </select>
         </label>
       </header>
+      {mensaje && <p className={`aviso ${mensaje.error ? "error" : "ok"}`} role={mensaje.error ? "alert" : "status"}>{mensaje.texto}</p>}
 
       {!d ? (
         <p className="vacio">Cargando…</p>
@@ -313,6 +342,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                         <th>Atención</th>
                         <th>Resolución</th>
                         <th>Causa y solución</th>
+                        {!soloLectura && <th>Acciones</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -339,6 +369,13 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                             {r.causa ?? ""}
                             {r.notas_resolucion && <small>{r.notas_resolucion}</small>}
                           </td>
+                          {!soloLectura && <td onClick={(e) => e.stopPropagation()}>
+                            <button className="enlace peligro" disabled={eliminando}
+                              aria-label={`Eliminar falla ${r.id} de ${aulaDe(r)}`}
+                              onClick={() => eliminar("fallas", r.id, `${aulaDe(r)} · ${ETIQUETA_FALLA[r.tipo_falla]}`)}>
+                              Eliminar
+                            </button>
+                          </td>}
                         </tr>
                       ))}
                     </tbody>
@@ -436,6 +473,7 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                       <th>Reportó</th>
                       <th>Estado</th>
                       <th>Qué se hizo</th>
+                      {!soloLectura && <th>Acciones</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -457,6 +495,13 @@ export default function Historial({ onNoAutorizado, ir }: Props) {
                           {x.resuelto_en && <small>{fechaHora(x.resuelto_en)}</small>}
                         </td>
                         <td>{x.nota_cierre ?? ""}</td>
+                        {!soloLectura && <td onClick={(e) => e.stopPropagation()}>
+                          <button className="enlace peligro" disabled={eliminando}
+                            aria-label={`Eliminar daño ${x.id} de ${x.aula_nombre}`}
+                            onClick={() => eliminar("danos", x.id, `${x.aula_nombre} · ${TIPOS_DANO[x.tipo]?.etiqueta ?? x.tipo}`)}>
+                            Eliminar
+                          </button>
+                        </td>}
                       </tr>
                     ))}
                   </tbody>

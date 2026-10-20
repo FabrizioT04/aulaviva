@@ -12,6 +12,7 @@ import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
 import { direccionHazio } from "./direccion";
+import { eliminarRegistro } from "./eliminar-registro";
 
 export { SedeEnVivo };
 
@@ -136,6 +137,15 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
   const metodo = request.method;
 
   if (pathname === "/api/push" || pathname === "/api/push/prueba") return await enrutarPush(request, url, env, sesion);
+
+  const eliminarReporte = pathname.match(/^\/api\/reportes\/(\d+)$/);
+  if (eliminarReporte && metodo === "DELETE") {
+    if (sesion.rol !== "ti") return json({ error: "Solo TI puede eliminar fallas" }, 403);
+    const borrado = await eliminarRegistro(env, "reporte", Number(eliminarReporte[1]));
+    if (!borrado) return json({ error: "La falla ya no existe" }, 404);
+    await avisarCambio(env, borrado.aulaId).catch((e) => console.error("dashboard eliminar reporte", e));
+    return json({ ok: true });
+  }
 
   if (pathname === "/api/en-vivo") {
     // El dashboard se conecta aquí por WebSocket
