@@ -1,3 +1,4 @@
+import { limiteFotos } from "../../shared/fotos";
 import { useCallback, useEffect, useState } from "react";
 import {
   ATIENDE_DANO,
@@ -33,7 +34,7 @@ interface Props {
 }
 
 const ICONO_GRUPO = { tecnologia: "chromebook", local: "edificio" } as const;
-const MAX_FOTOS = 3;
+
 
 // Equipos tecnológicos dañados y desperfectos del local. Va aparte de las incidencias de TI: no cambia el
 // semáforo de las aulas ni las métricas de incidencias; tiene su propio resumen arriba. Quién ve y quién atiende cada grupo está en shared/danos.ts.
@@ -287,10 +288,11 @@ function FormDano({
   const tecnologia = grupo === "tecnologia";
   // Solo lo que hay en el aula elegida: Chromebooks en los ML, proyector donde hay clases
   const aula = aulas.find((a) => a.id === aulaId);
+  const MAX_FOTOS = limiteFotos(aula?.seccion);
   const tiposVisibles = aula ? tiposDanoDe(grupo, aula) : tiposDe(grupo);
 
   async function elegirFotos(lista: FileList | null) {
-    const elegidas = [...(lista ?? [])].slice(0, MAX_FOTOS - fotos.length);
+    const elegidas = [...(lista ?? [])].slice(0, Math.max(0, MAX_FOTOS - fotos.length));
     const nuevas: Blob[] = [];
     for (const f of elegidas) nuevas.push(await comprimir(f).catch(() => f));
     setFotos([...fotos, ...nuevas]);
@@ -299,6 +301,7 @@ function FormDano({
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     if (!aulaId || !tipo) return;
+    if (fotos.length > MAX_FOTOS) { setError(`Esta aula admite hasta ${MAX_FOTOS} fotos. Quita las adicionales antes de enviar.`); return; }
     setGuardando(true);
     setError("");
     try {
