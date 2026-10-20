@@ -6,6 +6,7 @@ import { HALLAZGOS, nombreLaboratorio, type Monitoreo } from "../../shared/monit
 import type { Historial as DatosHistorial, Reporte } from "../../shared/tipos";
 import { api, NoAutorizado } from "../api";
 import FotosReporte from "../FotosReporte";
+import ConfirmarEliminacion from "../ConfirmarEliminacion";
 import Icono from "../Icono";
 import { useEnVivo } from "../useEnVivo";
 import { csvRondas, descargarCsv, fechaExcel } from "../csv";
@@ -131,12 +132,16 @@ export default function Historial({ onNoAutorizado, ir, soloLectura }: Props) {
   const [d, setD] = useState<DatosHistorial | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [mensaje, setMensaje] = useState<{ error: boolean; texto: string } | null>(null);
+  const [porEliminar, setPorEliminar] = useState<{ clase: "fallas" | "danos"; id: number; detalle: string } | null>(null);
 
-  async function eliminar(clase: "fallas" | "danos", id: number, detalle: string) {
+  function eliminar(clase: "fallas" | "danos", id: number, detalle: string) {
     if (soloLectura || eliminando) return;
-    if (!window.confirm(
-      `¿Quieres eliminar este registro?\n\n${detalle}\n\nSe borrarán sus datos y fotos de forma permanente y se actualizarán las estadísticas. No podrás recuperarlo.`,
-    )) return;
+    setPorEliminar({ clase, id, detalle });
+  }
+
+  async function confirmarEliminacion() {
+    if (soloLectura || eliminando || !porEliminar) return;
+    const { clase, id } = porEliminar;
     setEliminando(true);
     setMensaje(null);
     try {
@@ -147,10 +152,11 @@ export default function Historial({ onNoAutorizado, ir, soloLectura }: Props) {
         danos: clase === "danos" ? actual.danos.filter((r) => r.id !== id) : actual.danos,
       } : actual);
       setMensaje({ error: false, texto: "Registro eliminado." });
+      setPorEliminar(null);
       cargar();
     } catch (e) {
       if (e instanceof NoAutorizado) onNoAutorizado();
-      else setMensaje({ error: true, texto: e instanceof Error ? e.message : "No se pudo eliminar el registro." });
+      else throw e;
     } finally {
       setEliminando(false);
     }
@@ -217,6 +223,8 @@ export default function Historial({ onNoAutorizado, ir, soloLectura }: Props) {
 
   return (
     <div className="observatorio pagina-historial">
+      {porEliminar && <ConfirmarEliminacion detalle={porEliminar.detalle}
+        onCancelar={() => setPorEliminar(null)} onConfirmar={confirmarEliminacion} />}
       <header className="cabecera-pagina">
         <div>
           <h1>Historial</h1>
