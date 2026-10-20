@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ATIENDE_DANO, type GrupoDano, type MetricasDanos } from "../shared/danos";
 import { api, NoAutorizado } from "./api";
 import { useEnVivo } from "./useEnVivo";
+import iconoHazio from "../public/icono.svg?raw";
 
 // Casos sin resolver, como los mensajes sin leer de WhatsApp: cada pestaña del menú muestra los suyos, y el
 // total sale en el título y el ícono de la pestaña y, con el panel instalado como app, en su ícono de la
@@ -18,17 +19,16 @@ export interface Pendientes {
 const NINGUNO: Pendientes = { reportes: 0, danos: 0, cuentas: 0 };
 
 const TITULO = document.title;
-const ICONO = "/icono.svg";
+const ICONO = document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.getAttribute("href") ?? "/icono.svg?v=dragon3";
 
 // El ícono de la app con un círculo rojo y el número; arriba de 9 dice 9+, como en el celular
 function iconoConNumero(n: number): string {
   const texto = n > 9 ? "9+" : String(n);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-<rect width="64" height="64" rx="16" fill="#2f5bea"/>
-<path d="M13 32h9l6-17 8 34 6-17h9" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="41" cy="23" r="21" fill="#e0383e" stroke="#fff" stroke-width="3"/>
-<text x="41" y="24" fill="#fff" font-family="system-ui,sans-serif" font-weight="800" font-size="${texto.length > 1 ? 25 : 32}" text-anchor="middle" dominant-baseline="central">${texto}</text>
-</svg>`;
+  // Usa el mismo SVG de la marca; el contador no sustituye el dragón.
+  const svg = iconoHazio.replace("</svg>", `
+<circle cx="410" cy="102" r="94" fill="#e0383e" stroke="#fff" stroke-width="12"/>
+<text x="410" y="106" fill="#fff" font-family="system-ui,sans-serif" font-weight="800" font-size="${texto.length > 1 ? 88 : 112}" text-anchor="middle" dominant-baseline="central">${texto}</text>
+</svg>`);
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
