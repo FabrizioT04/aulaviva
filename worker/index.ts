@@ -869,8 +869,12 @@ function avisarDanoTi(env: Env, origen: string, ctx: ExecutionContext): AlCrearD
 
 // Avisa a todos los navegadores de TI suscritos. Un fallo en uno no detiene a los demás.
 async function notificarTi(env: Env, origen: string, aviso: AvisoPush) {
+  const inicio = Date.now();
   const claves = clavesVapid(env, origen);
-  if (!claves) return;
+  if (!claves) {
+    console.error("push: sin claves VAPID", { tag: aviso.tag, urgente: Boolean(aviso.urgente) });
+    return;
+  }
   const [subs, pendientes] = await env.DB.batch([
     env.DB.prepare(`SELECT email, endpoint, p256dh, auth FROM suscripcion_push`),
     // Lo mismo que cuenta src/usePendientes.ts para TI: reportes y daños de equipos tecnológicos sin resolver,
@@ -883,7 +887,13 @@ async function notificarTi(env: Env, origen: string, aviso: AvisoPush) {
   ]);
   const destinos = (subs.results as (SuscripcionPush & { email: string })[]).filter((s) => sigueEnTi(s.email, env));
   const n = (pendientes.results[0] as { n: number } | undefined)?.n;
+  // Solo metadatos técnicos: nunca registrar contenido, correos ni endpoints.
+  console.log("push: inicio", {
+    tag: aviso.tag, urgente: Boolean(aviso.urgente),
+    suscripciones: subs.results.length, destinatariosTi: destinos.length,
+  });
   await enviarATodos(env, destinos, claves, { ...aviso, pendientes: n });
+  console.log("push: fin", { tag: aviso.tag, duracionMs: Date.now() - inicio });
 }
 
 async function enviarATodos(env: Env, todas: SuscripcionPush[], claves: ClavesVapid, aviso: AvisoPush): Promise<number> {
@@ -898,6 +908,16 @@ async function enviarATodos(env: Env, todas: SuscripcionPush[], claves: ClavesVa
       }),
     ),
   );
+  // Un 2xx confirma aceptación por el servicio push, no entrega en el dispositivo.
+  console.log("push: resultado", {
+    tag: aviso.tag, urgente: Boolean(aviso.urgente),
+    destinatarios: subs.length,
+    estados: estados.reduce<Record<string, number>>((cuentas, estado) => {
+      const clave = estado === 0 ? "errorTransporte" : String(estado);
+      cuentas[clave] = (cuentas[clave] ?? 0) + 1;
+      return cuentas;
+    }, {}),
+  });
   // 404 y 410: el navegador anuló el permiso o la suscripción venció
   const vencidas = subs.filter((_, i) => estados[i] === 404 || estados[i] === 410);
   if (vencidas.length) {
