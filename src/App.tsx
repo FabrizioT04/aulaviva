@@ -12,6 +12,7 @@ import DetalleAula from "./pages/DetalleAula";
 import Fichas from "./pages/Fichas";
 import Historial from "./pages/Historial";
 import Dashboard from "./pages/Dashboard";
+import Eventos from "./pages/Eventos";
 import ImprimirQr from "./pages/ImprimirQr";
 import Monitoreo from "./pages/Monitoreo";
 import Observatorio from "./pages/Observatorio";
@@ -26,6 +27,7 @@ export type Ruta =
   | { pantalla: "fichas" }
   | { pantalla: "qr" }
   | { pantalla: "danos" }
+  | { pantalla: "eventos" }
   | { pantalla: "aula"; id: number };
 
 const PESTANAS: {
@@ -37,6 +39,7 @@ const PESTANAS: {
     | "monitoreo"
     | "fichas"
     | "danos"
+    | "eventos"
     | "qr";
   etiqueta: string;
   corta?: string; // para la barra inferior del celular, si la etiqueta no cabe
@@ -61,6 +64,7 @@ const PESTANAS: {
     corta: "Daños",
     icono: "dano",
   },
+  { pantalla: "eventos", etiqueta: "Eventos y actividades", corta: "Eventos", icono: "evento" },
   { pantalla: "qr", etiqueta: "QR de aulas", icono: "qr", soloPc: true },
 ];
 
@@ -89,6 +93,7 @@ function rutaActual(): Ruta {
   if (p.startsWith("/fichas")) return { pantalla: "fichas" };
   if (p.startsWith("/qr-aulas")) return { pantalla: "qr" };
   if (p.startsWith("/danos")) return { pantalla: "danos" };
+  if (p.startsWith("/eventos")) return { pantalla: "eventos" };
   if (p.startsWith("/cuentas")) return { pantalla: "registro", cuenta: true };
   return { pantalla: "registro" };
 }
@@ -233,6 +238,7 @@ export default function App() {
         </div>
       </header>
       <main>
+        {pantalla.pantalla === "eventos" && <Eventos sesion={sesion} onNoAutorizado={salir} />}
         {pantalla.pantalla === "danos" && (
           <Danos sesion={sesion} onNoAutorizado={salir} />
         )}

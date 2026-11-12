@@ -7,6 +7,7 @@ import { minutosMonitoreo } from "../shared/monitoreo";
 import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, monitoreoSemanal, puedeMonitorear, puedeVerMonitoreo, SQL_AULAS_ML, SQL_MONITOREO, type Fila as FilaRonda } from "./monitoreo";
 import { ACCIONES_DOCENTE, cuentaDelPedido, PLATAFORMAS } from "../shared/cuentas";
 import { crearPedido, cuentasSemanal, enrutarCuentas, pedidosDe, SQL_CUENTAS } from "./cuentas";
+import { enrutarEventos, puedeVerEventos } from "./eventos";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -43,7 +44,7 @@ const ESTADOS: EstadoReporte[] = ["abierto", "en_atencion", "escalado", "resuelt
 // El semáforo se calcula a partir de los reportes no resueltos:
 // rojo = alguno bloquea la clase, amarillo = falla sin bloqueo, verde = operativa.
 const SQL_AULAS = `
-  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion, a.equipo, a.clases, a.impresora, a.audio, a.red_wifi,
+  SELECT a.id, a.codigo, a.nombre, a.piso, a.pabellon, a.nivel, a.seccion, a.equipo, a.espacio, a.clases, a.impresora, a.audio, a.red_wifi,
          COUNT(r.id) AS reportes_abiertos,
          CASE
            WHEN SUM(r.bloquea_clase) > 0 THEN 'rojo'
@@ -106,6 +107,11 @@ export default {
       if (url.pathname === "/api/danos" || url.pathname.startsWith("/api/danos/")) {
         if (!puedeVerDanos(sesion)) return json({ error: "Solo TI y COA pueden ver los daños" }, 403);
         return await enrutarDanos(request, url, env, sesion);
+      }
+      // Eventos externos: los registra TI y COA los ve (ver shared/eventos.ts)
+      if (url.pathname === "/api/eventos" || url.pathname.startsWith("/api/eventos/")) {
+        if (!puedeVerEventos(sesion)) return json({ error: "Solo TI y COA pueden ver los eventos" }, 403);
+        return await enrutarEventos(request, url, env, sesion);
       }
       // Monitoreo de los laboratorios ML: una tarea personal de quien hace las rondas
       if (url.pathname === "/api/monitoreo" || url.pathname.startsWith("/api/monitoreo/")) {
@@ -525,7 +531,7 @@ const ESTADO_DOCENTE: Record<string, EstadoMiReporte> = {
 
 async function misReportes(env: Env, email: string, aulaId?: number): Promise<MiReporte[]> {
   const { results } = await env.DB.prepare(
-    `SELECT m.*, a.codigo, a.nombre, a.equipo FROM (
+    `SELECT m.*, a.codigo, a.nombre, a.equipo, a.espacio FROM (
        SELECT 'reporte' AS clase, r.id, r.tipo_falla AS tipo, r.estado, r.reportado_en, r.resuelto_en, r.aula_id
        FROM reporte r JOIN profesor p ON p.id = r.profesor_id WHERE p.email = ?1
        UNION ALL
@@ -536,12 +542,12 @@ async function misReportes(env: Env, email: string, aulaId?: number): Promise<Mi
      ORDER BY m.reportado_en DESC LIMIT 8`,
   )
     .bind(email, aulaId ?? null)
-    .all<{ clase: "reporte" | "dano"; id: number; tipo: string; estado: string; reportado_en: string; resuelto_en: string | null; codigo: string; nombre: string; equipo: AulaConEstado["equipo"] }>();
+    .all<{ clase: "reporte" | "dano"; id: number; tipo: string; estado: string; reportado_en: string; resuelto_en: string | null; codigo: string; nombre: string; equipo: AulaConEstado["equipo"]; espacio: AulaConEstado["espacio"] }>();
   const mios: MiReporte[] = results.map((m) => ({
     clase: m.clase,
     id: m.id,
     tipo: m.tipo,
-    titulo: m.clase === "reporte" ? etiquetaFalla(m.tipo as TipoFalla, m.equipo) : (TIPOS_DANO[m.tipo as TipoDano]?.etiqueta ?? "Daño"),
+    titulo: m.clase === "reporte" ? etiquetaFalla(m.tipo as TipoFalla, m.equipo, m.espacio) : (TIPOS_DANO[m.tipo as TipoDano]?.etiqueta ?? "Daño"),
     aula_codigo: m.codigo,
     aula_nombre: m.nombre,
     estado: ESTADO_DOCENTE[m.estado] ?? "recibido",
@@ -724,7 +730,7 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
       const bloquea = Boolean(datos?.bloquea_clase);
       ctx.waitUntil(
         notificarTi(env, url.origin, {
-          titulo: `${bloquea ? "Urgente · " : ""}${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}: ${etiquetaFalla(tipo, aula.equipo)}`,
+          titulo: `${bloquea ? "Urgente · " : ""}${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}: ${etiquetaFalla(tipo, aula.equipo, aula.espacio)}`,
           cuerpo: [
             bloquea ? "No puede continuar la clase." : null,
             texto(datos?.descripcion),

@@ -625,3 +625,22 @@ main:has(.pagina-historial) { max-width: 1440px; }
 .qr figcaption .marca-qr { display:flex; justify-content:center; align-items:center; gap:6px; color:#213b7c; }
 .marca-qr .dragon-aulaviva { width:28px; height:28px; display:block; }
 @media print { .qr figcaption .marca-qr { color:#000; } }
+
+/* Eventos y actividades (reusa las tarjetas y el formulario de Daños) */
+.acciones-cabecera { display: flex; flex-wrap: wrap; gap: 8px; }
+.acciones-cabecera .primario { width: auto; }
+.dia-eventos h2 { font-size: 0.95rem; color: var(--suave); margin: 22px 0 10px; }
+.dia-eventos h2::first-letter { text-transform: uppercase; }
+.equipos-evento { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; }
+.equipos-evento li { padding: 3px 10px; border-radius: 999px; background: var(--primario-suave); color: var(--primario); font-size: 0.82rem; font-weight: 600; }
+.evento.cancelado .dano-titulo strong { text-decoration: line-through; opacity: 0.7; }
+.dano-cierre.cancelado { color: var(--suave); }
+.insignia.estado-evento.programado { background: var(--primario-suave); color: var(--primario); }
+.insignia.estado-evento.realizado { background: var(--verde-suave); color: var(--verde); }
+.insignia.estado-evento.cancelado { background: var(--rojo-suave); color: var(--rojo-texto); }
+.tipo-icono.evento-externo { background: #f3e8ff; color: #7e22ce; }
+.tipo-icono.evento-apoyo { background: #e7f8ef; color: #15803d; }
+@media (prefers-color-scheme: dark) {
+  .tipo-icono.evento-externo { background: #2e1a40; color: #d8b4fe; }
+  .tipo-icono.evento-apoyo { background: #13301f; color: #86efac; }
+}
