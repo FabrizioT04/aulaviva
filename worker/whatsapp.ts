@@ -34,6 +34,9 @@ interface Contacto {
   ultimo_mensaje_en: string;
   ultima_aula_id: number | null;
   fotos_sueltas: string;
+  email: string | null;
+  token_enlace: string | null;
+  invitado_en: string | null;
 }
 interface FilaBorrador {
   id: number;
@@ -112,7 +115,7 @@ export async function webhookWhatsapp(request: Request, url: URL, env: Env, ctx:
   ctx.waitUntil(
     (async () => {
       for (const { mensaje, nombre } of pendientes) {
-        await procesarMensaje(env, mensaje, nombre, avisos).catch((e) => console.error("whatsapp: mensaje", e));
+        await procesarMensaje(env, mensaje, nombre, avisos, url.origin).catch((e) => console.error("whatsapp: mensaje", e));
       }
     })(),
   );
@@ -145,7 +148,7 @@ function numeroPermitido(env: Env, telefono: string): boolean {
 
 // ─── Conversación ──────────────────────────────────────────────────────────
 
-export async function procesarMensaje(env: Env, mensaje: MensajeEntrante, nombre: string | null, avisos: Avisos): Promise<void> {
+export async function procesarMensaje(env: Env, mensaje: MensajeEntrante, nombre: string | null, avisos: Avisos, origen: string): Promise<void> {
   const telefono = mensaje.from;
   if (!telefono || !numeroPermitido(env, telefono)) return;
   // WhatsApp puede avisar dos veces del mismo mensaje
@@ -166,7 +169,7 @@ export async function procesarMensaje(env: Env, mensaje: MensajeEntrante, nombre
 
   const borrador = await borradorActivo(env, telefono);
   const aulas = (await env.DB.prepare(`${SQL_AULA} WHERE activa = 1 ORDER BY codigo`).all<Aula>()).results;
-  const ctx: Conversacion = { env, telefono, contacto, aulas, avisos };
+  const ctx: Conversacion = { env, telefono, contacto, aulas, avisos, origen };
 
   if (mensaje.type === "interactive") {
     const id = mensaje.interactive?.button_reply?.id ?? mensaje.interactive?.list_reply?.id ?? "";
@@ -229,6 +232,7 @@ interface Conversacion {
   contacto: Contacto;
   aulas: Aula[];
   avisos: Avisos;
+  origen: string; // dirección de Hazio, para los enlaces
 }
 
 async function responderBoton(ctx: Conversacion, b: Borrador, id: string) {
@@ -334,7 +338,7 @@ async function avanzar(ctx: Conversacion, b: Borrador) {
   }
   b.paso = null;
   const resultado = await registrar(env, b, aula, "whatsapp", ctx.avisos);
-  await enviarTexto(env, telefono, mensajeRegistrado(resultado, aula, b.tipo_falla));
+  await enviarTexto(env, telefono, mensajeRegistrado(resultado, aula, b.tipo_falla) + (await invitacion(env, telefono, aula, ctx.origen)));
 }
 
 async function preguntarFalla(ctx: Conversacion, b: Borrador) {
@@ -354,6 +358,35 @@ function mensajeRegistrado(r: { reporteId: number; repetido: string | null }, au
     return `Ya estaba registrado ✅ ${que}. TI lo tiene desde las ${horaLima(r.repetido)}. Te escribo por aquí cuando quede resuelto.`;
   }
   return `Registrado ✅ ${que}. TI ya lo tiene en el panel. Te escribo por aquí cuando quede resuelto.`;
+}
+
+// Invitación a usar Hazio, al pie del "Registrado ✅": el enlace abre el QR de esa aula y, la primera vez,
+// une este número con el correo del docente, para que vea en "Tus reportes" lo que avisó por WhatsApp.
+// Mientras no lo abra se le recuerda como máximo una vez al día; después, una vez por semana.
+export async function invitacion(env: Env, telefono: string, aula: Pick<Aula, "codigo">, origen: string): Promise<string> {
+  const contacto = await env.DB.prepare("SELECT email, invitado_en FROM wa_contacto WHERE telefono = ?")
+    .bind(telefono)
+    .first<Pick<Contacto, "email" | "invitado_en">>();
+  if (!contacto) return "";
+  const cada = contacto.email ? 7 * 24 * 60 : 20 * 60;
+  if (contacto.invitado_en && contacto.invitado_en >= haceMinutos(cada)) return "";
+  const nuevo = [...crypto.getRandomValues(new Uint8Array(12))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const fila = await env.DB.prepare(
+    "UPDATE wa_contacto SET token_enlace = COALESCE(token_enlace, ?), invitado_en = ? WHERE telefono = ? RETURNING token_enlace",
+  )
+    .bind(nuevo, ahoraIso(), telefono)
+    .first<{ token_enlace: string }>();
+  const enlace = `${origen}/r/${encodeURIComponent(aula.codigo)}?via=enlace&wa=${fila!.token_enlace}`;
+  return contacto.email
+    ? `\n\n👉 La próxima vez avísalo en 2 toques desde Hazio, sin escribir: ${enlace}`
+    : `\n\n👉 Mira en qué va tu reporte y avisa en 2 toques la próxima vez: ${enlace}`;
+}
+
+// El docente abrió el enlace de la invitación con su sesión de Hazio: su número queda unido a su correo
+export async function vincularTelefono(env: Env, token: string, email: string): Promise<boolean> {
+  if (!/^[0-9a-f]{24}$/.test(token)) return false;
+  const fila = await env.DB.prepare("UPDATE wa_contacto SET email = ? WHERE token_enlace = ? RETURNING telefono").bind(email, token).first();
+  return Boolean(fila);
 }
 
 const horaLima = (iso: string) => new Date(iso).toLocaleTimeString("es-PE", { hour: "numeric", minute: "2-digit", timeZone: "America/Lima" });
@@ -548,7 +581,9 @@ export async function enrutarBandeja(request: Request, url: URL, env: Env, sesio
     if (typeof datos?.bloquea_clase === "boolean") b.bloquea_clase = datos.bloquea_clase ? 1 : 0;
     const resultado = await registrar(env, b, aula, sesion.email, avisos);
     const contacto = await env.DB.prepare("SELECT ultimo_mensaje_en FROM wa_contacto WHERE telefono = ?").bind(fila.telefono).first<{ ultimo_mensaje_en: string }>();
-    if (dentroDeVentana(contacto?.ultimo_mensaje_en)) await enviarTexto(env, fila.telefono, mensajeRegistrado(resultado, aula, tipo));
+    if (dentroDeVentana(contacto?.ultimo_mensaje_en)) {
+      await enviarTexto(env, fila.telefono, mensajeRegistrado(resultado, aula, tipo) + (await invitacion(env, fila.telefono, aula, url.origin)));
+    }
     return json({ reporte_id: resultado.reporteId }, 201);
   }
   return json({ error: "Ruta no encontrada" }, 404);
@@ -582,7 +617,7 @@ async function enviar(env: Env, telefono: string, contenido: Record<string, unkn
   }
 }
 
-const enviarTexto = (env: Env, telefono: string, texto: string) => enviar(env, telefono, { type: "text", text: { body: texto } });
+const enviarTexto = (env: Env, telefono: string, texto: string) => enviar(env, telefono, { type: "text", text: { body: texto, preview_url: false } });
 
 // WhatsApp admite hasta 3 botones de 20 caracteres
 const enviarBotones = (env: Env, telefono: string, texto: string, botones: { id: string; titulo: string }[]) =>

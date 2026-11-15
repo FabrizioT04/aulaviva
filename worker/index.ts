@@ -14,7 +14,7 @@ import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
 import { direccionHazio } from "./direccion";
 import { eliminarRegistro } from "./eliminar-registro";
-import { avisarResuelto, enrutarBandeja, webhookWhatsapp, type Avisos } from "./whatsapp";
+import { avisarResuelto, enrutarBandeja, vincularTelefono, webhookWhatsapp, type Avisos } from "./whatsapp";
 
 export { SedeEnVivo };
 
@@ -557,7 +557,9 @@ async function misReportes(env: Env, email: string, aulaId?: number): Promise<Mi
   const { results } = await env.DB.prepare(
     `SELECT m.*, a.codigo, a.nombre, a.equipo, a.espacio FROM (
        SELECT 'reporte' AS clase, r.id, r.tipo_falla AS tipo, r.estado, r.reportado_en, r.resuelto_en, r.aula_id
-       FROM reporte r JOIN profesor p ON p.id = r.profesor_id WHERE p.email = ?1
+       FROM reporte r LEFT JOIN profesor p ON p.id = r.profesor_id
+       -- también los que avisó por WhatsApp, si unió su número abriendo el enlace del "Registrado ✅"
+       WHERE p.email = ?1 OR r.wa_telefono IN (SELECT telefono FROM wa_contacto WHERE email = ?1)
        UNION ALL
        SELECT 'dano', d.id, d.tipo, d.estado, d.reportado_en, d.resuelto_en, d.aula_id FROM dano d WHERE d.reportado_por = ?1
      ) m JOIN aula a ON a.id = m.aula_id
@@ -602,6 +604,12 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
     const { results } = await env.DB.prepare(`${SQL_AULAS} GROUP BY a.id ORDER BY a.piso, a.codigo`).all<AulaConEstado>();
     const respuesta: AulasDocente = { aulas: results, email: sesion.email, mios: await misReportes(env, sesion.email) };
     return json(respuesta);
+  }
+  // El docente abrió el enlace que Hazio le mandó por WhatsApp: une ese número a su correo
+  if (url.pathname === "/api/qr/whatsapp/unir" && request.method === "POST") {
+    const datos = await request.json<{ token?: unknown }>().catch(() => null);
+    const unido = typeof datos?.token === "string" && (await vincularTelefono(env, datos.token, sesion.email));
+    return json({ ok: unido });
   }
   const coincide = url.pathname.match(/^\/api\/qr\/([\w-]+)(\/reportes(?:\/(\d+)\/foto)?|\/autosolucion|\/cuentas|\/danos(?:\/(\d+)\/foto)?)?$/);
   if (!coincide) return json({ error: "Ruta no encontrada" }, 404);

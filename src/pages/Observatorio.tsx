@@ -10,6 +10,7 @@ const ENTRADA: Record<string, string> = {
   qr: "QR impreso",
   escaner: "Escáner de /docente",
   lista: "Lista de /docente",
+  enlace: "Enlace de WhatsApp",
   whatsapp: "WhatsApp (vía TI)",
   whatsapp_auto: "WhatsApp (automático)",
   presencial: "En persona (vía TI)",

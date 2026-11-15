@@ -56,9 +56,9 @@ interface BorradorDano {
   detalle: string;
   fotos: number;
 }
-// Por dónde llegó el docente: /docente agrega ?via=lista o ?via=escaner; sin eso, escaneó el QR impreso
+// Por dónde llegó el docente: /docente agrega ?via=lista o ?via=escaner y el enlace de WhatsApp ?via=enlace; sin eso, escaneó el QR impreso
 const via = new URLSearchParams(location.search).get("via");
-const entrada = via === "lista" || via === "escaner" ? via : "qr";
+const entrada = via === "lista" || via === "escaner" || via === "enlace" ? via : "qr";
 
 function minutos(m: number | null): string | null {
   if (m == null) return null;
@@ -73,7 +73,23 @@ function mensaje(titulo: string, detalle = "") {
     <section class="tarjeta"><h2>${esc(titulo)}</h2>${detalle ? `<p>${esc(detalle)}</p>` : ""}</section>`;
 }
 
+// Llegó desde el enlace que Hazio le mandó por WhatsApp: su número queda unido a su correo para que
+// sus reportes de WhatsApp salgan en "Tus reportes". El token se quita de la dirección.
+const tokenWhatsapp = new URLSearchParams(location.search).get("wa");
+async function unirWhatsapp() {
+  if (!tokenWhatsapp) return;
+  const params = new URLSearchParams(location.search);
+  params.delete("wa");
+  history.replaceState(null, "", `${location.pathname}${params.size ? `?${params}` : ""}`);
+  await fetch("/api/qr/whatsapp/unir", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: tokenWhatsapp }),
+  }).catch(() => null);
+}
+
 async function cargar() {
+  await unirWhatsapp();
   const res = await fetch(`/api/qr/${encodeURIComponent(codigo)}`);
   if (res.status === 401) {
     return mensaje("Inicia sesión con tu correo institucional", "Usa tu cuenta @innovaschools.edu.pe para reportar.");

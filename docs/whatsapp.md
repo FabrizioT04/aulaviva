@@ -18,6 +18,8 @@ Los docentes siguen escribiendo al WhatsApp Business de la sede como siempre. Ha
 - Si la falla ya estaba abierta en esa aula, no la duplica: responde "Ya estaba registrado ✅" y también le avisará cuando se resuelva.
 - Si no entiende la respuesta, pregunta una vez más. Si tampoco, o si el docente no responde en 30 minutos, se calla y el mensaje queda en **Por clasificar**.
 
+**Invitación a Hazio**: al pie del "Registrado ✅" va un enlace al QR de esa aula: "👉 Mira en qué va tu reporte y avisa en 2 toques la próxima vez". Al abrirlo con su correo del colegio, el número de WhatsApp queda unido a su cuenta, y lo que avisó por WhatsApp aparece en "Tus reportes" y como "Lo reportaste tú". Mientras no lo abra, el enlace se repite como máximo una vez al día; después, una vez por semana con "La próxima vez avísalo en 2 toques desde Hazio". Los reportes que llegan por ese enlace se cuentan aparte en el Observatorio ("Enlace de WhatsApp"), para medir cuántos docentes se pasan a Hazio.
+
 **Por clasificar** aparece arriba del dashboard solo cuando hay mensajes pendientes. TI elige el aula y la falla y toca **Registrar reporte** (si el docente escribió en las últimas 24 h, le llega "Registrado ✅"), o **Descartar** si no era un reporte.
 
 **Resuelto ✅**: al resolver un reporte que llegó por WhatsApp, Hazio le escribe al docente solo si no pasaron 24 h desde su último mensaje. Si pasaron, no escribe; se lo cuenta ("Por cierto, ya quedó resuelto ✅…") la próxima vez que el docente escriba.

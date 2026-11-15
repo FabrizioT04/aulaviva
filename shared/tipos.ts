@@ -147,7 +147,8 @@ export interface DetalleAula {
 }
 
 // Por dónde llegó el reporte del docente (ver migrations/0007_entrada.sql)
-export const ENTRADAS = ["qr", "escaner", "lista"] as const;
+// "enlace": abrió el enlace que Hazio le mandó por WhatsApp (ver worker/whatsapp.ts)
+export const ENTRADAS = ["qr", "escaner", "lista", "enlace"] as const;
 export type EntradaReporte = (typeof ENTRADAS)[number];
 
 // Por dónde le llegó a TI lo que registra desde el panel

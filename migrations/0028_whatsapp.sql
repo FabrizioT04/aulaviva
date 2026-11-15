@@ -9,8 +9,14 @@ CREATE TABLE wa_contacto (
   nombre            TEXT,                    -- nombre de perfil de WhatsApp
   ultimo_mensaje_en TEXT NOT NULL,
   ultima_aula_id    INTEGER REFERENCES aula(id),
-  fotos_sueltas     TEXT NOT NULL DEFAULT '[]' -- fotos enviadas sin texto, por si el reporte llega después (JSON)
+  fotos_sueltas     TEXT NOT NULL DEFAULT '[]', -- fotos enviadas sin texto, por si el reporte llega después (JSON)
+  -- Invitación a usar Hazio: el enlace del "Registrado ✅" lleva token_enlace; al abrirlo con su sesión, el número
+  -- queda unido al correo del docente y sus reportes de WhatsApp salen en "Tus reportes"
+  token_enlace      TEXT UNIQUE,
+  email             TEXT,
+  invitado_en       TEXT
 );
+CREATE INDEX idx_wa_contacto_email ON wa_contacto (email);
 
 -- Mensaje del docente que todavía no es un reporte: falta el aula o la falla.
 -- Mientras espera, Hazio le pregunta. Si no responde, TI lo clasifica en la bandeja "Por clasificar" del dashboard.
