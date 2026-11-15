@@ -2,6 +2,7 @@ import { type CSSProperties, useCallback, useEffect, useState } from "react";
 import type { AulaConEstado, Metricas, Reporte } from "../../shared/tipos";
 import type { Ruta } from "../App";
 import { api, NoAutorizado } from "../api";
+import BandejaWhatsapp from "../BandejaWhatsapp";
 import Contador from "../Contador";
 import FormEscalar from "../FormEscalar";
 import FormResolver from "../FormResolver";
@@ -157,6 +158,8 @@ export default function Dashboard({ onNoAutorizado, ir, soloLectura }: Props) {
           </span>
         </div>
       </section>
+
+      <BandejaWhatsapp aulas={aulas} soloLectura={soloLectura} onNoAutorizado={onNoAutorizado} />
 
       <div className="columnas">
         <section className="tarjeta">

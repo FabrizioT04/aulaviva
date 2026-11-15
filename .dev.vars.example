@@ -13,3 +13,11 @@ ACCESS_AUD=
 
 # Opcional: para probar la vista de COA (ve todo y solo cambia Daños y mantenimiento)
 # TOKEN_COA=clave-coa
+
+# Opcional: reportes por WhatsApp (ver docs/whatsapp.md). Para probar sin Meta, WA_API_URL apunta a un servidor falso
+# WA_VERIFY_TOKEN=una-frase-larga
+# WA_APP_SECRET=clave-secreta-de-la-app
+# WA_TOKEN=token-de-meta
+# WA_PHONE_ID=123456789012345
+# WA_NUMEROS_PRUEBA=51987654321
+# WA_API_URL=http://127.0.0.1:9999

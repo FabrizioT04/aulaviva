@@ -80,8 +80,8 @@ export interface Reporte {
   descripcion: string | null;
   reportado_por_nombre: string | null;
   estado: EstadoReporte;
-  origen: "whatsapp" | "qr"; // "whatsapp" = lo registró TI desde el panel
-  entrada: EntradaReporte | EntradaTi | null; // por dónde llegó exactamente (null en los antiguos)
+  origen: "whatsapp" | "qr"; // "whatsapp" = lo registró TI desde el panel o Hazio desde el WhatsApp Business
+  entrada: EntradaReporte | EntradaTi | "whatsapp_auto" | null; // por dónde llegó exactamente (null en los antiguos); whatsapp_auto = lo registró Hazio desde el WhatsApp Business
   reportado_en: string;
   atendido_en: string | null;
   resuelto_en: string | null;
@@ -131,7 +131,8 @@ export interface Ficha {
 // Mensaje que el Durable Object envía a los dashboards abiertos
 // "cambio": cambió el estado de un aula (reportes). "danos": se registró o cambió un daño.
 // "cuentas": un docente pidió ayuda con una cuenta o plataforma, o TI atendió un pedido.
-export type EventoEnVivo = { tipo: "cambio"; aula: AulaConEstado } | { tipo: "danos" } | { tipo: "cuentas" } | { tipo: "eventos" };
+// "whatsapp": cambió la bandeja de mensajes de WhatsApp por clasificar.
+export type EventoEnVivo = { tipo: "cambio"; aula: AulaConEstado } | { tipo: "danos" } | { tipo: "cuentas" } | { tipo: "eventos" } | { tipo: "whatsapp" };
 
 export interface Promedios {
   prom_atencion_min: number | null;
@@ -146,7 +147,8 @@ export interface DetalleAula {
 }
 
 // Por dónde llegó el reporte del docente (ver migrations/0007_entrada.sql)
-export const ENTRADAS = ["qr", "escaner", "lista"] as const;
+// "enlace": abrió el enlace que Hazio le mandó por WhatsApp (ver worker/whatsapp.ts)
+export const ENTRADAS = ["qr", "escaner", "lista", "enlace"] as const;
 export type EntradaReporte = (typeof ENTRADAS)[number];
 
 // Por dónde le llegó a TI lo que registra desde el panel
@@ -169,7 +171,7 @@ export interface Metricas {
   dias: number;
   resumen: Promedios & { total: number; abiertos: number | null; bloqueantes: number | null; escalados: number | null };
   por_tipo: { tipo_falla: TipoFalla; n: number }[];
-  por_entrada: { entrada: EntradaReporte | EntradaTi; n: number }[];
+  por_entrada: { entrada: EntradaReporte | EntradaTi | "whatsapp_auto"; n: number }[];
   ranking_aulas: { id: number; codigo: string; nombre: string; n: number }[];
   por_dia: { dia: string; n: number }[]; // AAAA-MM-DD en hora de Lima; los días sin reportes no vienen
   por_estado: { estado: "pendiente" | "escalado" | "resuelto"; n: number }[];
