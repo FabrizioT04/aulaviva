@@ -19,6 +19,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Monitoreo ML** (`/monitoreo`): las rondas de TI en los laboratorios con Chromebooks (las aulas con "ML" en la sección). Las aulas ML de un mismo piso son un solo laboratorio (306 y 307 en el 3er piso, 206 y 207 en el 2do), así que la ronda es por piso. Al llegar se toca "Empezar monitoreo"; mientras dura se marca lo que se encuentra (juegos o páginas no permitidas, Chromebook maltratada, sin carga, fuera de su lugar u otro) con una nota, y se guarda solo. "Tomar o elegir foto" deja usar la cámara o la galería y sube la foto comprimida (hasta 6 por ronda); cuenta como de la mañana o de la tarde según la hora en que se sube. Arriba, "Fotos de hoy" muestra por piso si ya hay foto de la mañana y de la tarde (desde la 1 p. m., hora de Lima), porque se pide al menos una de cada una. Se puede monitorear los dos pisos a la vez: hay una ronda abierta por laboratorio y cada una se termina por separado ("Empezar también aquí"); "Pasar al otro piso" cierra la ronda y abre la del otro laboratorio. El tiempo total cuenta una sola vez los ratos en que estuvo en los dos. Si se olvidó terminarla, después de dos horas pregunta a qué hora terminó. Abajo, las rondas de hoy y de la semana, las anteriores y su descarga en Excel. Es una tarea personal: solo la ven los correos del secreto `MONITOREO_EMAILS` (sin él, todo TI), y cada quien ve solo sus rondas. En el Historial, quien hace las rondas y COA (solo para mirar) ven además "Monitoreo": las rondas de cada mes con su horario, duración, quién, qué se encontró y sus fotos, el total de horas en el resumen y la descarga en Excel.
 - **Notificaciones push** (botón de la campana): TI recibe un aviso en la PC o el celular con cada reporte de un docente, aunque el panel esté cerrado. Los urgentes quedan en pantalla hasta tocarlos, y al tocar el aviso se abre el aula. Con los avisos activos, la campana abre un menú para enviar una prueba solo a ese equipo (sirve para revisar una laptop o PC que no los muestra), elegir el tono de AulaViva (Campanita, Timbre, Marimba, Burbuja, Cristal, Alerta o sin sonido) o desactivarlos. El tono suena dos veces si el reporte es urgente, y suena cuando el panel está abierto en alguna pestaña, aunque esté minimizado; con el navegador cerrado se usa el sonido del sistema, porque los navegadores no dejan elegir el sonido de una notificación push. En iPhone, primero hay que agregar el panel a la pantalla de inicio. Las claves se generan una vez con `npm run push:claves`.
 - **Casos sin resolver**: como los mensajes sin leer de WhatsApp, el menú muestra junto a "Dashboard" cuántos reportes siguen sin resolver (abiertos, en atención o escalados) y junto a "Daños y mantenimiento" cuántos daños están pendientes o en proceso, contando solo el grupo que atiende cada uno (TI, los equipos tecnológicos; COA, el local). Dentro de la pestaña, cada filtro de grupo muestra los suyos. La suma sale en el título y el ícono de la pestaña y, con el panel instalado como app en Windows o Mac, en su ícono de la barra de tareas. Todo se actualiza en vivo, y el de la barra de tareas también con cada notificación push aunque el panel esté cerrado. COA solo ve el de daños.
+- **Reportes por WhatsApp** (WhatsApp Cloud API, guía en [docs/whatsapp.md](docs/whatsapp.md)): lo que los docentes escriben al WhatsApp Business de la sede llega solo al dashboard como Pendiente, con origen "WhatsApp (automático)" y push a TI. Hazio lee el aula (204, 4A, 4to A, Welcome Lobby, patio) y la falla con reglas, y responde "Registrado ✅". Si falta el aula, sugiere la última de ese número con botones Sí / Otra aula o pide el número o la sección; si falta la falla, muestra una lista para elegirla. Las fotos se agregan al reporte. Los saludos y lo que no parece un reporte no se contestan. Si el docente no responde, el mensaje queda en **Por clasificar**, arriba del dashboard, donde TI elige el aula y la falla o lo descarta. Al resolver, Hazio avisa "Resuelto ✅" solo dentro de las 24 h desde el último mensaje del docente (así no se paga ninguna plantilla); si pasaron, se lo dice la próxima vez que escriba. Con el secreto `WA_NUMEROS_PRUEBA` solo atiende esos números, para ir probando.
 - **Atender y resolver**: guarda `atendido_en` y `resuelto_en` (tus métricas de tiempo) y pide las notas de resolución, que serán la base del asistente RAG del Sprint 3.
 
 ### Sprint 2 · Autorreporte por QR
@@ -65,10 +66,13 @@ migrations/0020_red_wifi.sql       red Wi-Fi propia del WL y la SD; {red} en los
 migrations/0021_red_aulas.sql      las aulas usan "aula_innova"; las fichas que la nombran a mano pasan a {red}
 migrations/0026_patios.sql         columna espacio (aula o patio) y el Patio principal, que solo tiene equipo de sonido
 migrations/0027_eventos.sql        eventos externos y actividades de apoyo de TI
+migrations/0028_whatsapp.sql       contactos, mensajes por clasificar y aviso de resuelto de los reportes por WhatsApp
 seed/aulas.sql                las 31 aulas de SMP1 con pabellón, nivel y sección
 seed/fichas-iniciales.sql     7 fichas de Base de conocimiento con pasos para el docente (se cargan una vez, no duplican)
 worker/index.ts               API: /api/aulas, /api/reportes, /api/en-vivo
 worker/sede-en-vivo.ts        Durable Object que reparte los cambios en vivo
+worker/whatsapp.ts            webhook de WhatsApp: conversación con el docente, registro, "Resuelto ✅" y bandeja Por clasificar
+shared/whatsapp.ts            reglas para leer el aula, la falla y la urgencia de un mensaje
 src/                          panel de TI en React (Registro, Dashboard, Detalle, Observatorio, QR)
 src/qr/ + qr.html              página liviana del QR para docentes
 src/qr/docente.ts + docente.html  inicio del docente: escanear el QR dentro de la página o elegir el aula
@@ -77,6 +81,7 @@ worker/push.ts                envío de notificaciones push (cifrado RFC 8291 y 
 public/sw.js                  service worker que muestra las notificaciones en el navegador de TI
 scripts/claves-push.mjs       genera las claves VAPID (npm run push:claves)
 docs/cloudflare-access.md     guía para configurar Access
+docs/whatsapp.md              guía para crear la app en Meta y conectar el número de WhatsApp
 shared/tipos.ts               tipos compartidos entre frontend y Worker
 ```
 
@@ -151,11 +156,15 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/eventos?estado=programados\|pasados&tipo=externo\|apoyo` | Eventos y actividades (TI y COA) |
 | POST | `/api/eventos` | Registrar `{tipo, nombre, aula_id, inicio, fin, organiza, responsable, contacto, equipos, notas}` (solo TI) |
 | PUT / PATCH / DELETE | `/api/eventos/:id` | Editar, cambiar el estado `{estado, nota_cierre}` o eliminar (solo TI) |
+| GET / POST | `/api/whatsapp/webhook` | Webhook de Meta: GET verifica con `WA_VERIFY_TOKEN`; POST recibe los mensajes con la firma `X-Hub-Signature-256` (no pasa por Access) |
+| GET | `/api/whatsapp/bandeja` | Mensajes de WhatsApp por clasificar (TI y COA) |
+| POST / DELETE | `/api/whatsapp/bandeja/:id` | Registrar `{aula_id, tipo_falla, bloquea_clase}` o descartar (solo TI) |
 
 Con Access, la sesión viaja en la cookie de Cloudflare y el Worker verifica el token `Cf-Access-Jwt-Assertion`. Sin Access (solo en `localhost`), las rutas de TI piden `Authorization: Bearer <TOKEN_TI>` (el WebSocket usa `?token=`). Los cambios (POST, PUT, PATCH, DELETE) y el WebSocket deben venir del mismo sitio. Las rutas `/api/qr/*` son para docentes y TI; el resto, solo TI.
 
 ## Próximos pasos
 
 1. Importar el historial del grupo de WhatsApp.
-2. Rediseño visual del panel y de la página del QR.
+2. Abrir los reportes por WhatsApp a todos los docentes cuando termine la prueba (quitar `WA_NUMEROS_PRUEBA`).
+3. Rediseño visual del panel y de la página del QR.
 3. Sprint 3: asistente RAG sobre las fichas y los casos resueltos.

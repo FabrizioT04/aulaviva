@@ -42,5 +42,6 @@ export function canal(r: { origen: string; entrada: string | null }): string {
   if (r.origen === "qr") return "por QR";
   if (r.entrada === "presencial") return "en persona";
   if (r.entrada === "otro") return "por otro canal";
+  if (r.entrada === "whatsapp_auto") return "por WhatsApp (automático)";
   return "por WhatsApp";
 }

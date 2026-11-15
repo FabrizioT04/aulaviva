@@ -11,6 +11,7 @@ const ENTRADA: Record<string, string> = {
   escaner: "Escáner de /docente",
   lista: "Lista de /docente",
   whatsapp: "WhatsApp (vía TI)",
+  whatsapp_auto: "WhatsApp (automático)",
   presencial: "En persona (vía TI)",
   otro: "Otro canal (vía TI)",
 };

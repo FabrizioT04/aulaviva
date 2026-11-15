@@ -9,7 +9,7 @@ const CLARAS: Partial<Record<TipoFalla, string[]>> = {
   internet: ["internet", "wifi", "wi fi", "wi-fi", "red", "conexion", "router", "navega"],
   proyector: ["proyect", "hdmi", "vga", "sin senal", "imagen"],
   pc: ["pc", "computadora", "cpu", "windows", "ubuntu", "linux", "monitor", "all in one", "aio"],
-  audio: ["audio", "parlante", "sonido", "volumen", "microfono", "bocina", "no se escucha"],
+  audio: ["audio", "parlante", "sonido", "volumen", "micro", "bocina", "no se escucha"],
   impresora: ["imprim", "impresora", "toner", "tinta", "atasc"],
   perifericos: ["mouse", "raton", "teclado", "webcam", "camara web"],
   ecran: ["ecran", "ecram", "telon", "pantalla de proyeccion"],
@@ -17,9 +17,10 @@ const CLARAS: Partial<Record<TipoFalla, string[]>> = {
 const DEBILES: Partial<Record<TipoFalla, string[]>> = {
   pc: ["laptop", "portatil", "no enciende", "no prende", "se apaga", "se apago"],
   ecran: ["no baja", "no sube"],
+  audio: ["no suena"],
 };
 
-function normalizar(texto: string): string {
+export function normalizar(texto: string): string {
   return texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
@@ -61,4 +62,15 @@ export function fallaEnDano(detalle: string, delEquipo: TipoFalla): TipoFalla | 
   const texto = normalizar(detalle);
   if (!aciertos(texto, NO_FUNCIONA)) return null;
   return mejor(puntos(texto), 2) ?? delEquipo;
+}
+
+// El tipo de falla que se lee en un mensaje libre (por ejemplo, de WhatsApp), o null si no se lee ninguno o dos empatan.
+// Aquí basta una pista débil: "la laptop" sola ya dice que es la laptop.
+export function tipoEnTexto(texto: string): TipoFalla | null {
+  return mejor(puntos(normalizar(texto)), 1);
+}
+
+// Palabras que dicen que algo no funciona, para reconocer un reporte que no nombra el equipo
+export function diceQueNoFunciona(texto: string): boolean {
+  return aciertos(normalizar(texto), [...NO_FUNCIONA, "falla", "malogr", "no sirve", "no va", "no jala", "no agarra"]) > 0;
 }

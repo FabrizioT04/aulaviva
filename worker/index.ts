@@ -14,6 +14,7 @@ import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
 import { accessConfigurado, obtenerSesion, sigueEnTi } from "./sesion";
 import { direccionHazio } from "./direccion";
 import { eliminarRegistro } from "./eliminar-registro";
+import { avisarResuelto, enrutarBandeja, webhookWhatsapp, type Avisos } from "./whatsapp";
 
 export { SedeEnVivo };
 
@@ -37,6 +38,13 @@ export interface Env {
   TOKEN_TI?: string;
   TOKEN_COA?: string;
   DEV_EMAIL_DOCENTE?: string;
+  // Reportes por WhatsApp (ver docs/whatsapp.md). Todos son secretos.
+  WA_TOKEN?: string; // token permanente del usuario del sistema de Meta
+  WA_PHONE_ID?: string; // "Identificador del número de teléfono" en WhatsApp → Configuración de la API
+  WA_APP_SECRET?: string; // "Clave secreta de la app": comprueba que cada aviso viene de Meta
+  WA_VERIFY_TOKEN?: string; // texto que eliges tú y pegas en Meta al configurar el webhook
+  WA_NUMEROS_PRUEBA?: string; // mientras se prueba: solo estos números (51987654321,51912345678); vacío = todos
+  WA_API_URL?: string; // solo para pruebas locales: otra dirección en lugar de graph.facebook.com
 }
 
 const ESTADOS: EstadoReporte[] = ["abierto", "en_atencion", "escalado", "resuelto"];
@@ -68,6 +76,15 @@ const SQL_REPORTES = `
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
+    // Meta avisa aquí de cada mensaje al WhatsApp Business. No pasa por Access: cada aviso trae la firma de Meta
+    if (new URL(request.url).pathname === "/api/whatsapp/webhook") {
+      try {
+        return await webhookWhatsapp(request, new URL(request.url), env, ctx, avisosWhatsapp(env, new URL(request.url).origin));
+      } catch (err) {
+        console.error(err);
+        return new Response("Error interno", { status: 500 });
+      }
+    }
     const direccion = direccionHazio(request);
     if (direccion) return direccion;
     const url = new URL(request.url);
@@ -151,6 +168,11 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
     if (!borrado) return json({ error: "La falla ya no existe" }, 404);
     await avisarCambio(env, borrado.aulaId).catch((e) => console.error("dashboard eliminar reporte", e));
     return json({ ok: true });
+  }
+
+  // Mensajes de WhatsApp que no llegaron a ser reporte: TI los clasifica o los descarta
+  if (pathname === "/api/whatsapp/bandeja" || pathname.startsWith("/api/whatsapp/bandeja/")) {
+    return await enrutarBandeja(request, url, env, sesion, avisosWhatsapp(env, url.origin));
   }
 
   if (pathname === "/api/en-vivo") {
@@ -513,6 +535,8 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
       .bind(id, estado, sesion.email, nota)
       .run();
     await avisarCambio(env, fila.aula_id);
+    // Si llegó por WhatsApp, "Resuelto ✅" al docente (solo dentro de las 24 h; si no, cuando vuelva a escribir)
+    if (estado === "resuelto") await avisarResuelto(env, id).catch((e) => console.error("whatsapp resuelto", e));
     return json({ ok: true });
   }
 
@@ -943,6 +967,21 @@ async function enviarATodos(env: Env, todas: SuscripcionPush[], claves: ClavesVa
     if (estado && (estado < 200 || estado >= 300) && estado !== 404 && estado !== 410) console.error("push", estado, new URL(subs[i].endpoint).host);
   }
   return estados.filter((e) => e >= 200 && e < 300).length;
+}
+
+// Lo que el módulo de WhatsApp necesita de aquí: el dashboard en vivo y el push a TI
+function avisosWhatsapp(env: Env, origen: string): Avisos {
+  return {
+    cambioAula: (aulaId) => avisarCambio(env, aulaId).catch((e) => console.error("dashboard whatsapp", e)),
+    nuevoReporte: ({ id, aula, tipo, bloquea, texto: detalle, quien }) =>
+      notificarTi(env, origen, {
+        titulo: `${bloquea ? "Urgente · " : ""}${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}: ${etiquetaFalla(tipo, aula.equipo, aula.espacio)}`,
+        cuerpo: [bloquea ? "No puede continuar la clase." : null, detalle, `Por WhatsApp · ${quien}`].filter(Boolean).join("\n"),
+        url: `/aula/${aula.id}`,
+        tag: `reporte-${id}`,
+        urgente: bloquea,
+      }).catch((e) => console.error("push whatsapp", e)),
+  };
 }
 
 // Recalcula el semáforo del aula y lo envía a todos los dashboards abiertos

@@ -213,6 +213,15 @@ fieldset .segmentado { display: flex; }
   .bloquea .tipo-icono { background: var(--rojo); color: var(--fondo); }
 }
 
+/* Bandeja de WhatsApp por clasificar (src/BandejaWhatsapp.tsx) */
+.bandeja-wa { margin-bottom: 24px; }
+.bandeja-wa h2 { display: flex; align-items: center; gap: 10px; }
+.insignia.sin-respuesta { background: var(--amarillo-suave); color: var(--amarillo); }
+.cuenta-wa { font-size: 0.8rem; font-weight: 800; min-width: 26px; padding: 3px 9px; border-radius: 999px; background: var(--amarillo-suave); color: var(--amarillo); text-align: center; }
+.form-wa { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; }
+.form-wa .acciones, .form-wa .aviso { grid-column: 1 / -1; }
+.form-wa .check-wa { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; }
+@media (max-width: 560px) { .form-wa { grid-template-columns: minmax(0, 1fr); } }
 .form-resolver { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--borde); }
 .form-resolver .acciones { justify-content: flex-end; }
 /* Casos parecidos y fichas del mismo tipo, arriba del formulario para resolver */
