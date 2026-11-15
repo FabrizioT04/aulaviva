@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { fallasDe, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
+import { etiquetaFalla, fallasDe, TIPOS_FALLA, TIPOS_PRINCIPALES } from "../../shared/tipos";
 import { borrarBorrador, guardarBorrador, leerBorrador, limpiarBorradores } from "../borrador";
 import { sugerirTipo } from "../../shared/sugerencia";
 import type { AulaConEstado, DetalleAula, EntradaTi, EstadoReporte, Reporte, TipoFalla } from "../../shared/tipos";
@@ -244,7 +244,7 @@ export default function Registro({ email, onNoAutorizado, ir, selector }: { emai
           </datalist>
           {aula && (
             <span className="aula-elegida">
-              {aula.nombre} · {descripcionAula(aula)}
+              {[aula.nombre, descripcionAula(aula) || (aula.espacio === "patio" && "Solo equipo de sonido")].filter(Boolean).join(" · ")}
             </span>
           )}
         </label>
@@ -279,7 +279,7 @@ export default function Registro({ email, onNoAutorizado, ir, selector }: { emai
                 onClick={() => setTipo(t)}
               >
                 <Icono nombre={t} />
-                {ETIQUETA_FALLA[t]}
+                {aula ? etiquetaFalla(t, undefined, aula.espacio) : ETIQUETA_FALLA[t]}
               </button>
             ))}
           </div>

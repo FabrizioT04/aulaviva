@@ -3,7 +3,7 @@ import { limiteFotos } from "../../shared/fotos";
 // Página que abre el docente al escanear el QR del aula.
 // Sin React a propósito: pesa unos pocos KB y carga al instante con datos móviles.
 import { iconoSvg } from "../../shared/iconos";
-import { etiquetaFalla, fallasDe, TIPOS_FALLA } from "../../shared/tipos";
+import { esPatio, etiquetaFalla, fallasDe, TIPOS_FALLA } from "../../shared/tipos";
 import { fallaEnDano, sugerirTipo } from "../../shared/sugerencia";
 import { borrarBorrador, guardarBorrador, leerBorrador, limpiarBorradores } from "../borrador";
 import { comprimir } from "../comprimir";
@@ -127,7 +127,7 @@ function equiposQueFallan(aula: EstadoAulaQr["aula"]): string {
   const nombres = fallasDe(aula)
     .filter((t) => t !== "otro" && t !== "perifericos")
     .slice(0, 3)
-    .map((t) => (t === "pc" ? `la ${etiquetaFalla(t, aula.equipo).toLowerCase()}` : `${ARTICULO[t]} ${etiquetaFalla(t).toLowerCase()}`));
+    .map((t) => (t === "pc" ? `la ${etiquetaFalla(t, aula.equipo, aula.espacio).toLowerCase()}` : `${ARTICULO[t]} ${etiquetaFalla(t, aula.equipo, aula.espacio).toLowerCase()}`));
   return nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} o ${nombres.at(-1)}` : (nombres[0] ?? "un equipo");
 }
 
@@ -136,7 +136,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
   const { aula, abiertos, email, mios } = estado;
   const misIds = new Set(mios.filter((m) => m.clase === "reporte").map((m) => m.id));
   // "Laptop" en las aulas, "Computadora" donde hay All in One
-  const ETIQUETA = Object.fromEntries(TIPOS_FALLA.map((t) => [t, etiquetaFalla(t, aula.equipo)])) as Record<TipoFalla, string>;
+  const ETIQUETA = Object.fromEntries(TIPOS_FALLA.map((t) => [t, etiquetaFalla(t, aula.equipo, aula.espacio)])) as Record<TipoFalla, string>;
   // Solo lo que hay en este ambiente: sin proyector donde no hay clases, impresora solo donde la hay
   const fallas = fallasDe(aula);
   const principales = fallas.slice(0, 4);
@@ -175,7 +175,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
     <form id="form"${enviado ? " hidden" : ""}>
       <div class="borrador-recuperado" id="borrador" role="status" hidden></div>
       <h2>¿Qué está fallando?</h2>
-      <p class="regla">Un equipo que no funciona: no prende, ${fallas.includes("proyector") ? "no proyecta" : "no imprime"}, no hay internet.</p>
+      <p class="regla">${esPatio(aula) ? "El equipo de sonido no prende, no se escucha, el micrófono no funciona o necesitas que TI lo instale." : `Un equipo que no funciona: no prende, ${fallas.includes("proyector") ? "no proyecta" : "no imprime"}, no hay internet.`}</p>
       <div class="opciones" id="tipos">${fallas.map((v) => `<button type="button" data-tipo="${v}" aria-pressed="false"${principales.includes(v) ? "" : " hidden"}><span class="ic">${iconoSvg(v)}</span>${ETIQUETA[v]}</button>`).join("")}</div>
       <button type="button" class="mas-tipos" id="mas-tipos"${fallas.length > principales.length ? "" : " hidden"}>Ver más: ${fallas.filter((v) => !principales.includes(v)).map((v) => ETIQUETA[v]).join(", ")}${iconoSvg("abajo")}</button>
       <div class="aviso-duplicado" id="aviso-duplicado" role="status" hidden></div>
@@ -198,7 +198,7 @@ function pintar(estado: EstadoAulaQr, aviso = "", enviado = false, traspaso?: Tr
       <p class="aviso-elegir suave" id="aviso-elegir">Primero elige qué está fallando.</p>
       <p class="error" id="error" role="alert"></p>
     </form>
-    <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo roto o golpeado? ${tieneChromebooks(aula) ? "Chromebook" : `${etiquetaFalla("pc", aula.equipo)} con la pantalla rota`}, carpetas, ventilador, luz…</span></button>
+    <button type="button" class="enlace-dano" id="reportar-dano">${iconoSvg("dano")}<span>¿Algo roto o golpeado? ${esPatio(aula) ? "Parlante o micrófono roto, bancas, luz, tomacorriente…" : `${tieneChromebooks(aula) ? "Chromebook" : `${etiquetaFalla("pc", aula.equipo)} con la pantalla rota`}, carpetas, ventilador, luz…`}</span></button>
     ${tieneChromebooks(aula) ? `<button type="button" class="enlace-dano" id="pedir-cuenta">${iconoSvg("cuenta")}<span>¿Un estudiante no puede entrar a una plataforma? Khan Academy, Pearson, ALEKS, su correo…</span></button>` : ""}
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
@@ -605,7 +605,7 @@ function pintarDano(estado: EstadoAulaQr) {
     <button type="button" class="enlace-dano" id="volver">${iconoSvg("pc")}<span>¿Un equipo no funciona? ${fallasDe(aula)
       .filter((t) => t !== "otro")
       .slice(0, 3)
-      .map((t, i) => (i ? etiquetaFalla(t, aula.equipo).toLowerCase() : etiquetaFalla(t, aula.equipo)))
+      .map((t, i) => (i ? etiquetaFalla(t, aula.equipo, aula.espacio).toLowerCase() : etiquetaFalla(t, aula.equipo, aula.espacio)))
       .join(", ")}…</span></button>
     <p class="pie">Reportando como ${esc(email)}</p>`;
 
@@ -842,7 +842,7 @@ function pintarCuenta(estado: EstadoAulaQr) {
     <button type="button" class="enlace-dano" id="volver">${iconoSvg("pc")}<span>¿Un equipo no funciona? ${fallasDe(aula)
       .filter((t) => t !== "otro")
       .slice(0, 3)
-      .map((t, i) => (i ? etiquetaFalla(t, aula.equipo).toLowerCase() : etiquetaFalla(t, aula.equipo)))
+      .map((t, i) => (i ? etiquetaFalla(t, aula.equipo, aula.espacio).toLowerCase() : etiquetaFalla(t, aula.equipo, aula.espacio)))
       .join(", ")}…</span></button>
     <p class="pie">Reportando como ${esc(email)}</p>`;
   document.getElementById("volver")!.addEventListener("click", () => {

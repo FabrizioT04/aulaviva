@@ -129,7 +129,7 @@ export async function crearDano(env: Env, aulaId: number, datos: Record<string, 
   const tipo = datos?.tipo as TipoDano;
   if (!LISTA_TIPOS_DANO.includes(tipo)) return json({ error: "Elige qué está dañado" }, 400);
   const grupo = TIPOS_DANO[tipo].grupo;
-  const ambiente = await env.DB.prepare("SELECT seccion, clases, audio, equipo FROM aula WHERE id = ?")
+  const ambiente = await env.DB.prepare("SELECT seccion, clases, audio, equipo, espacio FROM aula WHERE id = ?")
     .bind(aulaId)
     .first<Parameters<typeof tiposDanoDe>[1]>();
   if (!ambiente) return json({ error: "Aula no encontrada" }, 404);

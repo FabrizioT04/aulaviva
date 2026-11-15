@@ -20,11 +20,16 @@ export const ETIQUETA_FALLA: Record<TipoFalla, string> = {
 };
 // En las aulas se trabaja con laptops; donde hay All in One (Welcome Lobby, Sala de docentes) los docentes dicen "computadora"
 export type EquipoAula = "laptop" | "aio";
+// Los patios son espacios abiertos: solo tienen el equipo de sonido (ver migrations/0026_patios.sql)
+export type EspacioAula = "aula" | "patio";
+export const esPatio = (aula: { espacio?: EspacioAula | null }) => aula.espacio === "patio";
 
 // Fallas que se pueden reportar en un ambiente, en el orden en que se muestran (las 4 primeras siempre a la vista).
 // Sin clases (Welcome Lobby, Sala de docentes) no hay proyector ni ecran; impresora y parlantes, solo donde se marcaron
 const ORDEN_FALLAS: readonly TipoFalla[] = ["internet", "proyector", "pc", "impresora", "otro", "ecran", "audio", "perifericos"];
-export function fallasDe(aula: Pick<AulaConEstado, "clases" | "impresora" | "audio">): TipoFalla[] {
+// En un patio solo se puede reportar el equipo de sonido u "Otro"
+export function fallasDe(aula: Pick<AulaConEstado, "clases" | "impresora" | "audio"> & { espacio?: EspacioAula }): TipoFalla[] {
+  if (esPatio(aula)) return ["audio", "otro"];
   return ORDEN_FALLAS.filter(
     (t) => ((t !== "proyector" && t !== "ecran") || aula.clases) && (t !== "impresora" || aula.impresora) && (t !== "audio" || aula.audio),
   );
@@ -39,8 +44,9 @@ export function paraAmbiente(texto: string, aula: Pick<AulaConEstado, "red_wifi"
 }
 
 // Nombre de la falla como lo dice el docente en ese ambiente
-export function etiquetaFalla(tipo: TipoFalla, equipo?: EquipoAula): string {
+export function etiquetaFalla(tipo: TipoFalla, equipo?: EquipoAula, espacio?: EspacioAula): string {
   if (tipo === "pc" && equipo) return equipo === "aio" ? "Computadora" : "Laptop";
+  if (tipo === "audio" && espacio === "patio") return "Equipo de sonido";
   return ETIQUETA_FALLA[tipo];
 }
 export type EstadoReporte = "abierto" | "en_atencion" | "escalado" | "resuelto";
@@ -55,6 +61,7 @@ export interface AulaConEstado {
   nivel: string | null; // Inicial, Primaria, Secundaria, Varios, Rotaciones
   seccion: string | null; // grado y sección que conocen los docentes, ej. "4A"
   equipo: EquipoAula;
+  espacio: EspacioAula; // "patio" en los patios, donde solo hay equipo de sonido
   clases: number; // 1 si se dictan clases (tiene proyector); 0 en el Welcome Lobby y la Sala de docentes
   impresora: number; // 1 si tiene impresora de red
   audio: number; // 1 si tiene parlantes
@@ -124,7 +131,7 @@ export interface Ficha {
 // Mensaje que el Durable Object envía a los dashboards abiertos
 // "cambio": cambió el estado de un aula (reportes). "danos": se registró o cambió un daño.
 // "cuentas": un docente pidió ayuda con una cuenta o plataforma, o TI atendió un pedido.
-export type EventoEnVivo = { tipo: "cambio"; aula: AulaConEstado } | { tipo: "danos" } | { tipo: "cuentas" };
+export type EventoEnVivo = { tipo: "cambio"; aula: AulaConEstado } | { tipo: "danos" } | { tipo: "cuentas" } | { tipo: "eventos" };
 
 export interface Promedios {
   prom_atencion_min: number | null;
