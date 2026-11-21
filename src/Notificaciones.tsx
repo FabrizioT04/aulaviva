@@ -46,6 +46,8 @@ export default function Notificaciones() {
   const temporizador = useRef<number>(undefined);
   const [menu, setMenu] = useState(false);
   const [tono, setTono] = useState(tonoElegido);
+  // Alerta urgente en la app ntfy del celular (worker/ntfy.ts), si el servidor la tiene configurada
+  const [ntfy, setNtfy] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
   function avisar(texto: string) {
@@ -58,7 +60,8 @@ export default function Notificaciones() {
     if (!soportado()) return setEstado("no-soportado");
     let vivo = true;
     (async () => {
-      const { clave: publica } = await api<{ clave: string | null }>("/api/push");
+      const { clave: publica, ntfy: conNtfy } = await api<{ clave: string | null; ntfy?: boolean }>("/api/push");
+      if (vivo) setNtfy(Boolean(conNtfy));
       if (!publica) return vivo && setEstado("sin-claves");
       clave.current = publica;
       const registro = await navigator.serviceWorker.register("/sw.js");
@@ -126,6 +129,16 @@ export default function Notificaciones() {
       );
     } catch {
       avisar("No se pudo enviar la prueba. Revisa tu conexión.");
+    }
+  }
+
+  async function probarNtfy() {
+    setMenu(false);
+    try {
+      await api("/api/push/ntfy", { method: "POST" });
+      avisar("Enviamos una alerta urgente de prueba a la app ntfy. Debe sonar en unos segundos en los celulares suscritos al canal de Hazio.");
+    } catch (e) {
+      avisar((e as Error).message || "No se pudo enviar la alerta de prueba.");
     }
   }
 
@@ -213,6 +226,11 @@ export default function Notificaciones() {
           <button type="button" role="menuitem" onClick={probar}>
             Enviar una prueba a este equipo
           </button>
+          {ntfy && (
+            <button type="button" role="menuitem" onClick={probarNtfy}>
+              Probar la alerta urgente en el celular (ntfy)
+            </button>
+          )}
           <div className="tono-avisos">
             <label htmlFor="tono-avisos">Sonido de Hazio</label>
             <select id="tono-avisos" value={tono ?? "no"} onChange={(e) => cambiarTono(e.target.value)}>

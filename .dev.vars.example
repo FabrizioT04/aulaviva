@@ -13,3 +13,6 @@ ACCESS_AUD=
 
 # Opcional: para probar la vista de COA (ve todo y solo cambia Daños y mantenimiento)
 # TOKEN_COA=clave-coa
+
+# Opcional: alerta urgente en la app ntfy del celular (ver README, "Alerta urgente con ntfy")
+# NTFY_TEMA=hazio-un-nombre-largo-y-secreto

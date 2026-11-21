@@ -18,6 +18,7 @@ Stack: React (Vite) + Cloudflare Workers + D1 + Durable Objects + R2, todo en un
 - **Cuentas y plataformas** (en Registrar, "Cuenta o plataforma"): los cambios de clave de los correos institucionales de estudiantes, docentes y equipo directivo, y el soporte en Google Classroom, Pearson, Khan Academy, Elesapiens, ALEKS u otra plataforma. Se marca qué se hizo (cambio de clave, no podía entrar, agregar a una clase o curso, otra consulta), la plataforma, para quién, cuántas cuentas (por ejemplo, las claves de toda una sección) y, si se quiere, la sección o un nombre y una nota. Nunca se guardan claves. Después de registrar se conservan qué, plataforma y para quién, para anotar la siguiente igual. Lo registrado por error se puede borrar durante 12 horas. Arriba salen los **pedidos de docentes** que llegaron desde el QR de los ML: "Atender" llena el formulario con lo que pidió el docente y, al registrar, el pedido se cierra y el docente lo ve resuelto. El número de pedidos sin atender sale en la pestaña Registrar, y el push lleva a `/cuentas`. En el Historial está la pestaña "Cuentas" con su descarga en Excel, y el correo del viernes trae la sección "Cuentas y plataformas".
 - **Monitoreo ML** (`/monitoreo`): las rondas de TI en los laboratorios con Chromebooks (las aulas con "ML" en la sección). Las aulas ML de un mismo piso son un solo laboratorio (306 y 307 en el 3er piso, 206 y 207 en el 2do), así que la ronda es por piso. Al llegar se toca "Empezar monitoreo"; mientras dura se marca lo que se encuentra (juegos o páginas no permitidas, Chromebook maltratada, sin carga, fuera de su lugar u otro) con una nota, y se guarda solo. "Tomar o elegir foto" deja usar la cámara o la galería y sube la foto comprimida (hasta 6 por ronda); cuenta como de la mañana o de la tarde según la hora en que se sube. Arriba, "Fotos de hoy" muestra por piso si ya hay foto de la mañana y de la tarde (desde la 1 p. m., hora de Lima), porque se pide al menos una de cada una. Se puede monitorear los dos pisos a la vez: hay una ronda abierta por laboratorio y cada una se termina por separado ("Empezar también aquí"); "Pasar al otro piso" cierra la ronda y abre la del otro laboratorio. El tiempo total cuenta una sola vez los ratos en que estuvo en los dos. Si se olvidó terminarla, después de dos horas pregunta a qué hora terminó. Abajo, las rondas de hoy y de la semana, las anteriores y su descarga en Excel. Es una tarea personal: solo la ven los correos del secreto `MONITOREO_EMAILS` (sin él, todo TI), y cada quien ve solo sus rondas. En el Historial, quien hace las rondas y COA (solo para mirar) ven además "Monitoreo": las rondas de cada mes con su horario, duración, quién, qué se encontró y sus fotos, el total de horas en el resumen y la descarga en Excel.
 - **Notificaciones push** (botón de la campana): TI recibe un aviso en la PC o el celular con cada reporte de un docente, aunque el panel esté cerrado. Los urgentes quedan en pantalla hasta tocarlos, y al tocar el aviso se abre el aula. Con los avisos activos, la campana abre un menú para enviar una prueba solo a ese equipo (sirve para revisar una laptop o PC que no los muestra), elegir el tono de AulaViva (Campanita, Timbre, Marimba, Burbuja, Cristal, Alerta o sin sonido) o desactivarlos. El tono suena dos veces si el reporte es urgente, y suena cuando el panel está abierto en alguna pestaña, aunque esté minimizado; con el navegador cerrado se usa el sonido del sistema, porque los navegadores no dejan elegir el sonido de una notificación push. En iPhone, primero hay que agregar el panel a la pantalla de inicio. Las claves se generan una vez con `npm run push:claves`.
+- **Alerta urgente con ntfy** (opcional): los reportes urgentes del QR ("No puedo continuar mi clase") también llegan a la app gratuita [ntfy](https://ntfy.sh) del celular de TI con prioridad máxima: suenan y vibran largo, aparecen encima de todo y en Android pueden saltarse el "No molestar". Solo viajan el aula, la sección y la falla, nunca nombres, correos ni el detalle. Se prueba desde la campana: "Probar la alerta urgente en el celular (ntfy)". Ver "Alerta urgente con ntfy" más abajo.
 - **Casos sin resolver**: como los mensajes sin leer de WhatsApp, el menú muestra junto a "Dashboard" cuántos reportes siguen sin resolver (abiertos, en atención o escalados) y junto a "Daños y mantenimiento" cuántos daños están pendientes o en proceso, contando solo el grupo que atiende cada uno (TI, los equipos tecnológicos; COA, el local). Dentro de la pestaña, cada filtro de grupo muestra los suyos. La suma sale en el título y el ícono de la pestaña y, con el panel instalado como app en Windows o Mac, en su ícono de la barra de tareas. Todo se actualiza en vivo, y el de la barra de tareas también con cada notificación push aunque el panel esté cerrado. COA solo ve el de daños.
 - **Atender y resolver**: guarda `atendido_en` y `resuelto_en` (tus métricas de tiempo) y pide las notas de resolución, que serán la base del asistente RAG del Sprint 3.
 
@@ -111,6 +112,20 @@ npm run deploy
 
 Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después configura Cloudflare Access con [docs/cloudflare-access.md](docs/cloudflare-access.md).
 
+### Alerta urgente con ntfy
+
+1. Instala **ntfy** en el celular de TI (Play Store o App Store).
+2. Inventa un nombre de canal largo y difícil de adivinar: quien lo sepa puede leer las alertas. Por ejemplo, genera uno con `node -e "console.log('hazio-' + crypto.randomUUID())"`.
+3. En la app toca **+**, escribe ese nombre y suscríbete. En Android, activa "Entrega instantánea" en ese canal y, en los ajustes de notificaciones de ntfy, permite que la prioridad máxima anule el "No molestar".
+4. Guarda el mismo nombre en el Worker y publica:
+   ```bash
+   npx wrangler secret put NTFY_TEMA
+   npm run deploy
+   ```
+5. En el panel, abre la campana y toca "Probar la alerta urgente en el celular (ntfy)".
+
+Si usas un servidor ntfy propio, guarda también `NTFY_SERVIDOR` (por defecto `https://ntfy.sh`) y, si pide usuario, `NTFY_TOKEN`. Sin `NTFY_TEMA`, Hazio funciona igual y solo envía las notificaciones del navegador.
+
 ## API
 
 | Método | Ruta | Uso |
@@ -141,6 +156,7 @@ Te devolverá una URL `https://aulaviva.<tu-cuenta>.workers.dev`. Después confi
 | GET | `/api/push` | Clave pública para suscribirse a las notificaciones (`null` si faltan las claves) |
 | POST / DELETE | `/api/push` | Guarda o borra la suscripción push de este navegador (`PushSubscription.toJSON()`) |
 | POST | `/api/push/prueba` | Envía una notificación de prueba a los navegadores de quien la pide |
+| POST | `/api/push/ntfy` | Envía una alerta urgente de prueba a la app ntfy (solo TI; 503 si falta `NTFY_TEMA`) |
 | GET | `/api/qr` | Aulas para el inicio del docente, con sus reportes, daños y pedidos de cuenta recientes (`mios`) |
 | POST | `/api/qr/:codigo/cuentas` | Pedido de cuenta o plataforma desde un ML `{accion, plataforma, para: "yo" \| "estudiante", cantidad?, detalle?, descripcion?}`; avisa a TI por push. Hasta 5 pendientes por docente; si repite uno igual, devuelve el mismo con `ya_enviado` |
 | GET | `/api/qr/:codigo` | Estado del aula para el docente |
