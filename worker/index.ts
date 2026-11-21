@@ -8,6 +8,7 @@ import { agruparLaboratorios, enrutarMonitoreo, leer as leerRonda, monitoreoSema
 import { ACCIONES_DOCENTE, cuentaDelPedido, PLATAFORMAS } from "../shared/cuentas";
 import { crearPedido, cuentasSemanal, enrutarCuentas, pedidosDe, SQL_CUENTAS } from "./cuentas";
 import { enrutarEventos, puedeVerEventos } from "./eventos";
+import { alertarNtfy, ntfyConfigurado } from "./ntfy";
 import { crearDano, enrutarDanos, guardarFoto as guardarFotoDano, puedeVerDanos, SQL_DANOS, type AlCrearDano } from "./danos";
 import { sede, SedeEnVivo } from "./sede-en-vivo";
 import { enviarPush, type ClavesVapid, type SuscripcionPush } from "./push";
@@ -33,6 +34,10 @@ export interface Env {
   // Notificaciones push a TI (secretos; se generan con `npm run push:claves`)
   VAPID_PUBLICA?: string;
   VAPID_PRIVADA?: string;
+  // Alerta fuerte de los reportes urgentes en la app ntfy (ver worker/ntfy.ts)
+  NTFY_TEMA?: string;
+  NTFY_SERVIDOR?: string;
+  NTFY_TOKEN?: string;
   // Desarrollo local sin Access
   TOKEN_TI?: string;
   TOKEN_COA?: string;
@@ -142,7 +147,7 @@ async function enrutar(request: Request, url: URL, env: Env, sesion: Sesion): Pr
   const { pathname } = url;
   const metodo = request.method;
 
-  if (pathname === "/api/push" || pathname === "/api/push/prueba") return await enrutarPush(request, url, env, sesion);
+  if (pathname === "/api/push" || pathname === "/api/push/prueba" || pathname === "/api/push/ntfy") return await enrutarPush(request, url, env, sesion);
 
   const eliminarReporte = pathname.match(/^\/api\/reportes\/(\d+)$/);
   if (eliminarReporte && metodo === "DELETE") {
@@ -744,6 +749,16 @@ async function enrutarQr(request: Request, url: URL, env: Env, sesion: Sesion, c
           urgente: bloquea,
         }).catch((e) => console.error("push reporte", e)),
       );
+      // Lo urgente también suena como alarma en el celular de TI (app ntfy), si está configurado
+      if (bloquea) {
+        ctx.waitUntil(
+          alertarNtfy(env, url.origin, {
+            titulo: `Urgente · ${aula.nombre}${aula.seccion ? ` (${aula.seccion})` : ""}`,
+            mensaje: `${etiquetaFalla(tipo, aula.equipo, aula.espacio)} · ${aula.clases ? "No puede continuar la clase" : "No puede seguir trabajando"}`,
+            url: `/aula/${aula.id}`,
+          }).catch((e) => console.error("ntfy reporte", e)),
+        );
+      }
     }
     return json(creado, 201);
   }
@@ -809,7 +824,17 @@ function clavesVapid(env: Env, origen: string): ClavesVapid | null {
 async function enrutarPush(request: Request, url: URL, env: Env, sesion: Sesion): Promise<Response> {
   const claves = clavesVapid(env, url.origin);
   if (url.pathname === "/api/push" && request.method === "GET") {
-    return json({ clave: claves?.publica ?? null });
+    return json({ clave: claves?.publica ?? null, ntfy: ntfyConfigurado(env) });
+  }
+  // Prueba de la alerta urgente en la app ntfy: no depende de las notificaciones del navegador
+  if (url.pathname === "/api/push/ntfy" && request.method === "POST") {
+    if (!ntfyConfigurado(env)) return json({ error: "Falta configurar NTFY_TEMA en el servidor" }, 503);
+    const estado = await alertarNtfy(env, url.origin, {
+      titulo: "Prueba · Alerta urgente de Hazio",
+      mensaje: "Así suena un reporte urgente: \"No puedo continuar mi clase\".",
+      url: "/dashboard",
+    }).catch(() => 0);
+    return estado && estado >= 200 && estado < 300 ? json({ ok: true }) : json({ error: "ntfy no aceptó la alerta. Revisa el tema y el servidor." }, 502);
   }
   if (!claves) return json({ error: "Faltan las claves de notificaciones en el servidor" }, 503);
 
